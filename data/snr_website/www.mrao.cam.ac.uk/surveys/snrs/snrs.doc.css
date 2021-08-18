@@ -1,0 +1,153 @@
+body {
+  background: #CCFFF0;
+  padding-left: 1.5em;
+  padding-right: 1.5em
+}
+
+h1 {
+  font-size: 120%;
+  color: darkgreen;
+  text-align: center
+}
+
+h2 {
+  font-size: 110%;
+  color: darkgreen
+}
+
+h3 {
+  font-size: 100%;
+  color: darkgreen
+}
+
+h4 {
+  font-size: 90%;
+  color: darkgreen
+}
+
+hr {
+  color: purple;
+  background-color: purple;
+  margin-top: 1em;
+  height: 0px;
+  width: 80%;
+  float: center
+}
+
+hr.S {
+  width: 50%
+}
+
+p.SC {
+  font-size: 80%;
+  text-align: center
+}
+
+.S {
+  font-size: 80%
+}
+
+p.C {
+  text-align: center
+}
+
+.T {
+  font-size: 60%
+}
+
+div.CLEAR {
+  clear: both
+}
+
+div.LEFT {
+  float: left;
+  width: 45%;
+  font-size: 90%;
+  padding: 1em;
+  margin-left: 2em;
+  background-color: white;
+  border: 1px solid purple;
+}
+
+div.RIGHT {
+  float: right;
+  width: 35%;
+  font-size: 90%;
+  padding: 1em;
+  margin-right: 2em;
+  background-color: white;
+  border: 1px solid purple;
+}
+
+div.SUM {
+  font-size: 90%;
+  padding: 1em;
+  margin-left: 1em;
+  margin-right: 1em;
+  background-color: white;
+  border: 1px solid purple;
+}
+
+table {
+  margin-left: 0em;
+  margin-right: 0em;
+  border-collapse: collapse;
+  margin-top: 1em
+}
+
+table, th, td {
+  border: none
+}
+
+.B {
+  border: 1px solid purple;
+  background-color: white;
+  text-align: center;
+}
+
+th, td {padding: 5px}
+
+.BL {
+  border: 1px solid purple;
+  background-color: white;
+  text-align: left;
+  padding: 1em;
+}
+
+span.S {
+  font-size: 80%;
+}
+
+ul {
+  padding-left: 1.5em;
+}
+
+ul.R {
+  font-size: 80%;
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
+li.R {
+  text-indent: -2em;
+  padding-left: 2em;
+}
+
+.FS {
+  margin-left: -0.40em;
+}
+
+.FM {
+  margin-left: -0.30em;
+  margin-right: 0.05em;
+}
+
+.FD {
+  margin-left: -0.45em;
+}
+
+span.my-email::before {
+  content: "D.A.Green\0040 mrao.cam.ac.uk";
+}
+

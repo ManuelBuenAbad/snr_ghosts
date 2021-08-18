@@ -1,0 +1,309 @@
+from __future__ import division
+
+import numpy as np
+
+from numpy import pi, sqrt, log, log10, power, exp
+from scipy.integrate import trapz
+
+import constants as ct
+import astro as ap
+import particle as pt
+import echo as ec
+
+
+# Default Quantities
+def_D = 1. # [kpc]
+def_A = 4.*pi*(def_D*ct._kpc_over_cm_)**2. # [cm^2] area
+def_S0 = 1. # [Jy]
+def_L0 = (def_S0*ct._Jy_over_cgs_irrad_)*def_A # [erg * s^-1 * Hz^-1] spectral luminosity
+
+def_t0 = 1000. # [years]
+def_tt = 10. # [years]
+def_tpk = 100. # [days]
+def_tmin = def_tpk/365. # [years]
+
+def_alpha = 0.5
+def_solid = 1.e-6 # [sr]
+
+def_nu_pivot = 1. # [GHz]
+def_l = 0. # [deg] galactic center longitude
+def_b = 0. # [deg] galactic center latitude
+
+# Deefault Dictionaries
+# source_input:
+default_source_input = {'longitude':def_l, # [deg]
+                        'latitude':def_b, # [deg]
+                        'distance':def_D, # [kpc]
+                        'size':def_solid, # [sr]
+                        't_age':def_t0, # [years]
+                        'alpha':def_alpha,
+                        'nu_pivot':def_nu_pivot,
+                        'gamma':ap.gamma_from_alpha(def_alpha), # Sedov-Taylor analytic formula
+                        'model':'eff',
+                        'L_today':def_L0, # [erg * s^-1 * Hz^-1]
+                        't_trans':def_tt, # [years]
+                        't_peak':def_tpk # [days]
+                       }
+
+
+# axion_input:
+def ax_in(ma, ga):
+    """
+    Returns a dictionary with axion parameters.
+    
+    Parameters
+    ----------
+    ma : axion mass [eV]
+    ga : axion-photon coupling [GeV^-1]
+    """
+    
+    axion_input = {'ma':ma, 'ga':ga}
+    return axion_input
+
+
+# data:
+default_data = {'deltaE_over_E':1.e-3,
+                'f_Delta':0.721,
+                'exper':'SKA',
+                'total_observing_time':100.,
+                'average':False,
+                'verbose':0
+               }
+
+
+# Snu_echo_kwargs:
+default_Snu_echo_kwargs = {'tmin_default':None,
+                           'Nt':int(30*def_t0 + 1), # for a fine enough array
+                           'xmin':ct._au_over_kpc_,
+                           'xmax_default':100.,
+                           'use_quad':False,
+                           'lin_space':False,
+                           'Nint':int(30*def_t0 + 1), # for a fine enough array
+                           't_extra_old':0.
+                          }
+
+
+
+# Routine Functions
+
+
+def fixed_axion_routine(ga_ref, output,
+                        source_input=default_source_input,
+                        data=default_data,
+                        Snu_echo_kwargs=default_Snu_echo_kwargs
+                       ):
+    """
+    Computes the full echo routine of both source and echo for a fixed reference axion-photon coupling ga [GeV^-1] and a fixed reference axion mass ma [eV] corresponding to nu_pivot [GHz].
+    
+    Parameters
+    ----------
+    ga_ref : reference axion-photon coupling [GeV^-1]
+    output : dictionary in which output will be saved
+    source_input : dictionary with source input parameters (default: default_source_input)
+    data : dictionary with environmental, experimental, and observational data (default: default_data)
+    Snu_echo_kwargs : Snu_echo() keyword arguments (default: default_Snu_echo_kwargs)
+    """
+    
+    # reference axion properties:
+    nu_ref = source_input['nu_pivot'] # [GHz] reference frequency
+    ma_ref = pt.ma_from_nu(nu_ref) # [eV] reference axion mass
+    axion_input = ax_in(ma_ref, ga_ref) # axion input
+    
+    # source spectral irradiance
+    ec.Snu_source(ap.t_arr_default, nu_ref, source_input, output=output)
+    # echo spectral irradiance
+    ec.Snu_echo(source_input, axion_input, data, recycle_output=(True, output), **Snu_echo_kwargs)
+    # echo signal
+    ec.signal(source_input, axion_input, data, recycle_output=(True, output), **Snu_echo_kwargs)
+    # noise
+    ec.noise(source_input, axion_input, data, recycle_output=(True, output))
+    # S/N ratio
+    signal_power = output['signal_power']
+    noise_power = output['noise_power']
+    ec.sn_ratio(signal_power, noise_power, output=output, verbose=0)
+    
+    return ma_ref, ga_ref, output
+
+
+
+def Snu_rescale_axion(ma, ga, ma_ref, ga_ref, source_input=default_source_input):
+    """
+    Computes the rescale factor for different axion parameters.
+    
+    Parameters
+    ----------
+    ma : axion mass [eV]
+    ga : axion-photon coupling [GeV^-1]
+    ma_ref : reference axion mass [eV]
+    ga_ref : reference axion-photon coupling [GeV^-1]
+    source_input : dictionary with source input parameters (default: default_source_input)
+    """
+    
+    nu = pt.nu_from_ma(ma) # [GHz] new frequency
+    nu_ref = pt.nu_from_ma(ma_ref) # [GHz] pivot frequency
+    alpha = source_input['alpha'] # spectral index
+    
+    ax_pref = ec.axion_pref(ma, ga)/ec.axion_pref(ma_ref, ga_ref) # axion prefactors
+    nu_fac = ap.nu_factor(nu, nu_ref, alpha) # frequency-dependence
+    
+    return nu_fac * ax_pref
+
+
+
+def SKA_rescaled_specs(ma, ma_ref, data=default_data):
+    """
+    Returns the SKA specs for the rescaled axion parameters.
+    
+    Parameters
+    ----------
+    ma : axion mass [eV]
+    ma_ref : reference axion mass [eV]
+    data : dictionary with environmental, experimental, and observational data (default: default_data)
+    """
+    
+    nu = pt.nu_from_ma(ma) # [GHz] new frequency
+    nu = np.array(nu) # converting into array for handling
+    if nu.ndim == 0:
+        nu = nu[None]
+    
+    nu_ref = pt.nu_from_ma(ma_ref) # [GHz] pivot frequency
+    exper = data['exper'] # requested experiment
+    
+    # computing the collecting area and the frequency sensitivity window of the experiment mode
+    if exper == 'SKA': # in case the range is frequency-dependent
+        
+        nu_flat = nu.flatten()
+        
+        area, window, Tr = [], [], []
+        for nn in nu_flat:
+            
+            exper_mode = ap.SKA_exper_nu(nn)
+            aa, ww, tr = ap.SKA_specs(nn, exper_mode)
+            
+            area.append(aa)
+            window.append(ww)
+            Tr.append(tr)
+        
+        area, window, Tr = np.array(area), np.array(window), np.array(Tr)
+        area, window, Tr = np.reshape(area, nu.shape), np.reshape(window, nu.shape), np.reshape(Tr, nu.shape)
+        area, window, Tr = np.squeeze(area), np.squeeze(window), np.squeeze(Tr)
+    
+    elif exper in ['SKA low', 'SKA mid']: # in case the range was fixed by hand
+        exper_mode = exper
+        area, window, Tr = ap.SKA_specs(nu, exper_mode)
+    
+    else:
+        raise ValueError("data['exper'] must be either 'SKA', 'SKA low', or 'SKA mid'. Please update accordingly.")
+    
+    return area, window, Tr
+
+
+
+def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
+                    source_input=default_source_input,
+                    data=default_data,
+                    Snu_echo_kwargs=default_Snu_echo_kwargs,
+                    beta=-2.55):
+    """
+    Compute the rescaling echo routine for any axion parameters (ma, ga) based on pre-computed reference echo quantities.
+    
+    Parameters
+    ----------
+    ma : axion mass [eV]
+    ga : axion-photon coupling [GeV^-1]
+    ma_ref : reference axion mass [eV]
+    ga_ref : reference axion-photon coupling [GeV^-1]
+    ref_dict : dictionary with output results from reference values
+    source_input : dictionary with source input parameters (default: default_source_input)
+    data : dictionary with environmental, experimental, and observational data (default: default_data)
+    Snu_echo_kwargs : Snu_echo() keyword arguments (default: default_Snu_echo_kwargs)
+    beta: the index for the Milky (default: -2.55 from Ghosh paper)
+    """
+    
+    # reference frequency:
+    nu_ref = pt.nu_from_ma(ma_ref)
+    # new frequency:
+    nu = pt.nu_from_ma(ma)
+    
+    # sanity check:
+    if (np.abs(nu_ref/ref_dict['signal_nu'] - 1.) > 1.e-10):
+        raise ValueError("There seems to be an inconsistency in the value of nu_ref ={} GHz. It should ne the same as nu_pivot and ref_dict['signal_nu'] = {} GHz.".format(nu_ref, ref_dict['signal_nu']))
+    
+    # computing rescale factors
+    nu_rescale = (nu/nu_ref) # frequency rescale
+    factors = Snu_rescale_axion(ma, ga, ma_ref, ga_ref, source_input=source_input) # for echo's spectral irradiance
+    area, window, Tr = SKA_rescaled_specs(ma, ma_ref, data=data) # SKA specs
+    
+    # data
+    f_Delta = data['f_Delta'] # fraction of signal that falls in bandwidth
+    obs_time = data['total_observing_time'] # total observation time [hr]
+    
+    # rescaled output
+    new_output = {}
+    
+    # signal:
+    
+    new_output['echo_Snu'] = ref_dict['echo_Snu']*factors
+    new_output['signal_nu'] = ref_dict['signal_nu']*nu_rescale
+    new_output['signal_delnu'] = ref_dict['signal_delnu']*nu_rescale
+    new_output['signal_Snu'] = ref_dict['signal_Snu']*factors
+    new_output['signal_S_echo'] = ref_dict['signal_S_echo']*factors*nu_rescale
+    new_output['signal_power'] = ap.P_signal(new_output['signal_S_echo'], area, f_Delta=f_Delta)*window
+    
+    # noise:
+    new_output['noise_nu'] = ref_dict['noise_nu']*nu_rescale
+    new_output['noise_delnu'] = ref_dict['noise_delnu']*nu_rescale
+    new_output['noise_T408'] = ref_dict['noise_T408']
+    new_output['noise_Tnu'] = ap.T_noise(nu, Tbg_at_408=new_output['noise_T408'], beta=beta, Tr=Tr)
+    new_output['noise_power'] = ap.P_noise(new_output['noise_Tnu'], new_output['noise_delnu'], tobs=obs_time)
+    
+    # S/N:
+    new_output['S/N'] = new_output['signal_power']/new_output['noise_power']
+    
+    # axion:
+    new_output['ma'] = ma
+    new_output['ga'] = ga
+    
+    # return final output
+    return new_output
+    
+
+
+def full_routine(ma, ga, ga_ref, output,
+                 source_input=default_source_input,
+                 data=default_data,
+                 Snu_echo_kwargs=default_Snu_echo_kwargs,
+                 beta=-2.55):
+    """
+    Compute the full echo routine for any axion parameters (ma, ga).
+    
+    Parameters
+    ----------
+    ma : axion mass [eV]
+    ga : axion-photon coupling [GeV^-1]
+    ga_ref : reference axion-photon coupling [GeV^-1]
+    output : dictionary in which useful output will be saved
+    source_input : dictionary with source input parameters (default: default_source_input)
+    data : dictionary with environmental, experimental, and observational data (default: default_data)
+    Snu_echo_kwargs : Snu_echo() keyword arguments (default: default_Snu_echo_kwargs)
+    beta: the index for the Milky (default: -2.55 from Ghosh paper)
+    """
+    
+    # pre-computed reference quantities:
+    reference_quantities = fixed_axion_routine(ga_ref, output,
+                                               source_input=source_input,
+                                               data=data,
+                                               Snu_echo_kwargs=Snu_echo_kwargs)
+    
+    # reference axion parameters and echo quantities:
+    ma_ref, ga_ref, ref_dict = reference_quantities
+    
+    # rescaling results from the reference quantities
+    new_output = rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
+                                 source_input=source_input,
+                                 data=data,
+                                 Snu_echo_kwargs=Snu_echo_kwargs,
+                                 beta=beta)
+    
+    # return final output
+    return new_output
