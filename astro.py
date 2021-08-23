@@ -772,7 +772,7 @@ def bg_408_temp(l, b, size=None, average=False, verbose=False):
     """
     
     try:
-        path = './data/'
+        path = '../data/'
         path = os.path.join(os.getcwd(), path, 'lambda_haslam408_dsds.fits')
     except KeyError:
         raise Exception('Haslam map (lambda_haslam408_dsds.fits) is not specified.')

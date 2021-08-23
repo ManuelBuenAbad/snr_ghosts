@@ -651,13 +651,13 @@ def load_Green_catalogue(snr_name_arr, pathroot='./data/snr_website/www.mrao.cam
                 # parse the remnant with known age
                 m = re.search('AD</SPAN>(\d\d\d\d).*$', line)
                 if m is not None:
-                    print('%s exploded at AD:%s' % (snr_name, m.group(1)))
-                    snr_obj.set_age(m.group(1))
+                    print('%s is suggested to be related to SN explosion at AD:%s' % (snr_name, m.group(1)))
+                    snr_obj.set_age(2021 - float(m.group(1)))
                 else:
                     m = re.search('AD</SPAN>(\d\d\d).*$', line)
                     if m is not None:
-                        print('%s exploded at AD:%s' % (snr_name, m.group(1)))
-                        snr_obj.set_age(m.group(1))
+                        print('%s is suggested to be related to SN explosion at AD:%s' % (snr_name, m.group(1)))
+                        snr_obj.set_age(2021 - float(m.group(1)))
                     # the following doesn't yield anything so skip it for now.
                     # else:
                     #     m = re.search('AD</SPAN>(\d\d).*$', line)
@@ -669,7 +669,19 @@ def load_Green_catalogue(snr_name_arr, pathroot='./data/snr_website/www.mrao.cam
                     #         if m is not None:
                     #             print('%s exploded at AD:%s' %
                     #                   (snr_name, m.group(1)))
+                    else:
+                        m = re.search('.*remnant of(.*)', line)
+                        if m is not None:
+                            print('%s could be related to %s' %(snr_name, m.group(1)))
+                # the special one, Cas A, not in standard format
+                if snr_obj.name == 'G111.7-2.1':
+                    snr_obj.set_age(2021 - 1700)
 
         if flg_new:
             snrs_dct[snr_name] = snr_obj
+    
+        age = snr_obj.get_age()
+        if age is not None:
+            print('it is about %.0f years old.' %age)
+
     return snrs_dct
