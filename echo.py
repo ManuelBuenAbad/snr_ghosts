@@ -391,9 +391,9 @@ def dSnu_echo(x, theta, # position of echo differential element
         Snu_eval = Snu_fn(t)
     
     if verbose:
-        print 't\t', t
-        print 'rho_at_ax\t', rho_at_x
-        print 'Snu(t)\t', Snu_fn(t)
+        print('t\t%s' %t)
+        print('rho_at_ax\t%s' %rho_at_x)
+        print('Snu(t)\t%s' %(Snu_fn(t)))
     
     res = (axion_prefactor/delE_over_E) * rho_at_x * Snu_eval  # [Jy*eV]
     # convert to [Jy/kpc]
