@@ -1,4 +1,6 @@
 """
+TODO: include optical depth?
+
 This is a module to compute the basics of the stimulated decay
 a la Boltzmann equations. The three main structures are:
 
@@ -44,7 +46,7 @@ a la Boltzmann equations. The three main structures are:
 3. The 'data' dict includes the following keys:
         # environment
         'deltaE_over_E' :           the width of the line (default: 1.e-3)
-        
+
         # experiment
         'f_Delta' :                 the fraction of flux density that falls in the optimal bandwidth (default: 0.721)
         'exper' :                   the experiment ('SKA low'/'SKA mid', or simply 'SKA' for either, depending on the frequency)
@@ -57,16 +59,18 @@ a la Boltzmann equations. The three main structures are:
 
 4. The 'output' dict includes the following keys:
         't-nu-Snu' :                    time-frequency-spectralirradiance of source [years-GHz-Jy]
-        'Snu_echo' :                    spectral irradiance of the echo [Jy]
-        'nu_echo_array' :               frequency array around axion mass [GHz]
-        'Snu_echo_array' :              spectral irradiance of echo in frequency array [Jy]
-        'S_echo' :                      total irradiance of echo [ev^4]
+        'echo_Snu' :                    spectral irradiance of the echo [Jy]
+        'signal_nu' :                   signal frequency [GHz]
+        'signal_delnu' :                signal line width [GHz]
+        'signal_Snu' :                  spectral irradiance of echo in frequency array [Jy]
+        'signal_S_echo' :               total irradiance of echo [ev^4]
         'signal_power' :                signal power of echo [eV^2]
-        'ska_nu_array' :                frequency array of SKA experiment [GHz]
-        'ska_noise_power' :             noise power for SKA at frequency array [eV^2]
-        'ska_noise_power_at_ma/2' :     noise power at ma/2 energy [eV^2]
-        'snr' :                         signal-to-noise ratio
-
+        'noise_nu' :                    noise frequency [GHz]
+        'noise_delnu' :                 noise line width [GHz]
+        'noise_T408' :                  noise background brightness temperature at 408 MHz [K]
+        'noise_Tnu' :                   total noise brightness temperature at frequency nu [K]
+        'noise_power' :                 noise power [eV^2]
+        'S/N' :                         signal-to-noise ratio
 """
 from __future__ import division
 import os
@@ -977,5 +981,3 @@ def ma_ga_bound(sn_val, ma_arr, sn_ref_arr, ga_ref):
     ma_ga = np.vstack((ma_arr, ga_arr)).T
     
     return ma_ga
-    
-    
