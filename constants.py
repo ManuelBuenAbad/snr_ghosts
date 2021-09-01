@@ -41,16 +41,17 @@ def solid_angle_to_angle(Omega):
 _eV_over_GeV_ = 1.e-9
 _cm_eV_ = NaturalUnit('cm*eV').val
 _kpc_over_cm_ = NaturalUnit('kpc/cm').val  # 3.0857e21
-_kpc_over_m_ = NaturalUnit('kpc/m').val # 3.0857e19
+_kpc_over_m_ = NaturalUnit('kpc/m').val  # 3.0857e19
 _kpc_eV_ = NaturalUnit('kpc*eV').val
 _kpc_over_pc_ = 1000.
 _kpc_over_lightyear_ = NaturalUnit('kpc/year').val
-_GHz_over_eV_ = (NaturalUnit('1.e9/s/eV').val * 2.*np.pi) # 4.13566773306e-06
+_GHz_over_eV_ = (NaturalUnit('1.e9/s/eV').val * 2.*np.pi)  # 4.13566773306e-06
 _Jy_over_SFU_ = 1.e-4
-_Jy_over_eV3_ = (NaturalUnit('1e-26*J/s/m**2*s/eV**3').val / (2.*np.pi)) # 3.867966373282915e-22
+_Jy_over_eV3_ = (NaturalUnit('1e-26*J/s/m**2*s/eV**3').val /
+                 (2.*np.pi))  # 3.867966373282915e-22
 _SFU_over_eV3_ = _Jy_over_eV3_ / _Jy_over_SFU_
-_Jy_over_cgs_irrad_ = 1.e-23 # [Jy] -> [erg * s^-1 * cm^-2 * Hz^-1]
-_Jy_over_SI_ = 1.e-26 # [Jy] -> [W * m^-2 * Hz^-1]
+_Jy_over_cgs_irrad_ = 1.e-23  # [Jy] -> [erg * s^-1 * cm^-2 * Hz^-1]
+_Jy_over_SI_ = 1.e-26  # [Jy] -> [W * m^-2 * Hz^-1]
 _au_over_kpc_ = NaturalUnit('au/kpc').val  # 4.8481e-9
 _K_over_eV_ = NaturalUnit('K/eV').val
 _hour_eV_ = NaturalUnit('60.*60.*s*eV').val
@@ -60,14 +61,21 @@ _m_eV_ = NaturalUnit('m*eV').val
 #
 _Sun_to_gal_center_ = 8.1  # [kpc]
 _rho_local_DM_ = 0.4  # [GeV/cm**3]
+# NFW profile
 _rs_of_MW_ = 20.  # [kpc]
+# Burkert profile 1304.5127
+_rho_H_ = 1.568  # [GeV/cm**3]
+_r_H_ = 9.26  # [kpc]
+# _r_H_ = 4.  # [kpc]
 _solar_solid_angle_ = NaturalUnit('3.14159*Rsun**2/au**2').val  # 6.8001e-5
 _solar_solid_angle_G_ = NaturalUnit('3.14159*Rsun**2/(8.1*kpc)**2').val
 _cygA_angle_ = 3.  # [arcmin]
 _casA_angle_ = 5.  # [arcmin]
 _arcmin_over_radian_ = 1./60.*np.pi/180
-_cygA_solid_angle_ = angle_to_solid_angle(_cygA_angle_ * _arcmin_over_radian_)  # 5.98e-7[sr]
-_casA_solid_angle_ = angle_to_solid_angle(_casA_angle_ * _arcmin_over_radian_)  # 1.66e-06 [sr]
+_cygA_solid_angle_ = angle_to_solid_angle(
+    _cygA_angle_ * _arcmin_over_radian_)  # 5.98e-7[sr]
+_casA_solid_angle_ = angle_to_solid_angle(
+    _casA_angle_ * _arcmin_over_radian_)  # 1.66e-06 [sr]
 _cygA_theta_ = 76.26 * np.pi/180.  # [radian]
 _cygA_bg_T_at_408Hz_ = 27.  # [K]
 

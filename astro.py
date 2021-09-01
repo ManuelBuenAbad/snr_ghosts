@@ -72,7 +72,7 @@ def rho_NFW(r, rs, rhos):
     return res
 
 
-def rho_MW(r):
+def rho_MW(r, DM_profile="NFW"):
     """
     The density [GeV/cm**3] of the Milky Way.
 
@@ -80,15 +80,22 @@ def rho_MW(r):
     ----------
     x : distance from the center [kpc]
     """
-    rs = ct._rs_of_MW_
-    rho_at_sun = ct._rho_local_DM_
-    rsun = ct._Sun_to_gal_center_
-    rhos = rho_at_sun * (rsun/rs) * (1. + rsun/rs)**2
-    res = rho_NFW(r, rs, rhos)
-    try:
-        res = res.astype(float)
-    except:
-        pass
+    if DM_profile == "NFW":
+        rs = ct._rs_of_MW_
+        rho_at_sun = ct._rho_local_DM_
+        rsun = ct._Sun_to_gal_center_
+        rhos = rho_at_sun * (rsun/rs) * (1. + rsun/rs)**2
+        res = rho_NFW(r, rs, rhos)
+        try:
+            res = res.astype(float)
+        except:
+            pass
+    elif DM_profile == "Burkert":
+        x = r / ct._r_H_
+        res = ct._rho_H_ / (1. + x) / (1. + x**2)
+    else:
+        raise Exception(
+            "The DM profile can only be NFW or Burkert. Please check the input.")
     return res
 
 
