@@ -65,7 +65,7 @@ class SuperNova(object):
             pass
 
 
-def load_Bietenholz(path):
+def load_Bietenholz(path=data_path+"Table1_complete_ascii.txt"):
     """Load Bietenholz table 1 (note that it's not all 294 SNe. only those 100+ new SNe)
 
     :param path: path of the data file
@@ -107,7 +107,7 @@ def load_Bietenholz(path):
     return res
 
 
-def load_table2(path):
+def load_table2(path=data_path+"Table2_extended_SN_info.txt"):
     """load Bietenholz Table 2 data. Returns array rows
 
     """
