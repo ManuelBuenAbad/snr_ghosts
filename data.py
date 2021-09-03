@@ -11,6 +11,8 @@ import re
 import os
 import constants as ct
 
+# location of the data path
+data_path = os.path.dirname(os.path.abspath(__file__))+'/data/'
 
 class SuperNova(object):
     """Class of SN. Each SN of the Bietenholz dataset is one instance of this class
@@ -180,7 +182,7 @@ def update_Bietenholz_with_coord(SNe_dct, use_Simbad=False):
         # use online query
         query = Simbad.query_objects(names)
         query_res = query.as_array()
-        with open('./data/Table_SN_coord.txt', 'w') as f:
+        with open(data_path+'Table_SN_coord.txt', 'w') as f:
             for i in range(len(query_res)):
                 entry = query_res[i]
                 name = entry[0]
@@ -209,7 +211,7 @@ def update_Bietenholz_with_coord(SNe_dct, use_Simbad=False):
         # use offline file
         i = 0
         try:
-            with open('./data/Table_SN_coord.txt', 'r') as f:
+            with open(data_path+'Table_SN_coord.txt', 'r') as f:
                 for line in f:
                     words = line.split(',')
                     name = words[0].strip()
@@ -225,7 +227,7 @@ def update_Bietenholz_with_coord(SNe_dct, use_Simbad=False):
                     i += 1
         except:
             raise Exception(
-                'Error in using local cache. Try to run with use_Simbad=True to regenerate the cache in ./data/Table_SN_coord.txt')
+                'Error in using local cache. Try to run with use_Simbad=True to regenerate the cache in {}Table_SN_coord.txt'.format(data_path))
     return
 
 
@@ -489,7 +491,7 @@ class SuperNovaRemnant(object):
             return -1
 
 
-def load_Green_catalogue_names(path='./data/snr_website/www.mrao.cam.ac.uk/surveys/snrs/snrs.list.html'):
+def load_Green_catalogue_names(path=data_path+'snr_website/www.mrao.cam.ac.uk/surveys/snrs/snrs.list.html'):
     # first load the file list
     file_snrs_list = []
     with open(path, 'r') as f:
@@ -510,7 +512,7 @@ def load_Green_catalogue_names(path='./data/snr_website/www.mrao.cam.ac.uk/surve
     return snr_name_arr
 
 
-def load_Green_catalogue(snr_name_arr, pathroot='./data/snr_website/www.mrao.cam.ac.uk/surveys/snrs/', verbose=0):
+def load_Green_catalogue(snr_name_arr, pathroot=data_path+'snr_website/www.mrao.cam.ac.uk/surveys/snrs/', verbose=0):
     """Load the Green 2019 catalog
 
     :param snr_name_arr: array of SNR names

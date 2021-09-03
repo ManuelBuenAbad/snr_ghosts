@@ -775,20 +775,11 @@ def bg_408_temp(l, b, size=None, average=False, verbose=False):
     """
 
     try:
-        # when we run inside ./
-        path = './data/'
-        path = os.path.join(os.getcwd(), path, 'lambda_haslam408_dsds.fits')
+        path = os.path.dirname(os.path.abspath(__file__))+'/data/'
+        path = os.path.join(path, 'lambda_haslam408_dsds.fits')
         map_allsky_408 = hp.read_map(path, verbose=verbose)
     except FileNotFoundError:
-        # useful when we run inside ./workspace_notebooks/
-        try:
-            path = '../data/'
-            path = os.path.join(os.getcwd(), path,
-                                'lambda_haslam408_dsds.fits')
-            map_allsky_408 = hp.read_map(path, verbose=verbose)
-        except FileNotFoundError:
-            raise Exception(
-                'Haslam map (lambda_haslam408_dsds.fits) is not found.')
+        raise Exception('Haslam map (lambda_haslam408_dsds.fits) is not found.')
 
     healp = HEALPix(nside=512, order='ring', frame=Galactic())
 
