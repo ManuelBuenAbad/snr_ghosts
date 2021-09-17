@@ -108,6 +108,8 @@ def interp_fn(array):
     array : An array of shape (N, 2) from which to interpolate.
     """
 
+    array[array < 1.e-300] = 1.e-300 # regularizing small numbers
+
     def fn(x): return 10**interp1d(log10(array[:, 0]),
                                    log10(array[:, 1]), fill_value='extrapolate')(log10(x))
 
