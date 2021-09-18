@@ -154,7 +154,8 @@ def flux_density_to_psd(nu, Snu, Omega):
     Snu_in_eV3 = Snu * ct._Jy_over_eV3_
     E = nu * ct._GHz_over_eV_
     res = Snu_in_eV3 / Omega * 2. * np.pi**2 / E**3
-    return (E.astype(float), res.astype(float))
+
+    return (E, res)
 
 
 def psd_to_flux_density(E, f, Omega):
