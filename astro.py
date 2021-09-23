@@ -773,14 +773,16 @@ def bg_408_temp(l, b, size=None, average=False, verbose=False):
     b : latitude [deg]
     size : angular size [sr] of the region of interest (default: None)
     average : whether the brightness temperature is averaged over the size of the region of interest (default: False)
+    verbose: control of healpy output, DEPRECATED. 
     """
 
     try:
         path = os.path.dirname(os.path.abspath(__file__))+'/data/'
         path = os.path.join(path, 'lambda_haslam408_dsds.fits')
-        map_allsky_408 = hp.read_map(path, verbose=verbose)
+        map_allsky_408 = hp.read_map(path)
     except FileNotFoundError:
-        raise Exception('Haslam map (lambda_haslam408_dsds.fits) is not found.')
+        raise Exception(
+            'Haslam map (lambda_haslam408_dsds.fits) is not found.')
 
     healp = HEALPix(nside=512, order='ring', frame=Galactic())
 
