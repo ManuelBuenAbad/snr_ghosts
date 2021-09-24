@@ -23,6 +23,7 @@ from astropy.coordinates import Galactic
 # from astropy import units as u
 
 import constants as ct
+import particle as pt
 
 #########################################
 # List of required parameters for the sources:
@@ -129,7 +130,7 @@ def r_to_gal(x, th, r0=ct._Sun_to_gal_center_):
     r0 : distance from the Sun to the galaxy center [kpc]  (default: 8.1)
     """
     r2 = x**2 + r0**2 - 2.*x*r0*np.cos(th)
-    r = np.sqrt(r2)
+    r = sqrt(r2)
     try:
         r = r.astype(float)
     except:
@@ -737,9 +738,9 @@ def SKA_exper_nu(nu):
     return exper_mode
 
 
-def SKA_specs(nu, exper_mode):
+def SKA_specs(nu, exper_mode, eta=ct._eta_ska_):
     """
-    Returns the specifications (area [m^2], window, receiver noise brightness temperature [K]) of the SKA experiment mode, for the given frequency [GHz].
+    Returns the specifications (area [m^2], window, receiver noise brightness temperature [K], and solid angle resolution [sr]) of the SKA experiment mode, for the given frequency [GHz].
 
     Parameters
     ----------
@@ -748,19 +749,29 @@ def SKA_specs(nu, exper_mode):
     """
 
     if exper_mode == None:
-        area, window, Tr = 0., 0., 0.
+        area, window, Tr, Omega_res = 0., 0., 0., 0.
     elif exper_mode == 'SKA low':
         area = ct._area_ska_low_
         window = np.heaviside(nu - ct._nu_min_ska_low_, 1.) * \
             np.heaviside(ct._nu_max_ska_low_ - nu, 1.)
         Tr = 40.
+        
+        # finding resolution:
+        wavelength = pt.lambda_from_nu(nu)/100. # wavelength [m]
+        theta_res = (wavelength/2.)/sqrt(eta*area) # angular size of pixel resolution [rad]
+        Omega_res = ct.angle_to_solid_angle(theta_res) # solid angle of resolution [sr]
     elif exper_mode == 'SKA mid':
         area = ct._area_ska_mid_
         window = np.heaviside(nu - ct._nu_min_ska_mid_, 0.) * \
             np.heaviside(ct._nu_max_ska_mid_ - nu, 1.)
         Tr = 20.
+        
+        # finding resolution:
+        wavelength = pt.lambda_from_nu(nu)/100. # wavelength [m]
+        theta_res = (wavelength/2.)/sqrt(eta*area) # angular size of pixel resolution [rad]
+        Omega_res = ct.angle_to_solid_angle(theta_res) # solid angle of resolution [sr]
 
-    return area, window, Tr
+    return area, window, Tr, Omega_res
 
 
 def bg_408_temp(l, b, size=None, average=False, verbose=False):
@@ -826,7 +837,7 @@ def T_noise(nu, Tbg_at_408=27, beta=-2.55, Tr=0.):
     return res
 
 
-def P_noise(T_noise, delnu, tobs):
+def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res):
     """
     The power of the noise [eV^2].
 
@@ -835,10 +846,11 @@ def P_noise(T_noise, delnu, tobs):
     T_noise: the temperature of the noise [K]
     delnu: the bandwidth of the detector [GHz]
     tobs: the total observation time [hour]
+    Omega_obs: the observation solid angle [sr]
+    Omega_res: the resolution solid angle [sr]
     """
-
-    res = 2. * T_noise * ct._K_over_eV_ * \
-        np.sqrt(delnu * ct._GHz_over_eV_/(tobs * ct._hour_eV_))
+    
+    res = 2. * T_noise * ct._K_over_eV_ * sqrt(delnu * ct._GHz_over_eV_/(tobs * ct._hour_eV_)) * sqrt(Omega_obs/Omega_res)
     return res
 
 
