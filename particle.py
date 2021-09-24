@@ -50,3 +50,17 @@ def ma_from_nu(nu):
     E = nu*ct._GHz_over_eV_
     
     return 2*E
+
+def lambda_from_nu(nu):
+    """
+    Wavelength [cm] from frequency [GHz].
+    
+    Parameters
+    ----------
+    nu: photon frequency [GHz]
+    """
+    
+    period = 1./(nu*1.e9) # [sec]
+    wl = 100.*ct._light_speed_*period # [cm]
+    
+    return wl
