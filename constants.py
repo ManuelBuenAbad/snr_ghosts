@@ -38,6 +38,7 @@ def solid_angle_to_angle(Omega):
 #
 # Unit conversion
 #
+_light_speed_ = 299792458. # [m/s]
 _eV_over_GeV_ = 1.e-9
 _cm_eV_ = NaturalUnit('cm*eV').val
 _kpc_over_cm_ = NaturalUnit('kpc/cm').val  # 3.0857e21
