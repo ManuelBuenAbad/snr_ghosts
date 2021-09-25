@@ -108,7 +108,7 @@ def interp_fn(array):
     array : An array of shape (N, 2) from which to interpolate.
     """
 
-    array[array < 1.e-300] = 1.e-300 # regularizing small numbers
+    array[array < 1.e-300] = 1.e-300  # regularizing small numbers
 
     def fn(x): return 10**interp1d(log10(array[:, 0]),
                                    log10(array[:, 1]), fill_value='extrapolate')(log10(x))
@@ -134,10 +134,10 @@ def check_source(source_input, custom_name='custom', verbose=False):
     if not 'name' in source_input.keys():
         # update source 'source_input' dictionary to contain some name
         source_input['name'] = custom_name
-    
+
     # preparing local copy of source_input by ignoring 'Omega_dispersion' key from source_input check:
 #     local_source_input = {key:value for key, value in source_input.items() if key != 'Omega_dispersion'}
-    
+
     has_all_source_id = set(ap.source_id).issubset(set(source_input.keys()))
     if not has_all_source_id:
         raise KeyError(
@@ -168,42 +168,46 @@ def check_source(source_input, custom_name='custom', verbose=False):
                     unknown.append(par)
 
             if len(unknown) > 1:  # too many missing parameters
-                raise ValueError("unknown={} is too large. Please update and include more parameters in source_input.".format(unknown))
-            
-            elif len(unknown) == 1: # one unknown parameter
-                
-                unknown_par = unknown[0]  # extracting the only parameter to be deduced
+                raise ValueError(
+                    "unknown={} is too large. Please update and include more parameters in source_input.".format(unknown))
+
+            elif len(unknown) == 1:  # one unknown parameter
+
+                # extracting the only parameter to be deduced
+                unknown_par = unknown[0]
                 if verbose:
-                    print "Unknown parmeter: {}".format(unknown_par)
-                
+                    print("Unknown parmeter: {}".format(unknown_par))
+
                 try:
                     # the parameters required in source_input
                     required = ap.pars_required[(model, unknown_par)]
                 except:
-                    raise KeyError("Currently the code does not support having {} as an unknown parameter, only {}. Please update.".format(unknown_par, ap.pars_required.keys()))
-                
+                    raise KeyError("Currently the code does not support having {} as an unknown parameter, only {}. Please update.".format(
+                        unknown_par, ap.pars_required.keys()))
+
                 if not set(required).issubset(set(known)):
-                    raise ValueError("known={} is too short. It should be a subset of the required parameters, which are {}. Please include more parameters in kwargs.".format(known, required))
-                
-                
+                    raise ValueError(
+                        "known={} is too short. It should be a subset of the required parameters, which are {}. Please include more parameters in kwargs.".format(known, required))
+
                 # computing unknown parameters, at nu_pivot:
-                local_source = {key: value for key, value in source_input.items()}
+                local_source = {key: value for key,
+                                value in source_input.items()}
                 if model == 'thy':
                     # Weiler's frequency-dependent opacity correction factor
                     tau_factor = (local_source['nu_pivot']/5.)**-2.1
                     local_source['tau_factor'] = tau_factor
-                
+
                 # computing the unknown parameter:
                 _, pars_out = ap.L_source(1., output_pars=True, **local_source)
-                
+
                 # updating source_input with new known parameter
-                source_input.update({unknown_par:pars_out[unknown_par]})
-                
-            else: # no unknown parameters!
+                source_input.update({unknown_par: pars_out[unknown_par]})
+
+            else:  # no unknown parameters!
                 if verbose:
-                    print "No unknown parameters."
+                    print("No unknown parameters.")
                 pass
-        
+
         else:
             raise KeyError(
                 "source_input['model']={} is neither 'eff' nor 'thy', which are the only two options. Please update.".format(model))
@@ -285,7 +289,7 @@ def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_obse
 def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t_extra_old=0.):
     """
     Computes the solid angle [sr] from which the echo signal is emitted due to the dark matter velocity dispersion.
-    
+
     Parameters
     ----------
     source_input : dictionary with source input parameters
@@ -294,17 +298,18 @@ def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t
     xmax_default : the default maximum value of the integration variable x [kpc] (default: 100.)
     t_extra_old : extra time [years] added to the SNR source to make it older; they do not contribute to the lightcurve but merely displace the limits of the l.o.s. integral (default: 0.)
     """
-    
+
     if not ('Omega_dispersion' in source_input.keys()):
-        
+
         # checking if the dictionaries are in the correct format
         check_source(source_input)
         check_data(data)
-        
-        t_age = source_input['t_age'] # duration of free+adiabatic phases [years]
-        distance = source_input['distance'] # distance to SNR source [kpc]
-        sigma_v = data['deltaE_over_E']/2.17 # velocity dispersion
-        
+
+        # duration of free+adiabatic phases [years]
+        t_age = source_input['t_age']
+        distance = source_input['distance']  # distance to SNR source [kpc]
+        sigma_v = data['deltaE_over_E']/2.17  # velocity dispersion
+
         # calculating the cutoff minimum time (i.e. the youngest age under consideration)
         if tmin_default == None:
             try:
@@ -313,27 +318,27 @@ def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t
                 tmin = 1./365.  # 1 day [years]
         else:
             tmin = tmin_default
-        
+
         # correcting tmin in non-sensical case
         if tmin > t_age:
             tmin = t_age/2.
-        
+
         # l.o.s. offset
         x_offset = t_extra_old/(2.*ct._kpc_over_lightyear_)
-        
+
         # the upper limit: xmax
         # the location of the wave front
         xmax_tmp = (t_age - tmin)/(2.*ct._kpc_over_lightyear_)
         xmax_tmp += x_offset  # adding offset
-        x_wavefront = min([xmax_default, xmax_tmp])  # truncate it with xmax_default
-        
+        # truncate it with xmax_default
+        x_wavefront = min([xmax_default, xmax_tmp])
+
         theta_sig = ((x_wavefront+distance)/distance)*sigma_v
         omega_sig = ct.angle_to_solid_angle(theta_sig)
-        
-        source_input['Omega_dispersion'] = omega_sig
-    
-    return source_input['Omega_dispersion']
 
+        source_input['Omega_dispersion'] = omega_sig
+
+    return source_input['Omega_dispersion']
 
 
 def axion_pref(ma, ga):
@@ -440,7 +445,8 @@ def Snu_source(t, nu, source_input, output=None):
         # frequency-dependent correction factor
         factor = ap.nu_factor(nu, nu_pivot, alpha)
         # luminosity [erg * s^-1 * Hz^-1] w/ frequency-dependent factor
-        Lum = np.squeeze(factor*ap.L_source(t, output_pars=False, **local_source))
+        Lum = np.squeeze(
+            factor*ap.L_source(t, output_pars=False, **local_source))
 
     else:  # nu and t are scalars
 
@@ -553,7 +559,7 @@ def Snu_echo(source_input, axion_input, data,
     check_source(source_input)
     check_axion(axion_input)
     check_data(data)
-    
+
     if not ('Omega_dispersion' in source_input.keys()):
         # computing Omega_dispersion and including it in source_input
         Omega_dispersion(source_input, data,
@@ -865,7 +871,7 @@ def signal(source_input, axion_input, data,
     check_source(source_input)
     check_axion(axion_input)
     check_data(data)
-    
+
     if not ('Omega_dispersion' in source_input.keys()):
         # computing Omega_dispersion and including it in source_input
         Omega_dispersion(source_input, data,
@@ -883,7 +889,8 @@ def signal(source_input, axion_input, data,
     delnu = nu*deltaE_over_E  # [GHz] bandwidth
     f_Delta = data['f_Delta']  # the fraction of flux in the bandwidth
     exper = data['exper']  # experiment requested
-    signal_Omega = max(source_input['size'], source_input['Omega_dispersion']) # solid angle of signal
+    # solid angle of signal
+    signal_Omega = max(source_input['size'], source_input['Omega_dispersion'])
 
     # finding the experimental range
     if exper == 'SKA':  # in case the range is frequency-dependent
@@ -919,7 +926,8 @@ def signal(source_input, axion_input, data,
 
     # compute the signal power
     # [eV^2], assuming the default SKA efficiency of eta = 0.8
-    signal_power = ap.P_signal(S=signal_S_echo, A=area, eta=ct._eta_ska_, f_Delta=f_Delta)
+    signal_power = ap.P_signal(
+        S=signal_S_echo, A=area, eta=ct._eta_ska_, f_Delta=f_Delta)
 
     # truncate the power according to the SKA freq range window
     signal_power *= window
@@ -973,7 +981,7 @@ def noise(source_input, axion_input, data,
     check_source(source_input)
     check_axion(axion_input)
     check_data(data)
-    
+
     if not ('Omega_dispersion' in source_input.keys()):
         # computing Omega_dispersion and including it in source_input
         Omega_dispersion(source_input, data, **Omdisp_kwargs)
@@ -986,7 +994,8 @@ def noise(source_input, axion_input, data,
     # TODO: compute the angular properties of the echo
     l_echo = l_source + 180.  # [deg] galactic longitude of echo
     b_echo = -b_source  # [deg] galactic latitude of echo
-    signal_Omega = max(source_input['Omega_dispersion'], Omega_source) # [sr] solid angle of echo
+    # [sr] solid angle of echo
+    signal_Omega = max(source_input['Omega_dispersion'], Omega_source)
 
     # axion parameters
     ma = axion_input['ma']  # [eV] axion mass
@@ -1011,23 +1020,26 @@ def noise(source_input, axion_input, data,
     else:
         raise ValueError(
             "data['exper'] must be either 'SKA', 'SKA low', or 'SKA mid'. Please update accordingly.")
-    
+
     # generate the noise power at nu
     # we ignore the non-uniform dependence of T_noise on nu; which is OK for a narrow band:
     # dlog T_noise/dlog nu ~ -beta*deltaE_over_E ~ -0.00255)
 
     # reading out the receiver's noise brightness temperature and solid angle resolution
     _, _, Tr, Omega_res = ap.SKA_specs(nu, exper_mode)
-    
-    Omega_obs = max(Omega_res, signal_Omega) # the observation solid angle [sr]
-    
+
+    # the observation solid angle [sr]
+    Omega_obs = max(Omega_res, signal_Omega)
+
     # compute background brightness temperature at 408 MHz at the location of the echo.
     Tbg_408_at_echo_loc = ap.bg_408_temp(
         l=l_echo, b=b_echo, size=Omega_obs, average=average, verbose=False)  # [K]
-    
+
     # computing total noise brightness temperature
-    T_noise = np.squeeze(ap.T_noise(nu, Tbg_at_408=Tbg_408_at_echo_loc, Tr=Tr))  # [K]
-    noise_power = ap.P_noise(T_noise=T_noise, delnu=delnu, tobs=obs_time, Omega_obs=Omega_obs, Omega_res=Omega_res)  # [eV^2]
+    T_noise = np.squeeze(ap.T_noise(
+        nu, Tbg_at_408=Tbg_408_at_echo_loc, Tr=Tr))  # [K]
+    noise_power = ap.P_noise(T_noise=T_noise, delnu=delnu, tobs=obs_time,
+                             Omega_obs=Omega_obs, Omega_res=Omega_res)  # [eV^2]
 
     # checking for recycle:
     recycle, output = recycle_output
