@@ -762,7 +762,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_):
         
         # finding resolution:
         wavelength = pt.lambda_from_nu(nu)/100. # wavelength [m]
-        theta_res = (1.22*wavelength)/sqrt(eta*4.*area/pi) # angular size of pixel resolution [rad]
+        theta_res = (1.02*wavelength)/sqrt(eta*4.*area/pi) # angular size of pixel resolution [rad]
         Omega_res = ct.angle_to_solid_angle(theta_res) # solid angle of resolution [sr]
     elif exper_mode == 'SKA mid':
         area = ct._area_ska_mid_
@@ -772,7 +772,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_):
         
         # finding resolution:
         wavelength = pt.lambda_from_nu(nu)/100. # wavelength [m]
-        theta_res = (1.22*wavelength)/sqrt(eta*4.*area/pi) # angular size of pixel resolution [rad]
+        theta_res = (1.02*wavelength)/sqrt(eta*4.*area/pi) # angular size of pixel resolution [rad]
         Omega_res = ct.angle_to_solid_angle(theta_res) # solid angle of resolution [sr]
 
     return area, window, Tr, Omega_res
