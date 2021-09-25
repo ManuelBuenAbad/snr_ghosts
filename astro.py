@@ -55,6 +55,15 @@ source_input = {key: source_id+pars_always+value +
 # default time array [years]
 t_arr_default = np.logspace(-4, 11, 10001)
 
+# initialize the haslem map
+try:
+    path = os.path.dirname(os.path.abspath(__file__))+'/data/'
+    path = os.path.join(path, 'lambda_haslam408_dsds.fits')
+    map_allsky_408 = hp.read_map(path)
+except FileNotFoundError:
+    raise Exception(
+        'Haslam map (lambda_haslam408_dsds.fits) is not found.')
+
 
 #########################################
 # Dark matter and galactic functions:
@@ -784,7 +793,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_):
     return area, window, Tr, Omega_res
 
 
-def bg_408_temp(l, b, size=None, average=False, verbose=False):
+def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=False):
     """
     Reads the background brightness temperature at 408 MHz at galactic coordinates l and b.
 
@@ -794,16 +803,22 @@ def bg_408_temp(l, b, size=None, average=False, verbose=False):
     b : latitude [deg]
     size : angular size [sr] of the region of interest (default: None)
     average : whether the brightness temperature is averaged over the size of the region of interest (default: False)
-    verbose: control of healpy output, DEPRECATED.
+    verbose: control of warning output. Switch to False only if you know what you are doing. 
+    load_on_the_fly: flag 
     """
 
-    try:
-        path = os.path.dirname(os.path.abspath(__file__))+'/data/'
-        path = os.path.join(path, 'lambda_haslam408_dsds.fits')
-        map_allsky_408 = hp.read_map(path)
-    except FileNotFoundError:
-        raise Exception(
-            'Haslam map (lambda_haslam408_dsds.fits) is not found.')
+    if load_on_the_fly:
+        if verbose:
+            print('You requested to load Haslem every time bg_408_temp is called. This is highly time-consuming. You should use this only for debugging purpose. ')
+        # initialize the haslem map
+        try:
+            path = os.path.dirname(os.path.abspath(__file__))+'/data/'
+            path = os.path.join(path, 'lambda_haslam408_dsds.fits')
+            global map_allsky_408
+            map_allsky_408 = hp.read_map(path)
+        except FileNotFoundError:
+            raise Exception(
+                'Haslam map (lambda_haslam408_dsds.fits) is not found.')
 
     healp = HEALPix(nside=512, order='ring', frame=Galactic())
 

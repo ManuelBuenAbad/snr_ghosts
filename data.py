@@ -14,6 +14,7 @@ import constants as ct
 # location of the data path
 data_path = os.path.dirname(os.path.abspath(__file__))+'/data/'
 
+
 class SuperNova(object):
     """Class of SN. Each SN of the Bietenholz dataset is one instance of this class
 
@@ -165,6 +166,17 @@ def update_Bietenholz_with_table2(SNe_dct, table2_dct):
 
 
 def clean_white_spaces(string):
+    """Gets rid of white spaces in the string
+
+    :param string: string to be processed
+
+    """
+    try:
+        # in case it is in byte value
+        string = string.decode('utf-8')
+    except:
+        pass
+
     res = ''
     words = string.split()
     for word in words:
@@ -177,7 +189,7 @@ def update_Bietenholz_with_coord(SNe_dct, use_Simbad=False):
 
     """
 
-    names = SNe_dct.keys()
+    names = list(SNe_dct.keys())
     if use_Simbad:
         # use online query
         query = Simbad.query_objects(names)
@@ -189,9 +201,6 @@ def update_Bietenholz_with_coord(SNe_dct, use_Simbad=False):
                 name = clean_white_spaces(name)
                 RA = entry[1]
                 DEC = entry[2]
-
-                RA = RA
-                DEC = DEC
                 try:
                     SN = SNe_dct[name]
                 except:
@@ -653,12 +662,14 @@ def load_Green_catalogue(snr_name_arr, pathroot=data_path+'snr_website/www.mrao.
                 # parse the remnant with known age
                 m = re.search('AD</SPAN>(\d\d\d\d).*$', line)
                 if m is not None:
-                    print('%s is suggested to be related to SN explosion at AD:%s' % (snr_name, m.group(1)))
+                    print('%s is suggested to be related to SN explosion at AD:%s' % (
+                        snr_name, m.group(1)))
                     snr_obj.set_age(2021 - float(m.group(1)))
                 else:
                     m = re.search('AD</SPAN>(\d\d\d).*$', line)
                     if m is not None:
-                        print('%s is suggested to be related to SN explosion at AD:%s' % (snr_name, m.group(1)))
+                        print('%s is suggested to be related to SN explosion at AD:%s' % (
+                            snr_name, m.group(1)))
                         snr_obj.set_age(2021 - float(m.group(1)))
                     # the following doesn't yield anything so skip it for now.
                     # else:
@@ -674,16 +685,17 @@ def load_Green_catalogue(snr_name_arr, pathroot=data_path+'snr_website/www.mrao.
                     else:
                         m = re.search('.*remnant of(.*)', line)
                         if m is not None:
-                            print('%s could be related to %s' %(snr_name, m.group(1)))
+                            print('%s could be related to %s' %
+                                  (snr_name, m.group(1)))
                 # the special one, Cas A, not in standard format
                 if snr_obj.name == 'G111.7-2.1':
                     snr_obj.set_age(2021 - 1700)
 
         if flg_new:
             snrs_dct[snr_name] = snr_obj
-    
+
         age = snr_obj.get_age()
         if age is not None:
-            print('it is about %.0f years old.' %age)
+            print('it is about %.0f years old.' % age)
 
     return snrs_dct
