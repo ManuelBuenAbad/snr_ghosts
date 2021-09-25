@@ -68,7 +68,7 @@ default_data = {'deltaE_over_E': 1.e-3,
                 'f_Delta': 0.721,
                 'exper': 'SKA',
                 'total_observing_time': 100.,
-                'average': False,
+                'average': True,
                 'verbose': 0
                 }
 
@@ -120,7 +120,11 @@ def fixed_axion_routine(ga_ref, output,
     ec.signal(source_input, axion_input, data,
               recycle_output=(True, output), **Snu_echo_kwargs)
     # noise
-    ec.noise(source_input, axion_input, data, recycle_output=(True, output))
+    Omdisp_kwargs = {key:value
+                     for key, value in Snu_echo_kwargs.items()
+                     if key in ['tmin_default', 'xmax_default', 't_extra_old']}
+    
+    ec.noise(source_input, axion_input, data, recycle_output=(True, output), **Omdisp_kwargs)
     # S/N ratio
     signal_power = output['signal_power']
     noise_power = output['noise_power']
@@ -177,30 +181,31 @@ def SKA_rescaled_specs(ma, ma_ref, data=default_data):
 
         nu_flat = nu.flatten()
 
-        area, window, Tr = [], [], []
+        area, window, Tr, Omega_res = [], [], [], []
         for nn in nu_flat:
 
             exper_mode = ap.SKA_exper_nu(nn)
-            aa, ww, tr = ap.SKA_specs(nn, exper_mode)
+            aa, ww, tr, od = ap.SKA_specs(nn, exper_mode, eta=ct._eta_ska_)
 
             area.append(aa)
             window.append(ww)
             Tr.append(tr)
+            Omega_res.append(od)
 
-        area, window, Tr = np.array(area), np.array(window), np.array(Tr)
-        area, window, Tr = np.reshape(area, nu.shape), np.reshape(
-            window, nu.shape), np.reshape(Tr, nu.shape)
-        area, window, Tr = np.squeeze(area), np.squeeze(window), np.squeeze(Tr)
+        area, window, Tr, Omega_res = np.array(area), np.array(window), np.array(Tr), np.array(Omega_res)
+        area, window, Tr, Omega_res = np.reshape(area, nu.shape), np.reshape(
+            window, nu.shape), np.reshape(Tr, nu.shape), np.reshape(Omega_res, nu.shape)
+        area, window, Tr, Omega_res = np.squeeze(area), np.squeeze(window), np.squeeze(Tr), np.squeeze(Omega_res)
 
     elif exper in ['SKA low', 'SKA mid']:  # in case the range was fixed by hand
         exper_mode = exper
-        area, window, Tr = ap.SKA_specs(nu, exper_mode)
+        area, window, Tr, Omega_res = ap.SKA_specs(nu, exper_mode, eta=ct._eta_ska_)
 
     else:
         raise ValueError(
             "data['exper'] must be either 'SKA', 'SKA low', or 'SKA mid'. Please update accordingly.")
 
-    return area, window, Tr
+    return area, window, Tr, Omega_res
 
 
 def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
@@ -239,7 +244,7 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
     # for echo's spectral irradiance
     factors = Snu_rescale_axion(
         ma, ga, ma_ref, ga_ref, source_input=source_input)
-    area, window, Tr = SKA_rescaled_specs(ma, ma_ref, data=data)  # SKA specs
+    area, window, Tr, Omega_res = SKA_rescaled_specs(ma, ma_ref, data=data)  # SKA specs
 
     # data
     f_Delta = data['f_Delta']  # fraction of signal that falls in bandwidth
@@ -253,6 +258,7 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
     new_output['echo_Snu'] = ref_dict['echo_Snu']*factors
     new_output['signal_nu'] = ref_dict['signal_nu']*nu_rescale
     new_output['signal_delnu'] = ref_dict['signal_delnu']*nu_rescale
+    new_output['signal_Omega'] = ref_dict['signal_Omega']
     new_output['signal_Snu'] = ref_dict['signal_Snu']*factors
     new_output['signal_S_echo'] = ref_dict['signal_S_echo']*factors*nu_rescale
     new_output['signal_power'] = ap.P_signal(
@@ -261,11 +267,13 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
     # noise:
     new_output['noise_nu'] = ref_dict['noise_nu']*nu_rescale
     new_output['noise_delnu'] = ref_dict['noise_delnu']*nu_rescale
-    new_output['noise_T408'] = ref_dict['noise_T408']
+    new_output['noise_Omega_res'] = Omega_res
+    new_output['noise_Omega_obs'] = np.maximum.reduce([new_output['signal_Omega']*np.ones_like(new_output['noise_Omega_res']), new_output['noise_Omega_res']])
+    new_output['noise_T408'] = ap.bg_408_temp(source_input['longitude'], source_input['latitude'], size=new_output['noise_Omega_obs'], average=data['average'])
     new_output['noise_Tnu'] = ap.T_noise(
         nu, Tbg_at_408=new_output['noise_T408'], beta=beta, Tr=Tr)
     new_output['noise_power'] = ap.P_noise(
-        new_output['noise_Tnu'], new_output['noise_delnu'], tobs=obs_time)
+        new_output['noise_Tnu'], new_output['noise_delnu'], tobs=obs_time, Omega_obs=new_output['noise_Omega_obs'], Omega_res=new_output['noise_Omega_res'])
 
     # S/N:
     new_output['S/N'] = new_output['signal_power']/new_output['noise_power']

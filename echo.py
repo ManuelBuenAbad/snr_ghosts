@@ -51,7 +51,7 @@ a la Boltzmann equations. The three main structures are:
         'f_Delta' :                 the fraction of flux density that falls in the optimal bandwidth (default: 0.721)
         'exper' :                   the experiment ('SKA low'/'SKA mid', or simply 'SKA' for either, depending on the frequency)
         'total_observing_time' :    the total time of experimental observation (default: 100.)
-        'average' :                 whether the background noise brightness temperature will be averaged over the angular size of the source (default: False)
+        'average' :                 whether the background noise brightness temperature will be averaged over the angular size of the source (default: True)
 
         # optional
         'verbose' :                 verbosity (default: 0)
@@ -120,7 +120,7 @@ def interp_fn(array):
 # Check functions
 
 
-def check_source(source_input, custom_name='custom'):
+def check_source(source_input, custom_name='custom', verbose=False):
     """
     Checks if the 'source_input' dictionary for a source is in the necessary format.
 
@@ -134,7 +134,10 @@ def check_source(source_input, custom_name='custom'):
     if not 'name' in source_input.keys():
         # update source 'source_input' dictionary to contain some name
         source_input['name'] = custom_name
-
+    
+    # preparing local copy of source_input by ignoring 'Omega_dispersion' key from source_input check:
+#     local_source_input = {key:value for key, value in source_input.items() if key != 'Omega_dispersion'}
+    
     has_all_source_id = set(ap.source_id).issubset(set(source_input.keys()))
     if not has_all_source_id:
         raise KeyError(
@@ -165,21 +168,42 @@ def check_source(source_input, custom_name='custom'):
                     unknown.append(par)
 
             if len(unknown) > 1:  # too many missing parameters
-                raise ValueError(
-                    "unknown={} is too large. Please update and include more parameters in source_input.".format(unknown))
-            unknown = unknown[0]  # extracting the only parameter to be deduced
-
-            try:
-                # the parameters required in source_input
-                required = ap.pars_required[(model, unknown)]
-            except:
-                raise KeyError("Currently the code does not support having {} as an unknown parameter, only {}. Please update.".format(
-                    unknown, ap.pars_required.keys()))
-
-            if not set(required).issubset(set(known)):
-                raise ValueError(
-                    "known={} is too short. It should be a subset of the required parameters, which are {}. Please include more parameters in kwargs.".format(known, required))
-
+                raise ValueError("unknown={} is too large. Please update and include more parameters in source_input.".format(unknown))
+            
+            elif len(unknown) == 1: # one unknown parameter
+                
+                unknown_par = unknown[0]  # extracting the only parameter to be deduced
+                if verbose:
+                    print "Unknown parmeter: {}".format(unknown_par)
+                
+                try:
+                    # the parameters required in source_input
+                    required = ap.pars_required[(model, unknown_par)]
+                except:
+                    raise KeyError("Currently the code does not support having {} as an unknown parameter, only {}. Please update.".format(unknown_par, ap.pars_required.keys()))
+                
+                if not set(required).issubset(set(known)):
+                    raise ValueError("known={} is too short. It should be a subset of the required parameters, which are {}. Please include more parameters in kwargs.".format(known, required))
+                
+                
+                # computing unknown parameters, at nu_pivot:
+                local_source = {key: value for key, value in source_input.items()}
+                if model == 'thy':
+                    # Weiler's frequency-dependent opacity correction factor
+                    tau_factor = (local_source['nu_pivot']/5.)**-2.1
+                    local_source['tau_factor'] = tau_factor
+                
+                # computing the unknown parameter:
+                _, pars_out = ap.L_source(1., output_pars=True, **local_source)
+                
+                # updating source_input with new known parameter
+                source_input.update({unknown_par:pars_out[unknown_par]})
+                
+            else: # no unknown parameters!
+                if verbose:
+                    print "No unknown parameters."
+                pass
+        
         else:
             raise KeyError(
                 "source_input['model']={} is neither 'eff' nor 'thy', which are the only two options. Please update.".format(model))
@@ -206,7 +230,7 @@ def check_axion(axion_input):
     return
 
 
-def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_observing_time=100., average=False, verbose=0):
+def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_observing_time=100., average=True, verbose=0):
     """
     Checks if the 'data' dictionary of a source is in the necessary format.
 
@@ -217,6 +241,7 @@ def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_obse
     f_Delta : fraction of flux density that falls in the optimal bandwidth (default: 0.721)
     exper : experiment under consideration (default: 'SKA')
     total_observing_time : total time of observation [hours] (default: 100.)
+    average : whether the background noise brightness temperature will be averaged over the angular size of the source (default: True)
     verbose : verbosity (default: 0)
     """
 
@@ -256,6 +281,60 @@ def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_obse
 
 #########################################
 # Source and echo numerical computations
+
+def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t_extra_old=0.):
+    """
+    Computes the solid angle [sr] from which the echo signal is emitted due to the dark matter velocity dispersion.
+    
+    Parameters
+    ----------
+    source_input : dictionary with source input parameters
+    data : dictionary with environmental, experimental, and observational data
+    tmin_default : the default cutoff minimum time [years] (i.e. the youngest age) of the SNR we will consider (default: None)
+    xmax_default : the default maximum value of the integration variable x [kpc] (default: 100.)
+    t_extra_old : extra time [years] added to the SNR source to make it older; they do not contribute to the lightcurve but merely displace the limits of the l.o.s. integral (default: 0.)
+    """
+    
+    if not ('Omega_dispersion' in source_input.keys()):
+        
+        # checking if the dictionaries are in the correct format
+        check_source(source_input)
+        check_data(data)
+        
+        t_age = source_input['t_age'] # duration of free+adiabatic phases [years]
+        distance = source_input['distance'] # distance to SNR source [kpc]
+        sigma_v = data['deltaE_over_E']/2.17 # velocity dispersion
+        
+        # calculating the cutoff minimum time (i.e. the youngest age under consideration)
+        if tmin_default == None:
+            try:
+                tmin = source_input['t_peak']/365.  # [years]
+            except:
+                tmin = 1./365.  # 1 day [years]
+        else:
+            tmin = tmin_default
+        
+        # correcting tmin in non-sensical case
+        if tmin > t_age:
+            tmin = t_age/2.
+        
+        # l.o.s. offset
+        x_offset = t_extra_old/(2.*ct._kpc_over_lightyear_)
+        
+        # the upper limit: xmax
+        # the location of the wave front
+        xmax_tmp = (t_age - tmin)/(2.*ct._kpc_over_lightyear_)
+        xmax_tmp += x_offset  # adding offset
+        x_wavefront = min([xmax_default, xmax_tmp])  # truncate it with xmax_default
+        
+        theta_sig = ((x_wavefront+distance)/distance)*sigma_v
+        omega_sig = ct.angle_to_solid_angle(theta_sig)
+        
+        source_input['Omega_dispersion'] = omega_sig
+    
+    return source_input['Omega_dispersion']
+
+
 
 def axion_pref(ma, ga):
     """
@@ -361,8 +440,7 @@ def Snu_source(t, nu, source_input, output=None):
         # frequency-dependent correction factor
         factor = ap.nu_factor(nu, nu_pivot, alpha)
         # luminosity [erg * s^-1 * Hz^-1] w/ frequency-dependent factor
-        Lum = np.squeeze(
-            factor*ap.L_source(t, output_pars=False, **local_source))
+        Lum = np.squeeze(factor*ap.L_source(t, output_pars=False, **local_source))
 
     else:  # nu and t are scalars
 
@@ -471,10 +549,17 @@ def Snu_echo(source_input, axion_input, data,
     t_extra_old : extra time [years] added to the SNR source to make it older; they do not contribute to the lightcurve but merely displace the limits of the l.o.s. integral (default: 0.)
     """
 
-    # checking if the dictionraries are in the correct format
+    # checking if the dictionaries are in the correct format
     check_source(source_input)
     check_axion(axion_input)
     check_data(data)
+    
+    if not ('Omega_dispersion' in source_input.keys()):
+        # computing Omega_dispersion and including it in source_input
+        Omega_dispersion(source_input, data,
+                         tmin_default=tmin_default,
+                         xmax_default=xmax_default,
+                         t_extra_old=t_extra_old)
 
     # source location parameters:
     l_source = source_input['longitude']  # [deg] galactic longitude of source
@@ -759,6 +844,7 @@ def signal(source_input, axion_input, data,
     Returns:
     the signal frequency [GHz] ('signal_nu'),
     signal line width [GHz] ('signal_delnu'),
+    signal solid angle [sr] ('signal_Omega'),
     flux density/spectral irradiance [Jy] ('signal_Snu'),
     signal flux/irradiance [eV^4] ('signal_S_echo'), and
     signal power [eV^2] ('signal_power').
@@ -775,10 +861,17 @@ def signal(source_input, axion_input, data,
     Snu_echo_kwargs : Snu_echo() keyword arguments
     """
 
-    # checking if the dictionraries are in the correct format
+    # checking if the dictionaries are in the correct format
     check_source(source_input)
     check_axion(axion_input)
     check_data(data)
+    
+    if not ('Omega_dispersion' in source_input.keys()):
+        # computing Omega_dispersion and including it in source_input
+        Omega_dispersion(source_input, data,
+                         tmin_default=Snu_echo_kwargs['tmin_default'],
+                         xmax_default=Snu_echo_kwargs['xmax_default'],
+                         t_extra_old=Snu_echo_kwargs['t_extra_old'])
 
     # axion parameters
     ma = axion_input['ma']  # [eV] axion mass
@@ -790,6 +883,7 @@ def signal(source_input, axion_input, data,
     delnu = nu*deltaE_over_E  # [GHz] bandwidth
     f_Delta = data['f_Delta']  # the fraction of flux in the bandwidth
     exper = data['exper']  # experiment requested
+    signal_Omega = max(source_input['size'], source_input['Omega_dispersion']) # solid angle of signal
 
     # finding the experimental range
     if exper == 'SKA':  # in case the range is frequency-dependent
@@ -802,7 +896,7 @@ def signal(source_input, axion_input, data,
             "data['exper'] must be either 'SKA', 'SKA low', or 'SKA mid'. Please update accordingly.")
 
     # computing the collecting area and the frequency sensitivity window of the experiment mode
-    area, window, _ = ap.SKA_specs(nu, exper_mode)
+    area, window, _, _ = ap.SKA_specs(nu, exper_mode)
 
     # checking for recycle:
     recycle, output = recycle_output
@@ -825,7 +919,7 @@ def signal(source_input, axion_input, data,
 
     # compute the signal power
     # [eV^2], assuming the default SKA efficiency of eta = 0.8
-    signal_power = ap.P_signal(S=signal_S_echo, A=area, f_Delta=f_Delta)
+    signal_power = ap.P_signal(S=signal_S_echo, A=area, eta=ct._eta_ska_, f_Delta=f_Delta)
 
     # truncate the power according to the SKA freq range window
     signal_power *= window
@@ -834,6 +928,7 @@ def signal(source_input, axion_input, data,
 
         output['signal_nu'] = nu
         output['signal_delnu'] = delnu
+        output['signal_Omega'] = signal_Omega
         output['signal_Snu'] = signal_Snu
         output['signal_S_echo'] = signal_S_echo
         output['signal_power'] = signal_power
@@ -841,21 +936,23 @@ def signal(source_input, axion_input, data,
         # output
         if data['verbose'] > 0:
             print(
-                "Signal computed and saved in:\n\noutput['signal_nu']\t[GHz]\noutput['signal_delnu']\t[GHz]\\noutput['signal_Snu']\t[Jy]\noutput['signal_S_echo']\t\t[eV^4]\noutput['signal_power']\t[eV^2]\n")
+                "Signal computed and saved in:\n\noutput['signal_nu']\t[GHz]\noutput['signal_delnu']\t[GHz]\noutput['signal_Omega']\t[sr]\\noutput['signal_Snu']\t[Jy]\noutput['signal_S_echo']\t\t[eV^4]\noutput['signal_power']\t[eV^2]\n")
 
     return (nu,
             delnu,
+            signal_Omega,
             signal_Snu,
             signal_S_echo,
             signal_power)
 
 
 def noise(source_input, axion_input, data,
-          recycle_output=(False, None)):
+          recycle_output=(False, None), **Omdisp_kwargs):
     """
     Returns:
     the noise frequency [GHz] ('noise_nu'),
     noise line width [GHz] ('noise_delnu'),
+    observation solid angle [sr] ('noise_Omega_obs'),
     background noise brightness temperature at 408 MHz [K] ('noise_T408'),
     total noise temperature [K] ('noise_Tnu'), and
     noise power [eV^2] ('noise_power').
@@ -867,6 +964,7 @@ def noise(source_input, axion_input, data,
     axion_input : dictionary with axion parameters
     data : dictionary with environmental, experimental, and observational data
     recycle_output : whether we recycle a previous computation; and the location where it is stored (default: (False, None))
+    Omdisp_kwargs : Omega_dispersion() keyword arguments
 
     NOTE: we ignore the noise's brightness temperature T_noise variation over the very narrow bandwidth.
     """
@@ -875,6 +973,10 @@ def noise(source_input, axion_input, data,
     check_source(source_input)
     check_axion(axion_input)
     check_data(data)
+    
+    if not ('Omega_dispersion' in source_input.keys()):
+        # computing Omega_dispersion and including it in source_input
+        Omega_dispersion(source_input, data, **Omdisp_kwargs)
 
     # source parameters
     l_source = source_input['longitude']  # [deg] galactic longitude of source
@@ -884,7 +986,7 @@ def noise(source_input, axion_input, data,
     # TODO: compute the angular properties of the echo
     l_echo = l_source + 180.  # [deg] galactic longitude of echo
     b_echo = -b_source  # [deg] galactic latitude of echo
-    Omega_echo = Omega_source  # [sr] solid angle of echo
+    signal_Omega = max(source_input['Omega_dispersion'], Omega_source) # [sr] solid angle of echo
 
     # axion parameters
     ma = axion_input['ma']  # [eV] axion mass
@@ -909,22 +1011,23 @@ def noise(source_input, axion_input, data,
     else:
         raise ValueError(
             "data['exper'] must be either 'SKA', 'SKA low', or 'SKA mid'. Please update accordingly.")
-
-    # compute background brightness temperature at 408 MHz at the location of the echo.
-    Tbg_408_at_echo_loc = ap.bg_408_temp(
-        l=l_echo, b=b_echo, size=Omega_echo, average=average, verbose=False)  # [K]
-
+    
     # generate the noise power at nu
     # we ignore the non-uniform dependence of T_noise on nu; which is OK for a narrow band:
     # dlog T_noise/dlog nu ~ -beta*deltaE_over_E ~ -0.00255)
 
-    # reading out the receiver's noise brightness temperature
-    _, _, Tr = ap.SKA_specs(nu, exper_mode)
+    # reading out the receiver's noise brightness temperature and solid angle resolution
+    _, _, Tr, Omega_res = ap.SKA_specs(nu, exper_mode)
+    
+    Omega_obs = max(Omega_res, signal_Omega) # the observation solid angle [sr]
+    
+    # compute background brightness temperature at 408 MHz at the location of the echo.
+    Tbg_408_at_echo_loc = ap.bg_408_temp(
+        l=l_echo, b=b_echo, size=Omega_obs, average=average, verbose=False)  # [K]
+    
     # computing total noise brightness temperature
-    T_noise = np.squeeze(ap.T_noise(
-        nu, Tbg_at_408=Tbg_408_at_echo_loc, Tr=Tr))  # [K]
-    noise_power = ap.P_noise(
-        T_noise=T_noise, delnu=delnu, tobs=obs_time)  # [eV^2]
+    T_noise = np.squeeze(ap.T_noise(nu, Tbg_at_408=Tbg_408_at_echo_loc, Tr=Tr))  # [K]
+    noise_power = ap.P_noise(T_noise=T_noise, delnu=delnu, tobs=obs_time, Omega_obs=Omega_obs, Omega_res=Omega_res)  # [eV^2]
 
     # checking for recycle:
     recycle, output = recycle_output
@@ -933,6 +1036,8 @@ def noise(source_input, axion_input, data,
 
         output['noise_nu'] = nu
         output['noise_delnu'] = delnu
+        output['noise_Omega_res'] = Omega_res
+        output['noise_Omega_obs'] = Omega_obs
         output['noise_T408'] = Tbg_408_at_echo_loc
         output['noise_Tnu'] = T_noise
         output['noise_power'] = noise_power
@@ -940,10 +1045,12 @@ def noise(source_input, axion_input, data,
         # output
         if data['verbose'] > 0:
             print(
-                "Noise computed and saved in:\n\noutput['noise_nu']\t[GHz]\noutput['noise_delnu']\t[GHz]\noutput['noise_T408']\t[K]\noutput['noise_Tnu']\t[K]\noutput['noise_power']\t[eV^2]\n")
+                "Noise computed and saved in:\n\noutput['noise_nu']\t[GHz]\noutput['noise_delnu']\t[GHz]\noutput['noise_Omega_res']\t[sr]\noutput['noise_Omega_obs']\t[sr]\noutput['noise_T408']\t[K]\noutput['noise_Tnu']\t[K]\noutput['noise_power']\t[eV^2]\n")
 
     return (nu,
             delnu,
+            Omega_res,
+            Omega_obs,
             Tbg_408_at_echo_loc,
             T_noise,
             noise_power)
@@ -977,7 +1084,7 @@ def sn_ratio(signal_power, noise_power,
     return res
 
 
-def snr_fn(Secho, nu, delta_nu, Tbg_408=Tbg_408_avg, fDelta=0.721, tobs=100.):
+def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._eta_ska_, fDelta=0.721, tobs=100.):
     """
     Simpler signal-to-noise ratio formula.
 
@@ -986,7 +1093,9 @@ def snr_fn(Secho, nu, delta_nu, Tbg_408=Tbg_408_avg, fDelta=0.721, tobs=100.):
     Secho : echo flux density (spectral irradiance) [Jy]
     nu : signal frequency [GHz]
     delta_nu : the bandwidth of the detector [GHz]
+    Omega_obs : the observation solid angle [sr]
     Tbg_408 : the MW background at 408 MHz [K] (default: full sky average)
+    eta: the detector efficiency (default: 0.8)
     fDelta : the fraction of signal falling withing the bandwidth (default: 0.721)
     tobs : the total observation time [hours] (default: 100)
     """
@@ -997,12 +1106,12 @@ def snr_fn(Secho, nu, delta_nu, Tbg_408=Tbg_408_avg, fDelta=0.721, tobs=100.):
 
     # experiment
     exper_mode = ap.SKA_exper_nu(nu)
-    area, window, Tr = ap.SKA_specs(nu, exper_mode)
+    area, window, Tr, Omega_res = ap.SKA_specs(nu, exper_mode, eta=eta)
 
-    Psig = ap.P_signal(Stot, area, eta=ct._eta_ska_, f_Delta=fDelta)
+    Psig = ap.P_signal(Stot, area, eta=eta, f_Delta=fDelta)
 
     Tnoise = ap.T_noise(nu, Tbg_at_408=Tbg_408, beta=-2.55, Tr=Tr)
-    Pnoise = ap.P_noise(Tnoise, delta_nu, tobs)
+    Pnoise = ap.P_noise(Tnoise, delta_nu, tobs, Omega_obs, Omega_res)
 
     return Psig/Pnoise
 

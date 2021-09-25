@@ -498,19 +498,22 @@ def L_source(t, model='eff', output_pars=False, **kwargs):
         known['tau_factor'] = kwargs['tau_factor']
 
     if len(to_deduce) > 1:  # too many missing parameters
-        raise ValueError(
-            "to_deduce={} is too large. Please include more parameters in kwargs.".format(to_deduce))
-
-    to_deduce = to_deduce[0]  # extracting the only parameter to be deduced
-    # the parameters required in kwargs
-    required = pars_required[(model, to_deduce)]
-    if not set(required).issubset(set(known.keys())):
-        raise ValueError("known={} is too short. It should be a subset of the required parameters, which are {}. Please include more parameters in kwargs.".format(
-            known.keys(), required))
+        raise ValueError("to_deduce={} is too large. Please include more parameters in kwargs.".format(to_deduce))
+    
+    try:
+        to_deduce = to_deduce[0]  # extracting the only parameter to be deduced
+        
+        # the parameters required in kwargs
+        required = pars_required[(model, to_deduce)]
+        if not set(required).issubset(set(known.keys())):
+            raise ValueError("known={} is too short. It should be a subset of the required parameters, which are {}. Please include more parameters in kwargs.".format(known.keys(), required))
+    
+    except IndexError:
+        to_deduce = None # no parameter to deduce!
 
     if model == 'eff':
 
-        if to_deduce == 'L_today':  # based on peak info, deduce L_today
+        if (to_deduce == 'L_today') or (to_deduce == None):  # based on peak info, deduce L_today
 
             t_today = known['t_age']  # age [years]
             t_trans = known['t_trans']  # transition time [years]
@@ -581,7 +584,7 @@ def L_source(t, model='eff', output_pars=False, **kwargs):
 
     elif model == 'thy':
 
-        if 'L_today' in to_deduce:
+        if (to_deduce == 'L_today') or (to_deduce == None):
 
             t_today = known['t_age']  # age [years]
             t_trans = known['t_trans']  # transition time [years]
@@ -592,7 +595,7 @@ def L_source(t, model='eff', output_pars=False, **kwargs):
             L_today = L_adiab(t_today, **adiab_kwargs)
             known.update({'L_today': L_today})
 
-        elif 'L_norm' in to_deduce:
+        elif to_deduce == 'L_norm':
 
             t_age = known['t_age']  # age [years]
             t_trans = known['t_trans']  # transition time [years]
@@ -746,6 +749,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_):
     ----------
     nu : frequency [GHz]
     exper_mode : mode in which the experiment is working
+    eta: the detector efficiency (default: 0.8)
     """
 
     if exper_mode == None:
@@ -758,7 +762,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_):
         
         # finding resolution:
         wavelength = pt.lambda_from_nu(nu)/100. # wavelength [m]
-        theta_res = (wavelength/2.)/sqrt(eta*area) # angular size of pixel resolution [rad]
+        theta_res = (1.22*wavelength)/sqrt(eta*4.*area/pi) # angular size of pixel resolution [rad]
         Omega_res = ct.angle_to_solid_angle(theta_res) # solid angle of resolution [sr]
     elif exper_mode == 'SKA mid':
         area = ct._area_ska_mid_
@@ -768,7 +772,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_):
         
         # finding resolution:
         wavelength = pt.lambda_from_nu(nu)/100. # wavelength [m]
-        theta_res = (wavelength/2.)/sqrt(eta*area) # angular size of pixel resolution [rad]
+        theta_res = (1.22*wavelength)/sqrt(eta*4.*area/pi) # angular size of pixel resolution [rad]
         Omega_res = ct.angle_to_solid_angle(theta_res) # solid angle of resolution [sr]
 
     return area, window, Tr, Omega_res
@@ -799,7 +803,7 @@ def bg_408_temp(l, b, size=None, average=False, verbose=False):
 
     pos_coords = SkyCoord(frame="galactic", l=l, b=b, unit='deg')
     pos_pix = healp.skycoord_to_healpix(pos_coords)
-
+    
     if average and size != None:
         vec = hp.pix2vec(nside=512, ipix=pos_pix)
         new_pos_pix = hp.query_disc(
@@ -831,7 +835,7 @@ def T_noise(nu, Tbg_at_408=27, beta=-2.55, Tr=0.):
     # Tbg_0 = 60.  # at 0.3 GHz [K]
     # Tbg = Tbg_0 * (nu/0.3)**beta
     Tbg = Tbg_at_408 * (nu/0.408)**beta
-
+    
     res = Tcmb + Ta + Tr + Tbg
 
     return res
