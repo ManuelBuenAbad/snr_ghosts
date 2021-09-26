@@ -309,16 +309,18 @@ class SuperNovaRemnant(object):
         :param b: height in galactic frame
 
         """
-        self.l = float(l)
-        self.b = float(b)
+        if l is not None:
+            self.l = float(l)
+        if b is not None:
+            self.b = float(b)
         if sign == '-':
             self.b *= -1.
 
-    def set_flux_density(self, Snu, is_flux_certain):
+    def set_flux_density(self, Snu, is_flux_certain='y'):
         """Set the flux density according 
 
         :param Snu: flux density at 1 GHz [Jy]
-        :param is_flux_certain: flag to show whether it has large uncertainty in distance
+        :param is_flux_certain: flag to show whether it has large uncertainty in distance (default: 'y')
 
         """
 
@@ -329,6 +331,14 @@ class SuperNovaRemnant(object):
             self.is_flux_certain = True
         self.no_flux = False
         return
+
+    def set_sr(self, sr):
+        """Set the size of the SNR with square-radian 
+
+        :param sr: square radian
+
+        """
+        self.sr = sr
 
     def set_size(self, length, width=None):
         """Set the size of the SNR. Some data points are in a x b format, i.e. rectangle, while some have only one number. In the former case, we take the geometric mean as the angular size [arcmin]. The sr value is also updated
@@ -356,6 +366,8 @@ class SuperNovaRemnant(object):
 
         """
         dist_arr = np.asarray(dist_arr).astype(float)
+        if dist_arr.ndim == 0:
+            dist_arr = dist_arr[None]
         dist_arr_clean = []
         for x in dist_arr:
             # some sanity check to filter out rare junk that arises from the regex parsing
