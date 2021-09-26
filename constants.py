@@ -38,7 +38,7 @@ def solid_angle_to_angle(Omega):
 #
 # Unit conversion
 #
-_light_speed_ = 299792458. # [m/s]
+_light_speed_ = 299792458.  # [m/s]
 _eV_over_GeV_ = 1.e-9
 _cm_eV_ = NaturalUnit('cm*eV').val
 _kpc_over_cm_ = NaturalUnit('kpc/cm').val  # 3.0857e21
@@ -105,3 +105,8 @@ _mu_log10_Lpk_IIb_, _sig_log10_Lpk_IIb_ = 26.8, 0.5  # type IIb
 _mu_log10_tpk_, _sig_log10_tpk_ = 1.7, 0.9  # all types, D<100Mpc
 _mu_log10_tpk_50_, _sig_log10_tpk_50_ = 1.6, 0.8  # all types, D<50Mpc
 _mu_log10_tpk_IIb_, _sig_log10_tpk_IIb_ = 1.5, 0.6  # type IIb
+
+#
+# SNR properties
+#
+_time_of_phase_two_ = 1.e4  # [year]

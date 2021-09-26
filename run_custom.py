@@ -223,6 +223,132 @@ lb_parser.add_argument('-x', '--t_extra', '--extra',
                        type=float,
                        help="The extra age of the SNR, after the adiabatic phase [years]")
 
+# CASE 6: D-t slice
+Dt_parser = subparsers.add_parser(
+    'D-t', help="distance-t_total parameter space slice")
+
+Dt_parser.add_argument('-L', '--Lpk', '--L_peak',
+                       default=(10.**ct._mu_log10_Lpk_),
+                       type=float,
+                       help="The peak luminosity of the SNR, at the Bietenholz frequency [erg/s/Hz]")
+Dt_parser.add_argument('-p', '--tpk', '--t_peak',
+                       default=(10.**ct._mu_log10_tpk_),
+                       type=float,
+                       help="The peak time of the SNR [days]")
+Dt_parser.add_argument('-r', '--tt_ratio', '--ratio',
+                       default=30.,
+                       type=float,
+                       help="The ratio of t_trans/t_pk")
+# Dt_parser.add_argument('-D', '--distance', '--dist',
+#                        default=1.,
+#                        type=float,
+#                        help="The distance to the source [kpc]")
+
+Dt_parser.add_argument('-s', '--S0', '--irrad', '--flux',
+                       default=None,
+                       type=float,
+                       help="Debug only: the SNR spectral irradiance at the end of the adiabatic phase [Jy]")
+
+# Dt_parser.add_argument('-t', '--t_total',
+#                        default=None,  # total time
+#                        type=float,
+#                        help="the total age of the SNR signal [years]")
+
+Dt_parser.add_argument('-lb', '--coords', '--long_lat',
+                       default=(0., 0.),
+                       type=float,
+                       nargs=2,
+                       help="The galactic coordinates of the SNR [deg]")
+
+
+# CASE 7: l-t slice
+lt_parser = subparsers.add_parser(
+    'l-t', help="longitude-t_total parameter space slice")
+
+lt_parser.add_argument('-L', '--Lpk', '--L_peak',
+                       default=(10.**ct._mu_log10_Lpk_),
+                       type=float,
+                       help="The peak luminosity of the SNR, at the Bietenholz frequency [erg/s/Hz]")
+lt_parser.add_argument('-p', '--tpk', '--t_peak',
+                       default=(10.**ct._mu_log10_tpk_),
+                       type=float,
+                       help="The peak time of the SNR [days]")
+lt_parser.add_argument('-r', '--tt_ratio', '--ratio',
+                       default=30.,
+                       type=float,
+                       help="The ratio of t_trans/t_pk")
+
+lt_parser.add_argument('-D', '--distance', '--dist',
+                       default=1.,
+                       type=float,
+                       help="The distance to the source [kpc]")
+
+lt_parser.add_argument('-s', '--S0', '--irrad', '--flux',
+                       default=None,
+                       type=float,
+                       help="Debug only: the SNR spectral irradiance at the end of the adiabatic phase [Jy]")
+
+# lt_parser.add_argument('-t', '--t_total',
+#                        default=None,  # total time
+#                        type=float,
+#                        help="the total age of the SNR signal [years]")
+
+lt_parser.add_argument('-b', '--lat', '--latitude',
+                       default=0.,
+                       type=float,
+                       help="The galactic latitude of the SNR [deg]")
+
+# lt_parser.add_argument('-lb', '--coords', '--long_lat',
+#                        default=(0., 0.),
+#                        type=float,
+#                        nargs=2,
+#                        help="The galactic coordinates of the SNR [deg]")
+
+
+# CASE 8: b-t slice
+bt_parser = subparsers.add_parser(
+    'b-t', help="longitude-t_total parameter space slice")
+
+bt_parser.add_argument('-L', '--Lpk', '--L_peak',
+                       default=(10.**ct._mu_log10_Lpk_),
+                       type=float,
+                       help="The peak luminosity of the SNR, at the Bietenholz frequency [erg/s/Hz]")
+bt_parser.add_argument('-p', '--tpk', '--t_peak',
+                       default=(10.**ct._mu_log10_tpk_),
+                       type=float,
+                       help="The peak time of the SNR [days]")
+bt_parser.add_argument('-r', '--tt_ratio', '--ratio',
+                       default=30.,
+                       type=float,
+                       help="The ratio of t_trans/t_pk")
+
+bt_parser.add_argument('-D', '--distance', '--dist',
+                       default=1.,
+                       type=float,
+                       help="The distance to the source [kpc]")
+
+bt_parser.add_argument('-s', '--S0', '--irrad', '--flux',
+                       default=None,
+                       type=float,
+                       help="Debug only: the SNR spectral irradiance at the end of the adiabatic phase [Jy]")
+
+# bt_parser.add_argument('-t', '--t_total',
+#                        default=None,  # total time
+#                        type=float,
+#                        help="the total age of the SNR signal [years]")
+
+bt_parser.add_argument('-l', '--longitude',
+                       default=0.,
+                       type=float,
+                       help="The galactic longitude of the SNR [deg]")
+
+# bt_parser.add_argument('-lb', '--coords', '--long_lat',
+#                        default=(0., 0.),
+#                        type=float,
+#                        nargs=2,
+#                        help="The galactic coordinates of the SNR [deg]")
+
+
 # Parsing arguments:
 args = parser.parse_args()
 
@@ -230,10 +356,6 @@ if args.verbose:  # Printing arguments
     print("Parameter slice: ", args.slice)
     print("Arguments: ", args._get_kwargs())
 
-# print('---------------')
-# print(Lt_parser)
-# print('---------------')
-# raise Exception
 
 # Need nuB!
 if args.nuB == None:
@@ -242,13 +364,6 @@ if args.nuB == None:
 if args.Nsteps == None:
     raise Exception(
         "Please pass an int value for the number of steps --Nsteps.")
-
-
-# if args.slice == "r-tsig":
-#     args.S0 = None
-#     args.t_extra = 0.
-# if args.slice == "r-tex":
-#     args.t_sig = 1.e4  # saturate the max of adia phase
 
 if args.slice in ["Lpk-tpk", "r-tex", "l-D", "l-b"]:
     if args.S0 != None and args.t_signal != None:
@@ -328,6 +443,15 @@ elif args.slice == "l-b":
         filename += "a-{}_Lpk-{:.0e}_tpk-{:.0e}_D-{}_r-{}_tsig-{}_tex-{}_nuB-{}_sz-{:.0e}".format(
             args.alpha, args.Lpk, args.tpk, args.distance, int(args.tt_ratio), int(args.t_signal), int(args.t_extra), int(args.nuB), args.sz)
 
+elif args.slice == "D-t":
+    pass
+
+elif args.slice == "l-t":
+    pass
+
+elif args.slice == "b-t":
+    pass
+
 if args.verbose:
     print(filename)
 
@@ -358,6 +482,7 @@ ga_ref = 1.e-10  # [GeV^-1]
 Nsteps = args.Nsteps
 
 # TODO: for each slice perform the parameter scan routine
+# CASE 1:
 if args.slice == "Lpk-tpk":
     # Defining the arrays
     Nsigs = 3.  # number of standard deviations from the Bietenholz's mean to scan
@@ -522,6 +647,7 @@ if args.slice == "Lpk-tpk":
     # end of Lpk-tpk routine
 
 
+# CASE 2:
 elif args.slice == "r-tsig":
     # Defining the arrays
     ratio_arr = np.linspace(10., 100., Nsteps+1)
@@ -642,9 +768,12 @@ elif args.slice == "r-tsig":
     np.savetxt(folder+"/run_%d_s0_" %
                run_id+filename+".txt", s0_Gr, delimiter=",")
 
+    print(len(sn_Gr))
+
     # end of r-tsig routine
 
 
+# CASE 3:
 elif args.slice == "r-tex":
     # Defining the arrays
     ratio_arr = np.logspace(1., 2., Nsteps+1)
@@ -797,7 +926,7 @@ elif args.slice == "r-tex":
 
     # end of r-tex routine
 
-
+# CASE 4:
 elif args.slice == "l-D":
     # Defining the arrays
     long_arr = np.linspace(0., 360., Nsteps+1)
@@ -823,7 +952,7 @@ elif args.slice == "l-D":
     # snr.__dict__.update({'b': args.lat,
     #                      'no_dist': False})
     snr.set_coord(b=args.lat, l=None, sign=None)
-    # this is mainly to turn off no_dist but still able to cause an exception if not updated again
+    # the following is to turn off no_dist but still able to cause an exception if not updated again
     snr.set_distance(0)
 
     if flg_t:
@@ -961,6 +1090,7 @@ elif args.slice == "l-D":
     # end of l-D routine
 
 
+# CASE 5:
 elif args.slice == "l-b":
     # Defining the arrays
     long_arr = np.linspace(0., 360., Nsteps+1)
@@ -1098,6 +1228,360 @@ elif args.slice == "l-b":
 
     # end of l-b routine
 
+
+# CASE 6:
+elif args.slice == "D-t":
+    # combine r-tsig and r-tex
+    # Defining the arrays
+    dist_arr = np.logspace(-1, 0.5, Nsteps+1)
+    t_arr = np.logspace(log10(10.*(args.tpk/365.)), 5., Nsteps+2)
+
+    np.savetxt(folder+"run_%d_dist_arr_y.txt" % run_id, dist_arr)
+    np.savetxt(folder+"run_%d_t_arr_x.txt" % run_id, t_arr)
+
+    # New L_peak (corrected from Bietenholz frequency to to 1 GHz):
+    new_Lpk = args.Lpk*from_Bieten_to_pivot
+
+    snr.set_coord(l=args.coords[0], b=args.coords[1], sign=None)
+
+    # set the light curve params
+    t_trans = (args.tt_ratio)*(args.tpk/365.)
+    lightcurve_params = {'t_peak': args.tpk,
+                         'L_peak': new_Lpk,
+                         't_trans': t_trans}
+
+    # Result grids:
+    sn_Gr = []
+    snu_Gr = []
+    s0_Gr = []
+
+    # Commence the routine:
+    for D in tqdm(dist_arr):
+
+        # set distance to SNR, which will be used to construct input_param through model.snr_routine()
+        snr.set_distance(D)
+        area = 4.*pi*(snr.distance*ct._kpc_over_cm_)**2.  # [cm^2]
+
+        row_a, row_b, row_c = [], [], []
+
+        for t in t_arr:
+            if t < ct._time_of_phase_two_:
+                t_signal = t
+                t_extra = 0.
+
+            else:
+                t_signal = ct._time_of_phase_two_
+                t_extra = t - ct._time_of_phase_two_
+
+            lightcurve_params['t_age'] = t_signal
+
+            # computing L0 and S0
+            local_source = {'gamma': gamma, 't_age': t_signal,
+                            'L_peak': new_Lpk, 't_peak': args.tpk, 't_trans': t_trans}
+            L0 = ap.L_source(t_signal, **local_source)  # [cgs]
+            S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
+            # snr.__dict__.update({'age': t_signal, 'snu_at_1GHz': S0})
+            snr.set_age(t_signal)
+            snr.set_flux_density(S0)
+
+            # Snu kwargs
+            max_steps = int(3*(t_signal) + 1)
+            snu_echo_kwargs = {'tmin_default': None,
+                               'Nt': min(max_steps, 100001),
+                               'xmin': ct._au_over_kpc_,
+                               'xmax_default': 100.,
+                               'use_quad': False,
+                               'lin_space': False,
+                               'Nint': min(max_steps, 100001),
+                               't_extra_old': t_extra}
+
+            # data:
+            data = {'deltaE_over_E': 1.e-3 * 2.17,
+                    'f_Delta': 0.721,
+                    'exper': 'SKA',
+                    'total_observing_time': 100.,
+                    'verbose': 0,
+                    'average': True}
+
+            # computing routine
+            z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
+                                           snr,
+                                           lightcurve_params=lightcurve_params,
+                                           snu_echo_kwargs=snu_echo_kwargs,
+                                           data=data,
+                                           output_all=True)
+
+            signal_Snu = new_output['signal_Snu']
+            del new_output
+
+            if args.verbose:
+                print("S/N=", z)
+
+            # building rows
+            row_a.append(z)  # signal-to-noise ratio
+            row_b.append(signal_Snu)  # signal S_nu
+            row_c.append(S0)  # S0
+
+            # end of routine for fixed t_signal
+
+        # appending finished t_signal rows
+        sn_Gr.append(row_a)
+        snu_Gr.append(row_b)
+        s0_Gr.append(row_c)
+
+        # end of routine for fixed tt_ratio
+
+    # converting grids to arrays
+    sn_Gr = np.array(sn_Gr)
+    snu_Gr = np.array(snu_Gr)
+    s0_Gr = np.array(s0_Gr)
+
+    # saving grids
+    np.savetxt(folder+"/run_%d_sn_" %
+               run_id + filename+".txt", sn_Gr, delimiter=",")
+    np.savetxt(folder+"/run_%d_echo_" %
+               run_id+filename+".txt", snu_Gr, delimiter=",")
+    np.savetxt(folder+"/run_%d_s0_" %
+               run_id+filename+".txt", s0_Gr, delimiter=",")
+
+    # end of D-t routine
+
+
+# CASE 7:
+elif args.slice == "l-t":
+    # t combines r-tsig and r-tex
+    # Defining the arrays
+    long_arr = np.linspace(0., 360., Nsteps+1)
+    t_arr = np.logspace(log10(10.*(args.tpk/365.)), 5., Nsteps+2)
+
+    np.savetxt(folder+"run_%d_long_arr_y.txt" % run_id, long_arr)
+    np.savetxt(folder+"run_%d_t_arr_x.txt" % run_id, t_arr)
+
+    # New L_peak (corrected from Bietenholz frequency to to 1 GHz):
+    new_Lpk = args.Lpk*from_Bieten_to_pivot
+
+    # geometry
+    snr.set_distance(args.distance)
+    area = 4.*pi*(snr.distance*ct._kpc_over_cm_)**2.  # [cm^2]
+
+    # set the light curve params
+    t_trans = (args.tt_ratio)*(args.tpk/365.)
+    lightcurve_params = {'t_peak': args.tpk,
+                         'L_peak': new_Lpk,
+                         't_trans': t_trans}
+
+    # Result grids:
+    sn_Gr = []
+    snu_Gr = []
+    s0_Gr = []
+
+    # Commence the routine:
+    for longitude in tqdm(long_arr):
+
+        # set distance to SNR, which will be used to construct input_param through model.snr_routine()
+        row_a, row_b, row_c = [], [], []
+        snr.set_coord(l=longitude, b=args.lat, sign=None)
+
+        for t in t_arr:
+            if t < ct._time_of_phase_two_:
+                t_signal = t
+                t_extra = 0.
+
+            else:
+                t_signal = ct._time_of_phase_two_
+                t_extra = t - ct._time_of_phase_two_
+
+            lightcurve_params['t_age'] = t_signal
+
+            # computing L0 and S0
+            local_source = {'gamma': gamma, 't_age': t_signal,
+                            'L_peak': new_Lpk, 't_peak': args.tpk, 't_trans': t_trans}
+            L0 = ap.L_source(t_signal, **local_source)  # [cgs]
+            S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
+            # snr.__dict__.update({'age': t_signal, 'snu_at_1GHz': S0})
+            snr.set_age(t_signal)
+            snr.set_flux_density(S0)
+
+            # Snu kwargs
+            max_steps = int(3*(t_signal) + 1)
+            snu_echo_kwargs = {'tmin_default': None,
+                               'Nt': min(max_steps, 100001),
+                               'xmin': ct._au_over_kpc_,
+                               'xmax_default': 100.,
+                               'use_quad': False,
+                               'lin_space': False,
+                               'Nint': min(max_steps, 100001),
+                               't_extra_old': t_extra}
+
+            # data:
+            data = {'deltaE_over_E': 1.e-3 * 2.17,
+                    'f_Delta': 0.721,
+                    'exper': 'SKA',
+                    'total_observing_time': 100.,
+                    'verbose': 0,
+                    'average': True}
+
+            # computing routine
+            z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
+                                           snr,
+                                           lightcurve_params=lightcurve_params,
+                                           snu_echo_kwargs=snu_echo_kwargs,
+                                           data=data,
+                                           output_all=True)
+
+            signal_Snu = new_output['signal_Snu']
+            del new_output
+
+            if args.verbose:
+                print("S/N=", z)
+
+            # building rows
+            row_a.append(z)  # signal-to-noise ratio
+            row_b.append(signal_Snu)  # signal S_nu
+            row_c.append(S0)  # S0
+
+            # end of routine for fixed t_signal
+
+        # appending finished t_signal rows
+        sn_Gr.append(row_a)
+        snu_Gr.append(row_b)
+        s0_Gr.append(row_c)
+
+        # end of routine for fixed tt_ratio
+
+    # converting grids to arrays
+    sn_Gr = np.array(sn_Gr)
+    snu_Gr = np.array(snu_Gr)
+    s0_Gr = np.array(s0_Gr)
+
+    # saving grids
+    np.savetxt(folder+"/run_%d_sn_" %
+               run_id + filename+".txt", sn_Gr, delimiter=",")
+    np.savetxt(folder+"/run_%d_echo_" %
+               run_id+filename+".txt", snu_Gr, delimiter=",")
+    np.savetxt(folder+"/run_%d_s0_" %
+               run_id+filename+".txt", s0_Gr, delimiter=",")
+
+    # end of l-t routine
+
+
+# CASE 8:
+elif args.slice == "b-t":
+    # t combines r-tsig and r-tex
+    # Defining the arrays
+    lat_arr = np.linspace(-90., 90., Nsteps+1)
+    t_arr = np.logspace(log10(10.*(args.tpk/365.)), 5., Nsteps+2)
+
+    np.savetxt(folder+"run_%d_lat_arr_y.txt" % run_id, lat_arr)
+    np.savetxt(folder+"run_%d_t_arr_x.txt" % run_id, t_arr)
+
+    # New L_peak (corrected from Bietenholz frequency to to 1 GHz):
+    new_Lpk = args.Lpk*from_Bieten_to_pivot
+
+    # geometry
+    snr.set_distance(args.distance)
+    area = 4.*pi*(snr.distance*ct._kpc_over_cm_)**2.  # [cm^2]
+
+    # set the light curve params
+    t_trans = (args.tt_ratio)*(args.tpk/365.)
+    lightcurve_params = {'t_peak': args.tpk,
+                         'L_peak': new_Lpk,
+                         't_trans': t_trans}
+
+    # Result grids:
+    sn_Gr = []
+    snu_Gr = []
+    s0_Gr = []
+
+    # Commence the routine:
+    for latitude in tqdm(lat_arr):
+
+        # set distance to SNR, which will be used to construct input_param through model.snr_routine()
+        row_a, row_b, row_c = [], [], []
+        snr.set_coord(l=args.longitude, b=latitude, sign=None)
+
+        for t in t_arr:
+            if t < ct._time_of_phase_two_:
+                t_signal = t
+                t_extra = 0.
+
+            else:
+                t_signal = ct._time_of_phase_two_
+                t_extra = t - ct._time_of_phase_two_
+
+            lightcurve_params['t_age'] = t_signal
+
+            # computing L0 and S0
+            local_source = {'gamma': gamma, 't_age': t_signal,
+                            'L_peak': new_Lpk, 't_peak': args.tpk, 't_trans': t_trans}
+            L0 = ap.L_source(t_signal, **local_source)  # [cgs]
+            S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
+            # snr.__dict__.update({'age': t_signal, 'snu_at_1GHz': S0})
+            snr.set_age(t_signal)
+            snr.set_flux_density(S0)
+
+            # Snu kwargs
+            max_steps = int(3*(t_signal) + 1)
+            snu_echo_kwargs = {'tmin_default': None,
+                               'Nt': min(max_steps, 100001),
+                               'xmin': ct._au_over_kpc_,
+                               'xmax_default': 100.,
+                               'use_quad': False,
+                               'lin_space': False,
+                               'Nint': min(max_steps, 100001),
+                               't_extra_old': t_extra}
+
+            # data:
+            data = {'deltaE_over_E': 1.e-3 * 2.17,
+                    'f_Delta': 0.721,
+                    'exper': 'SKA',
+                    'total_observing_time': 100.,
+                    'verbose': 0,
+                    'average': True}
+
+            # computing routine
+            z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
+                                           snr,
+                                           lightcurve_params=lightcurve_params,
+                                           snu_echo_kwargs=snu_echo_kwargs,
+                                           data=data,
+                                           output_all=True)
+
+            signal_Snu = new_output['signal_Snu']
+            del new_output
+
+            if args.verbose:
+                print("S/N=", z)
+
+            # building rows
+            row_a.append(z)  # signal-to-noise ratio
+            row_b.append(signal_Snu)  # signal S_nu
+            row_c.append(S0)  # S0
+
+            # end of routine for fixed t_signal
+
+        # appending finished t_signal rows
+        sn_Gr.append(row_a)
+        snu_Gr.append(row_b)
+        s0_Gr.append(row_c)
+
+        # end of routine for fixed tt_ratio
+
+    # converting grids to arrays
+    sn_Gr = np.array(sn_Gr)
+    snu_Gr = np.array(snu_Gr)
+    s0_Gr = np.array(s0_Gr)
+
+    # saving grids
+    np.savetxt(folder+"/run_%d_sn_" %
+               run_id + filename+".txt", sn_Gr, delimiter=",")
+    np.savetxt(folder+"/run_%d_echo_" %
+               run_id+filename+".txt", snu_Gr, delimiter=",")
+    np.savetxt(folder+"/run_%d_s0_" %
+               run_id+filename+".txt", s0_Gr, delimiter=",")
+
+    # end of b-t routine
+
 ####################################
 # save log file for future reference
 ####################################
@@ -1119,14 +1603,28 @@ with open(log_file, 'w') as f:
         f.write('%s: %s\n' % (key, entry))
 
 #
-# examples of the five use cases
+# examples of the use cases
 #
-# python ./run_custom.py --run 0 --nuB 5 --Nsteps 30 Lpk-tpk --dist 0.5 --tt_ratio 30 --t0 1e4 --t_extra 4e4 --long_lat 170 0
+# CASE1:
+# python ./run_custom.py --run 0 --nuB 5 --Nsteps 30 Lpk-tpk --dist 0.5 --tt_ratio 30 --t0 1e4 --t_extra 4e4 --long_lat 178 0
 
-# python ./run_custom.py --run 0 --nuB 5 --Nsteps 30 r-tsig --Lpk 3.16e28 --tpk 50.1 --dist 0.5 --long_lat 170 0
+# CASE2:
+# python ./run_custom.py --run 0 --nuB 5 --Nsteps 30 r-tsig --Lpk 3.16e28 --tpk 50.1 --dist 0.5 --long_lat 178 0
 
-# python ./run_custom.py --run 0 --nuB 5 --Nsteps 30 r-tex --Lpk 3.16e28 --tpk 50.1 --dist 0.5 --long_lat 170 0
+# CASE3:
+# python ./run_custom.py --run 0 --nuB 5 --Nsteps 30 r-tex --Lpk 3.16e28 --tpk 50.1 --dist 0.5 --long_lat 178 0
 
+# CASE4:
 # python ./run_custom.py --run 0 --nuB 5 --Nsteps 100 l-D --Lpk 3.16e28 --tpk 50.1 --tt_ratio 30 --t0 1e4 --t_extra 4e4 --lat 0
 
+# CASE5:
 # python ./run_custom.py --run 0 --nuB 5 --Nsteps 30 l-b --Lpk 3.16e28 --tpk 50.1 --dist 0.5 --tt_ratio 30 --t0 1e4 --t_extra 4e4
+
+# CASE6:
+# python ./run_custom.py --run 0 --nuB 5 --Nsteps 30 D-t --Lpk 3.16e28 --tpk 50.1 --tt_ratio 30 -lb 178 0
+
+# CASE7:
+# python ./run_custom.py --run 0 --nuB 5 --Nsteps 100 l-t --Lpk 3.16e28 --tpk 50.1 --tt_ratio 30 -D 0.5 -b 0
+
+# CASE8:
+# python ./run_custom.py --run 0 --nuB 5 --Nsteps 100 b-t --Lpk 3.16e28 --tpk 50.1 --tt_ratio 30 -D 0.5 -l 178
