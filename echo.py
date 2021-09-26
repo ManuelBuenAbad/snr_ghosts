@@ -286,7 +286,7 @@ def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_obse
 #########################################
 # Source and echo numerical computations
 
-def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t_extra_old=0.):
+def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t_extra_old=0., verbose=0):
     """
     Computes the solid angle [sr] from which the echo signal is emitted due to the dark matter velocity dispersion.
 
@@ -297,9 +297,14 @@ def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t
     tmin_default : the default cutoff minimum time [years] (i.e. the youngest age) of the SNR we will consider (default: None)
     xmax_default : the default maximum value of the integration variable x [kpc] (default: 100.)
     t_extra_old : extra time [years] added to the SNR source to make it older; they do not contribute to the lightcurve but merely displace the limits of the l.o.s. integral (default: 0.)
+    verbose: verbosity
     """
 
-    if not ('Omega_dispersion' in source_input.keys()):
+    try:
+        force_Omega_disp_compute = source_input['force_Omega_disp_compute']
+    except KeyError:
+        force_Omega_disp_compute = True
+    if (not ('Omega_dispersion' in source_input.keys())) or (force_Omega_disp_compute is True):
 
         # checking if the dictionaries are in the correct format
         check_source(source_input)
@@ -309,6 +314,8 @@ def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t
         t_age = source_input['t_age']
         distance = source_input['distance']  # distance to SNR source [kpc]
         sigma_v = data['deltaE_over_E']/2.17  # velocity dispersion
+        if verbose > 0:
+            print('sigma_v: %.1e' % sigma_v)
 
         # calculating the cutoff minimum time (i.e. the youngest age under consideration)
         if tmin_default == None:
@@ -325,6 +332,8 @@ def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t
 
         # l.o.s. offset
         x_offset = t_extra_old/(2.*ct._kpc_over_lightyear_)
+        if verbose > 0:
+            print('x_offset: %.1e' % x_offset)
 
         # the upper limit: xmax
         # the location of the wave front
@@ -334,8 +343,11 @@ def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t
         x_wavefront = min([xmax_default, xmax_tmp])
 
         theta_sig = ((x_wavefront+distance)/distance)*sigma_v
+        if verbose > 0:
+            print('theta sig: %.1e' % theta_sig)
         omega_sig = ct.angle_to_solid_angle(theta_sig)
-
+        if verbose > 0:
+            print('Omega sig: %.1e\n' % omega_sig)
         source_input['Omega_dispersion'] = omega_sig
 
     return source_input['Omega_dispersion']
@@ -560,12 +572,18 @@ def Snu_echo(source_input, axion_input, data,
     check_axion(axion_input)
     check_data(data)
 
-    if not ('Omega_dispersion' in source_input.keys()):
-        # computing Omega_dispersion and including it in source_input
-        Omega_dispersion(source_input, data,
-                         tmin_default=tmin_default,
-                         xmax_default=xmax_default,
-                         t_extra_old=t_extra_old)
+    # if not ('Omega_dispersion' in source_input.keys()):
+    # computing Omega_dispersion and including it in source_input
+
+    # move logic inside Omega_dispersion. It should be called here as
+    # tsig scan and textra scan will change dispersion angle. Speed
+    # impact is minimal. It could be forced not to update every time
+    # rt.fixed_axion_routine() is called by setting
+    # source_input['force_Omega_disp_compute'] to False
+    Omega_dispersion(source_input, data,
+                     tmin_default=tmin_default,
+                     xmax_default=xmax_default,
+                     t_extra_old=t_extra_old)
 
     # source location parameters:
     l_source = source_input['longitude']  # [deg] galactic longitude of source
@@ -872,12 +890,18 @@ def signal(source_input, axion_input, data,
     check_axion(axion_input)
     check_data(data)
 
-    if not ('Omega_dispersion' in source_input.keys()):
-        # computing Omega_dispersion and including it in source_input
-        Omega_dispersion(source_input, data,
-                         tmin_default=Snu_echo_kwargs['tmin_default'],
-                         xmax_default=Snu_echo_kwargs['xmax_default'],
-                         t_extra_old=Snu_echo_kwargs['t_extra_old'])
+    # if not ('Omega_dispersion' in source_input.keys()):
+    # computing Omega_dispersion and including it in source_input
+
+    # move logic inside Omega_dispersion. It should be called here as
+    # tsig scan and textra scan will change dispersion angle. Speed
+    # impact is minimal. It could be forced not to update every time
+    # rt.fixed_axion_routine() is called by setting
+    # source_input['force_Omega_disp_compute'] to False
+    Omega_dispersion(source_input, data,
+                     tmin_default=Snu_echo_kwargs['tmin_default'],
+                     xmax_default=Snu_echo_kwargs['xmax_default'],
+                     t_extra_old=Snu_echo_kwargs['t_extra_old'])
 
     # axion parameters
     ma = axion_input['ma']  # [eV] axion mass
@@ -982,9 +1006,15 @@ def noise(source_input, axion_input, data,
     check_axion(axion_input)
     check_data(data)
 
-    if not ('Omega_dispersion' in source_input.keys()):
-        # computing Omega_dispersion and including it in source_input
-        Omega_dispersion(source_input, data, **Omdisp_kwargs)
+    # if not ('Omega_dispersion' in source_input.keys()):
+    # computing Omega_dispersion and including it in source_input
+
+    # move logic inside Omega_dispersion. It should be called here as
+    # tsig scan and textra scan will change dispersion angle. Speed
+    # impact is minimal. It could be forced not to update every time
+    # rt.fixed_axion_routine() is called by setting
+    # source_input['force_Omega_disp_compute'] to False
+    Omega_dispersion(source_input, data, **Omdisp_kwargs)
 
     # source parameters
     l_source = source_input['longitude']  # [deg] galactic longitude of source
@@ -1150,7 +1180,7 @@ def ma_ga_bound(sn_val, ma_arr, sn_ref_arr, ga_ref):
     ----------
     sn_val : the threshold value of the signal-to-noise ratio at which the bound is defined
     ma_arr : the array of axion masses for which the reference signal-to-noise ratios were computed [eV]
-    sn_ref_arr : the array of reference signal-to-noise ratios computed for the given axion masses and reference axion-photon coupling
+    sn_ref_arr : the array of signal-to-noise ratios computed for the given axion masses and reference axion-photon coupling
     ga_ref : the reference axion-photon coupling at which the reference signal-to-noise ratios were computed [GeV^-1]
     """
 

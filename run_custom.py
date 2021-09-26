@@ -379,8 +379,8 @@ if args.slice == "Lpk-tpk":
     # else:
     #     np.savetxt(folder+"Lpk_arr.txt", Lpk_arr)
     # Saving arrays
-    np.savetxt(folder+"run_%d_tpk_arr.txt" % run_id, tpk_arr)
-    np.savetxt(folder+"run_%d_Lpk_arr.txt" % run_id, Lpk_arr)
+    np.savetxt(folder+"run_%d_tpk_arr_y.txt" % run_id, tpk_arr)
+    np.savetxt(folder+"run_%d_Lpk_arr_x.txt" % run_id, Lpk_arr)
 
     # Updating SNR parameters:
     # snr.__dict__.update({'l': args.coords[0],
@@ -458,7 +458,7 @@ if args.slice == "Lpk-tpk":
                                't_extra_old': args.t_extra}
 
             # data:
-            data = {'deltaE_over_E': 1.e-3,
+            data = {'deltaE_over_E': 1.e-3 * 2.17,
                     'f_Delta': 0.721,
                     'exper': 'SKA',
                     'total_observing_time': 100.,
@@ -524,7 +524,7 @@ if args.slice == "Lpk-tpk":
 
 elif args.slice == "r-tsig":
     # Defining the arrays
-    ratio_arr = np.logspace(10., 100., Nsteps+1)
+    ratio_arr = np.linspace(10., 100., Nsteps+1)
     tsig_arr = np.logspace(log10(10.*(args.tpk/365.)), 4., Nsteps+2)
 
     # Saving arrays
@@ -537,8 +537,8 @@ elif args.slice == "r-tsig":
     # else:
     #     np.savetxt(folder+"/tsig_arr.txt", tsig_arr)
     # Saving arrays
-    np.savetxt(folder+"run_%d_ratio_arr.txt" % run_id, ratio_arr)
-    np.savetxt(folder+"run_%d_tsig_arr.txt" % run_id, tsig_arr)
+    np.savetxt(folder+"run_%d_ratio_arr_y.txt" % run_id, ratio_arr)
+    np.savetxt(folder+"run_%d_tsig_arr_x.txt" % run_id, tsig_arr)
 
     # New L_peak (corrected from Bietenholz frequency to to 1 GHz):
     new_Lpk = args.Lpk*from_Bieten_to_pivot
@@ -594,7 +594,7 @@ elif args.slice == "r-tsig":
                                't_extra_old': args.t_extra}
 
             # data:
-            data = {'deltaE_over_E': 1.e-3,
+            data = {'deltaE_over_E': 1.e-3 * 2.17,
                     'f_Delta': 0.721,
                     'exper': 'SKA',
                     'total_observing_time': 100.,
@@ -648,7 +648,7 @@ elif args.slice == "r-tsig":
 elif args.slice == "r-tex":
     # Defining the arrays
     ratio_arr = np.logspace(1., 2., Nsteps+1)
-    tex_arr = np.logspace(-1, 5., Nsteps+2)
+    tex_arr = np.logspace(3, 5., Nsteps+2)
 
     # Saving arrays
     # if os.access(folder+"ratio_arr.txt", os.R_OK):
@@ -660,8 +660,8 @@ elif args.slice == "r-tex":
     # else:
     #     np.savetxt(folder+"tex_arr.txt", tex_arr)
     # Saving arrays
-    np.savetxt(folder+"run_%d_ratio_arr.txt" % run_id, ratio_arr)
-    np.savetxt(folder+"run_%d_tex_arr.txt" % run_id, tex_arr)
+    np.savetxt(folder+"run_%d_ratio_arr_y.txt" % run_id, ratio_arr)
+    np.savetxt(folder+"run_%d_tex_arr_x.txt" % run_id, tex_arr)
 
     # New L_peak (corrected from Bietenholz frequency to to 1 GHz):
     new_Lpk = args.Lpk*from_Bieten_to_pivot
@@ -740,7 +740,7 @@ elif args.slice == "r-tex":
                            'Nint': min(max_steps, 100001)}
 
         # data:
-        data = {'deltaE_over_E': 1.e-3,
+        data = {'deltaE_over_E': 1.e-3 * 2.17,
                 'f_Delta': 0.721,
                 'exper': 'SKA',
                 'total_observing_time': 100.,
@@ -801,7 +801,7 @@ elif args.slice == "r-tex":
 elif args.slice == "l-D":
     # Defining the arrays
     long_arr = np.linspace(0., 360., Nsteps+1)
-    dist_arr = np.logspace(-1, 2., Nsteps+2)
+    dist_arr = np.logspace(-1, 0.5, Nsteps+2)
 
     # # Saving arrays
     # if os.access(folder+"long_arr.txt", os.R_OK):
@@ -813,8 +813,8 @@ elif args.slice == "l-D":
     # else:
     #     np.savetxt(folder+"dist_arr.txt", dist_arr)
     # Saving arrays
-    np.savetxt(folder+"run_%d_long_arr.txt" % run_id, long_arr)
-    np.savetxt(folder+"run_%d_dist_arr.txt" % run_id, dist_arr)
+    np.savetxt(folder+"run_%d_long_arr_y.txt" % run_id, long_arr)
+    np.savetxt(folder+"run_%d_dist_arr_x.txt" % run_id, dist_arr)
 
     # New L_peak (corrected from Bietenholz frequency to to 1 GHz):
     new_Lpk = args.Lpk*from_Bieten_to_pivot
@@ -897,7 +897,7 @@ elif args.slice == "l-D":
                                't_extra_old': args.t_extra}
 
             # data:
-            data = {'deltaE_over_E': 1.e-3,
+            data = {'deltaE_over_E': 1.e-3 * 2.17,
                     'f_Delta': 0.721,
                     'exper': 'SKA',
                     'total_observing_time': 100.,
@@ -976,8 +976,8 @@ elif args.slice == "l-b":
     # else:
     #     np.savetxt(folder+"lat_arr.txt", lat_arr)
     # Saving arrays
-    np.savetxt(folder+"run_%d_long_arr.txt" % run_id, long_arr)
-    np.savetxt(folder+"run_%d_lat_arr.txt" % run_id, lat_arr)
+    np.savetxt(folder+"run_%d_long_arr_y.txt" % run_id, long_arr)
+    np.savetxt(folder+"run_%d_lat_arr_x.txt" % run_id, lat_arr)
 
     # New L_peak (corrected from Bietenholz frequency to to 1 GHz):
     new_Lpk = args.Lpk*from_Bieten_to_pivot
@@ -1037,7 +1037,7 @@ elif args.slice == "l-b":
                        't_extra_old': args.t_extra}
 
     # data:
-    data = {'deltaE_over_E': 1.e-3,
+    data = {'deltaE_over_E': 1.e-3 * 2.17,
             'f_Delta': 0.721,
             'exper': 'SKA',
             'total_observing_time': 100.,
@@ -1121,12 +1121,12 @@ with open(log_file, 'w') as f:
 #
 # examples of the five use cases
 #
-# python ./run_custom.py --run 0 --nuB 5 --Nsteps 10 Lpk-tpk --dist 0.5 --tt_ratio 30 --t0 1e4 --t_extra 4e4 --long_lat 170 0
+# python ./run_custom.py --run 0 --nuB 5 --Nsteps 30 Lpk-tpk --dist 0.5 --tt_ratio 30 --t0 1e4 --t_extra 4e4 --long_lat 170 0
 
-# python ./run_custom.py --run 0 --nuB 5 --Nsteps 10 r-tsig --Lpk 3.16e28 --tpk 50.1 --dist 0.5 --long_lat 170 0
+# python ./run_custom.py --run 0 --nuB 5 --Nsteps 30 r-tsig --Lpk 3.16e28 --tpk 50.1 --dist 0.5 --long_lat 170 0
 
-# python ./run_custom.py --run 0 --nuB 5 --Nsteps 10 r-tex --Lpk 3.16e28 --tpk 50.1 --dist 0.5 --long_lat 170 0
+# python ./run_custom.py --run 0 --nuB 5 --Nsteps 30 r-tex --Lpk 3.16e28 --tpk 50.1 --dist 0.5 --long_lat 170 0
 
-# python ./run_custom.py --run 0 --nuB 5 --Nsteps 10 l-D --Lpk 3.16e28 --tpk 50.1 --tt_ratio 30 --t0 1e4 --t_extra 4e4 --lat 0
+# python ./run_custom.py --run 0 --nuB 5 --Nsteps 100 l-D --Lpk 3.16e28 --tpk 50.1 --tt_ratio 30 --t0 1e4 --t_extra 4e4 --lat 0
 
-# python ./run_custom.py --run 0 --nuB 5 --Nsteps 10 l-b --Lpk 3.16e28 --tpk 50.1 --dist 0.5 --tt_ratio 30 --t0 1e4 --t_extra 4e4
+# python ./run_custom.py --run 0 --nuB 5 --Nsteps 30 l-b --Lpk 3.16e28 --tpk 50.1 --dist 0.5 --tt_ratio 30 --t0 1e4 --t_extra 4e4
