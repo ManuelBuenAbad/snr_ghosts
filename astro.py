@@ -896,10 +896,16 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res):
     Omega_obs: the observation solid angle [sr]
     Omega_res: the resolution solid angle [sr]
     """
-
+    # Even though we always feed P_noise() with Omega_obs >= Omega_res
+    # I'm adding an extra check here just in case I get sloppy in the
+    # future
+    try:
+        factor = max(sqrt(Omega_obs/Omega_res), 1)
+    except ValueError:
+        factor = np.array([max(x, 1) for x in sqrt(Omega_obs/Omega_res)])
     res = 2. * T_noise * ct._K_over_eV_ * \
         sqrt(delnu * ct._GHz_over_eV_/(tobs * ct._hour_eV_)) * \
-        sqrt(Omega_obs/Omega_res)
+        factor
     return res
 
 

@@ -583,7 +583,7 @@ if args.slice == "Lpk-tpk":
                                't_extra_old': args.t_extra}
 
             # data:
-            data = {'deltaE_over_E': 1.e-3 * 2.17,
+            data = {'deltaE_over_E': 1.e-3,
                     'f_Delta': 0.721,
                     'exper': 'SKA',
                     'total_observing_time': 100.,
@@ -720,7 +720,7 @@ elif args.slice == "r-tsig":
                                't_extra_old': args.t_extra}
 
             # data:
-            data = {'deltaE_over_E': 1.e-3 * 2.17,
+            data = {'deltaE_over_E': 1.e-3,
                     'f_Delta': 0.721,
                     'exper': 'SKA',
                     'total_observing_time': 100.,
@@ -869,7 +869,7 @@ elif args.slice == "r-tex":
                            'Nint': min(max_steps, 100001)}
 
         # data:
-        data = {'deltaE_over_E': 1.e-3 * 2.17,
+        data = {'deltaE_over_E': 1.e-3,
                 'f_Delta': 0.721,
                 'exper': 'SKA',
                 'total_observing_time': 100.,
@@ -1026,7 +1026,7 @@ elif args.slice == "l-D":
                                't_extra_old': args.t_extra}
 
             # data:
-            data = {'deltaE_over_E': 1.e-3 * 2.17,
+            data = {'deltaE_over_E': 1.e-3,
                     'f_Delta': 0.721,
                     'exper': 'SKA',
                     'total_observing_time': 100.,
@@ -1167,7 +1167,7 @@ elif args.slice == "l-b":
                        't_extra_old': args.t_extra}
 
     # data:
-    data = {'deltaE_over_E': 1.e-3 * 2.17,
+    data = {'deltaE_over_E': 1.e-3,
             'f_Delta': 0.721,
             'exper': 'SKA',
             'total_observing_time': 100.,
@@ -1296,7 +1296,7 @@ elif args.slice == "D-t":
                                't_extra_old': t_extra}
 
             # data:
-            data = {'deltaE_over_E': 1.e-3 * 2.17,
+            data = {'deltaE_over_E': 1.e-3,
                     'f_Delta': 0.721,
                     'exper': 'SKA',
                     'total_observing_time': 100.,
@@ -1414,7 +1414,7 @@ elif args.slice == "l-t":
                                't_extra_old': t_extra}
 
             # data:
-            data = {'deltaE_over_E': 1.e-3 * 2.17,
+            data = {'deltaE_over_E': 1.e-3,
                     'f_Delta': 0.721,
                     'exper': 'SKA',
                     'total_observing_time': 100.,
@@ -1532,7 +1532,7 @@ elif args.slice == "b-t":
                                't_extra_old': t_extra}
 
             # data:
-            data = {'deltaE_over_E': 1.e-3 * 2.17,
+            data = {'deltaE_over_E': 1.e-3,
                     'f_Delta': 0.721,
                     'exper': 'SKA',
                     'total_observing_time': 100.,

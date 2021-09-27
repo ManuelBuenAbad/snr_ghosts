@@ -345,12 +345,20 @@ def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t
         theta_sig = ((x_wavefront+distance)/distance)*sigma_v
         if verbose > 0:
             print('theta sig: %.1e' % theta_sig)
-        omega_sig = ct.angle_to_solid_angle(theta_sig)
+        Omega_sig = ct.angle_to_solid_angle(theta_sig)
         if verbose > 0:
-            print('Omega sig: %.1e\n' % omega_sig)
-        source_input['Omega_dispersion'] = omega_sig
+            print('Omega sig: %.1e\n' % Omega_sig)
+        source_input['Omega_dispersion'] = Omega_sig
 
-    return source_input['Omega_dispersion']
+        # compute the aberration angel due to motion of the source here
+        # first, motion of the source
+        ds = sigma_v * x_wavefront
+        # then aberration angle
+        theta_ab = ds / distance
+        Omega_ab = ct.angle_to_solid_angle(theta_ab)
+        source_input['Omega_aberration'] = Omega_ab
+
+    return Omega_sig, Omega_ab
 
 
 def axion_pref(ma, ga):
@@ -580,6 +588,8 @@ def Snu_echo(source_input, axion_input, data,
     # impact is minimal. It could be forced not to update every time
     # rt.fixed_axion_routine() is called by setting
     # source_input['force_Omega_disp_compute'] to False
+
+    # update source_input
     Omega_dispersion(source_input, data,
                      tmin_default=tmin_default,
                      xmax_default=xmax_default,
@@ -898,6 +908,8 @@ def signal(source_input, axion_input, data,
     # impact is minimal. It could be forced not to update every time
     # rt.fixed_axion_routine() is called by setting
     # source_input['force_Omega_disp_compute'] to False
+
+    # update source_input
     Omega_dispersion(source_input, data,
                      tmin_default=Snu_echo_kwargs['tmin_default'],
                      xmax_default=Snu_echo_kwargs['xmax_default'],
@@ -913,8 +925,16 @@ def signal(source_input, axion_input, data,
     delnu = nu*deltaE_over_E  # [GHz] bandwidth
     f_Delta = data['f_Delta']  # the fraction of flux in the bandwidth
     exper = data['exper']  # experiment requested
+
     # solid angle of signal
-    signal_Omega = max(source_input['size'], source_input['Omega_dispersion'])
+    signal_Omega = max(
+        source_input['size'], source_input['Omega_dispersion'], source_input['Omega_aberration'])
+
+    # # test
+    # print("echo.py: source_input['Omega_aberration']=%.1e" %
+    #       source_input['Omega_aberration'])
+    # print("echo.py: source_input['Omega_dispersion']=%.1e" %
+    #       source_input['Omega_dispersion'])
 
     # finding the experimental range
     if exper == 'SKA':  # in case the range is frequency-dependent
@@ -1025,7 +1045,8 @@ def noise(source_input, axion_input, data,
     l_echo = l_source + 180.  # [deg] galactic longitude of echo
     b_echo = -b_source  # [deg] galactic latitude of echo
     # [sr] solid angle of echo
-    signal_Omega = max(source_input['Omega_dispersion'], Omega_source)
+    signal_Omega = max(source_input['Omega_dispersion'],
+                       Omega_source, source_input['Omega_aberration'])
 
     # axion parameters
     ma = axion_input['ma']  # [eV] axion mass
@@ -1040,6 +1061,12 @@ def noise(source_input, axion_input, data,
     exper = data['exper']  # experiment requested
     # whether we average the noise brightness temperature over the angular size of the source
     average = data['average']
+
+    # # test
+    # print("echo.py: source_input['Omega_aberration']=%.1e" %
+    #       source_input['Omega_aberration'])
+    # print("echo.py: source_input['Omega_dispersion']=%.1e" %
+    #       source_input['Omega_dispersion'])
 
     # finding the experimental range:
     if exper == 'SKA':  # in case the range is frequency-dependent
