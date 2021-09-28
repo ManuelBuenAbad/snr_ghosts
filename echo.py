@@ -15,10 +15,15 @@ a la Boltzmann equations. The three main structures are:
         'longitude' :   galactic longitude of source [kpc]
         'latitude' :    galactic latitude of source [deg]
         'distance' :    distance to source [kpc]
-        'size' :        angular size of source [sr]
         'alpha' :       spectral index of source
         'nu_pivot' :    pivot frequency of source's spectrum
         'gamma' :       adiabatic expansion index of source
+        
+        # computable keys and values:
+        'size' :        solid angle size of source [sr]
+        'Omega_dispersion' : solid angle due to DM velocity dispersion [sr]
+        
+        # modeling keys and values:
         'model' :       model of the time-evolution of source: 'eff'/'thy'.
             Each 'model'=='eff' ('thy') has 6 (8) parameters, and supports one of them being a dependent variable and 5 (7) required known parameters/quantities. For more information on these, see ap.pars_required.
             ... 'eff' (6 parameters):
@@ -37,6 +42,10 @@ a la Boltzmann equations. The three main structures are:
                 'gamma' :   adiabatic expansion index of source
                 't_age' :   age of source [years]
                 'L_today' : luminosity today [erg*s^-1*Hz^-1]
+        
+        # Optional:
+            'force_Omega_size_compute' : whether the source's solid angle is computed (default: True)
+            'force_Omega_disp_compute' : whether the dispersion solid angle is computed (default: True) 
 
 2. The 'axion_input' dict includes the following keys:
         'ma' :              the axion mass [eV]
@@ -46,10 +55,11 @@ a la Boltzmann equations. The three main structures are:
 3. The 'data' dict includes the following keys:
         # environment
         'deltaE_over_E' :           the width of the line (default: 1.e-3)
+        'DM_profile' :              the DM profile to be used (default: 'NFW')
 
         # experiment
         'f_Delta' :                 the fraction of flux density that falls in the optimal bandwidth (default: 0.721)
-        'exper' :                   the experiment ('SKA low'/'SKA mid', or simply 'SKA' for either, depending on the frequency)
+        'exper' :                   the experiment ('SKA low'/'SKA mid', or simply 'SKA' for either, depending on the frequency; default: 'SKA')
         'total_observing_time' :    the total time of experimental observation (default: 100.)
         'average' :                 whether the background noise brightness temperature will be averaged over the angular size of the source (default: True)
 
@@ -62,11 +72,13 @@ a la Boltzmann equations. The three main structures are:
         'echo_Snu' :                    spectral irradiance of the echo [Jy]
         'signal_nu' :                   signal frequency [GHz]
         'signal_delnu' :                signal line width [GHz]
+        'signal_Omega' :                signal solid angle [sr]
         'signal_Snu' :                  spectral irradiance of echo in frequency array [Jy]
         'signal_S_echo' :               total irradiance of echo [ev^4]
         'signal_power' :                signal power of echo [eV^2]
         'noise_nu' :                    noise frequency [GHz]
         'noise_delnu' :                 noise line width [GHz]
+        'noise_Omega_obs' :             noise observation solid angle [sr]
         'noise_T408' :                  noise background brightness temperature at 408 MHz [K]
         'noise_Tnu' :                   total noise brightness temperature at frequency nu [K]
         'noise_power' :                 noise power [eV^2]
@@ -134,6 +146,12 @@ def check_source(source_input, custom_name='custom', verbose=False):
     if not 'name' in source_input.keys():
         # update source 'source_input' dictionary to contain some name
         source_input['name'] = custom_name
+    
+    if not 'force_Omega_size_compute' in source_input.keys():
+        source_input['force_Omega_size_compute'] = True
+    
+    if not 'force_Omega_disp_compute' in source_input.keys():
+        source_input['force_Omega_disp_compute'] = True
 
     # preparing local copy of source_input by ignoring 'Omega_dispersion' key from source_input check:
 #     local_source_input = {key:value for key, value in source_input.items() if key != 'Omega_dispersion'}
@@ -222,7 +240,6 @@ def check_axion(axion_input):
     Parameters
     ----------
     axion_input : dictionary with axion input parameters
-    verbose : verbosity (default: 0)
     """
 
     necessary_keys = ['ma', 'ga']
@@ -234,7 +251,7 @@ def check_axion(axion_input):
     return
 
 
-def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_observing_time=100., average=True, verbose=0):
+def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_observing_time=100., average=True, DM_profile='NFW', verbose=0):
     """
     Checks if the 'data' dictionary of a source is in the necessary format.
 
@@ -246,12 +263,17 @@ def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_obse
     exper : experiment under consideration (default: 'SKA')
     total_observing_time : total time of observation [hours] (default: 100.)
     average : whether the background noise brightness temperature will be averaged over the angular size of the source (default: True)
+    DM_profile : the DM density profile (default: 'NFW')
     verbose : verbosity (default: 0)
     """
 
     if not 'deltaE_over_E' in data.keys():
         # update 'data' with default value for deltaE_over_E
         data['deltaE_over_E'] = deltaE_over_E
+    
+    if not 'DM_profile' in data.keys():
+        # update 'data' with default value for 'DM_profile'
+        data['DM_profile'] = DM_profile
 
     if not 'f_Delta' in data.keys():
         # update 'data' with default value of f_Delta
@@ -268,7 +290,7 @@ def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_obse
         # update 'data' with default value for deltaE_over_E
         data['average'] = average
 
-    necessary_keys = ['deltaE_over_E', 'f_Delta',
+    necessary_keys = ['deltaE_over_E', 'DM_profile', 'f_Delta',
                       'exper', 'total_observing_time', 'average']
     has_all_params = all([key in data.keys() for key in necessary_keys])
     if not has_all_params:
@@ -286,6 +308,62 @@ def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_obse
 #########################################
 # Source and echo numerical computations
 
+def Omega_size(source_input, verbose=0):
+    """
+    Computes the solid angle [sr] of the source, based on its other properties.
+    
+    Parameters
+    ----------
+    source_input : dictionary with source input parameters
+    verbose: verbosity (default: 0)
+    """
+    
+    try:
+        force_Omega_size_compute = source_input['force_Omega_size_compute']
+    except KeyError: # should not be necessary, as this function is always called after check_source()
+        force_Omega_size_compute = True
+    
+    if (not ('size' in source_input.keys())) or (force_Omega_size_compute is True):
+        
+        v_free = 1./30 # speed of the free expansion [c]
+        t_trans = source_input['t_trans']
+        t_end = source_input['t_age']
+        distance = source_input['distance']
+        
+        R_trans = (v_free*t_trans)/ct._kpc_over_lightyear_ # radius at the end of the free expansion phase [kpc]
+        
+        if verbose > 0:
+            print('v_free: %.1e [c]' % v_free)
+            print('t_trans: %.1e [c]' % t_trans)
+            print('t_end: %.1e [c]' % t_end)
+            print('distance: %.1e kpc' % distance)
+            print('R_trans: %.1e kpc' % R_trans)
+        
+        if t_trans <= t_end:
+            R_end = R_trans
+            if verbose > 1:
+                print('R ~ t during free expansion')
+        else:
+            R_end = R_trans * (t_end/t_trans)**(2./5.)
+            if verbose > 1:
+                print('R ~ t during free expansion')
+                print('R ~ t^(2/5) during adiabatic expansion')
+        
+        if verbose > 0:
+            print('R_end: %.1e kpc' % R_end)
+        
+        theta_source = 2.*(R_end/distance) # angle subtended (twice angular radius) [rad]
+        Omega_size = ct.angle_to_solid_angle(theta_source) # [sr]
+        source_input['size'] = Omega_size
+        
+        if verbose > 0:
+            print('theta_source: %.1e rad' % theta_source)
+            print('size: %.1e sr' % Omega_size)
+    
+    return source_input['size']
+
+
+
 def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t_extra_old=0., verbose=0):
     """
     Computes the solid angle [sr] from which the echo signal is emitted due to the dark matter velocity dispersion.
@@ -297,13 +375,14 @@ def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t
     tmin_default : the default cutoff minimum time [years] (i.e. the youngest age) of the SNR we will consider (default: None)
     xmax_default : the default maximum value of the integration variable x [kpc] (default: 100.)
     t_extra_old : extra time [years] added to the SNR source to make it older; they do not contribute to the lightcurve but merely displace the limits of the l.o.s. integral (default: 0.)
-    verbose: verbosity
+    verbose: verbosity (default: 0)
     """
 
     try:
         force_Omega_disp_compute = source_input['force_Omega_disp_compute']
-    except KeyError:
+    except KeyError: # should not be necessary, as this function is always called after check_source()
         force_Omega_disp_compute = True
+    
     if (not ('Omega_dispersion' in source_input.keys())) or (force_Omega_disp_compute is True):
 
         # checking if the dictionaries are in the correct format
@@ -342,7 +421,7 @@ def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t
         # truncate it with xmax_default
         x_wavefront = min([xmax_default, xmax_tmp])
 
-        theta_sig = ((x_wavefront+distance)/distance)*sigma_v
+        theta_sig = 2.*((x_wavefront+distance)/distance)*sigma_v # multiply by 2 to get full arc subtended
         if verbose > 0:
             print('theta sig: %.1e' % theta_sig)
         Omega_sig = ct.angle_to_solid_angle(theta_sig)
@@ -354,7 +433,7 @@ def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t
         # first, motion of the source
         ds = sigma_v * x_wavefront
         # then aberration angle
-        theta_ab = ds / distance
+        theta_ab = ds / distance # this is the entire angle subtended by the smearing of the signal
         Omega_ab = ct.angle_to_solid_angle(theta_ab)
         source_input['Omega_aberration'] = Omega_ab
 
@@ -408,6 +487,9 @@ def Snu_source(t, nu, source_input, output=None):
 
     # checking if the source_input is in the correct format
     check_source(source_input)
+    
+    # Computing source's size
+    Omega_size(source_input)
 
     alpha = source_input['alpha']  # spectral index
     nu_pivot = source_input['nu_pivot']  # [GHz] pivot/reference frequency
@@ -580,16 +662,10 @@ def Snu_echo(source_input, axion_input, data,
     check_axion(axion_input)
     check_data(data)
 
-    # if not ('Omega_dispersion' in source_input.keys()):
-    # computing Omega_dispersion and including it in source_input
-
-    # move logic inside Omega_dispersion. It should be called here as
-    # tsig scan and textra scan will change dispersion angle. Speed
-    # impact is minimal. It could be forced not to update every time
-    # rt.fixed_axion_routine() is called by setting
-    # source_input['force_Omega_disp_compute'] to False
-
-    # update source_input
+    # Update source_input with:
+    # size
+    Omega_size(source_input)
+    # Omega_dispersion
     Omega_dispersion(source_input, data,
                      tmin_default=tmin_default,
                      xmax_default=xmax_default,
@@ -676,7 +752,7 @@ def Snu_echo(source_input, axion_input, data,
     # DM_profile is part of 'data' structure, or fall back to NFW
     try:
         DM_profile = data['DM_profile']
-    except KeyError:
+    except KeyError: # should not be necessary, as this function is passed after check_data()
         DM_profile = "NFW"
 
     # defining the integrand:
@@ -900,16 +976,10 @@ def signal(source_input, axion_input, data,
     check_axion(axion_input)
     check_data(data)
 
-    # if not ('Omega_dispersion' in source_input.keys()):
-    # computing Omega_dispersion and including it in source_input
-
-    # move logic inside Omega_dispersion. It should be called here as
-    # tsig scan and textra scan will change dispersion angle. Speed
-    # impact is minimal. It could be forced not to update every time
-    # rt.fixed_axion_routine() is called by setting
-    # source_input['force_Omega_disp_compute'] to False
-
-    # update source_input
+    # Update source_input with:
+    # size
+    Omega_size(source_input)
+    # Omega_dispersion
     Omega_dispersion(source_input, data,
                      tmin_default=Snu_echo_kwargs['tmin_default'],
                      xmax_default=Snu_echo_kwargs['xmax_default'],
@@ -1026,14 +1096,10 @@ def noise(source_input, axion_input, data,
     check_axion(axion_input)
     check_data(data)
 
-    # if not ('Omega_dispersion' in source_input.keys()):
-    # computing Omega_dispersion and including it in source_input
-
-    # move logic inside Omega_dispersion. It should be called here as
-    # tsig scan and textra scan will change dispersion angle. Speed
-    # impact is minimal. It could be forced not to update every time
-    # rt.fixed_axion_routine() is called by setting
-    # source_input['force_Omega_disp_compute'] to False
+    # Update source_input with:
+    # size
+    Omega_size(source_input)
+    # Omega_dispersion
     Omega_dispersion(source_input, data, **Omdisp_kwargs)
 
     # source parameters
