@@ -46,7 +46,10 @@ parser.add_argument('-z', '--sz', '--size',
 parser.add_argument('-v', '--verbose',
                     action="store_true",
                     help="Verbosity")
-parser.add_argument('--run', default=0, type=int, help="The run number")
+parser.add_argument('-i', '--run',
+                    default=0,
+                    type=int,
+                    help="The run ID number")
 
 # defining the subparsers, and sending their names to .slice attribute
 subparsers = parser.add_subparsers(
@@ -404,53 +407,55 @@ except:
 # FILE NAME #
 #############
 
-# Preparing the filename. Order: a-Lpk-tpk-D-r-S0/tsig-tex-lb-nuB-sz
-filename = "custom_"+args.slice+"_"
+filename = "custom_"+args.slice
 
-if args.slice == "Lpk-tpk":
-    if args.S0 != None:
-        filename += "a-{}_D-{}_r-{}_S0-{}_tex-{}_lb-{}-{}_nuB-{}_sz-{:.0e}".format(args.alpha, args.distance, int(
-            args.tt_ratio), int(args.S0), int(args.t_extra), int(args.coords[0]), int(args.coords[1]), int(args.nuB), args.sz)
-    else:
-        filename += "a-{}_D-{}_r-{}_tsig-{}_tex-{}_lb-{}-{}_nuB-{}_sz-{:.0e}".format(args.alpha, args.distance, int(
-            args.tt_ratio), int(args.t_signal), int(args.t_extra), int(args.coords[0]), int(args.coords[1]), int(args.nuB), args.sz)
+# # Preparing the filename. Order: a-Lpk-tpk-D-r-S0/tsig-tex-lb-nuB-sz
+# filename = "custom_"+args.slice+"_"
 
-elif args.slice == "r-tsig":
-    filename += "a-{}_Lpk-{:.0e}_tpk-{:.0e}_D-{}_tex-{}_lb-{}-{}_nuB-{}_sz-{:.0e}".format(
-        args.alpha, args.Lpk, args.tpk, args.distance, int(args.t_extra), int(args.coords[0]), int(args.coords[1]), int(args.nuB), args.sz)
+# if args.slice == "Lpk-tpk":
+#     if args.S0 != None:
+#         filename += "a-{}_D-{}_r-{}_S0-{}_tex-{}_lb-{}-{}_nuB-{}_sz-{:.0e}".format(args.alpha, args.distance, int(
+#             args.tt_ratio), int(args.S0), int(args.t_extra), int(args.coords[0]), int(args.coords[1]), int(args.nuB), args.sz)
+#     else:
+#         filename += "a-{}_D-{}_r-{}_tsig-{}_tex-{}_lb-{}-{}_nuB-{}_sz-{:.0e}".format(args.alpha, args.distance, int(
+#             args.tt_ratio), int(args.t_signal), int(args.t_extra), int(args.coords[0]), int(args.coords[1]), int(args.nuB), args.sz)
 
-elif args.slice == "r-tex":
-    if args.S0 != None:
-        filename += "a-{}_Lpk-{:.0e}_tpk-{:.0e}_D-{}_S0-{}_lb-{}-{}_nuB-{}_sz-{:.0e}".format(
-            args.alpha, args.Lpk, args.tpk, args.distance, int(args.S0), int(args.coords[0]), int(args.coords[1]), int(args.nuB), args.sz)
-    else:
-        filename += "a-{}_Lpk-{:.0e}_tpk-{:.0e}_D-{}_tsig-{}_lb-{}-{}_nuB-{}_sz-{:.0e}".format(
-            args.alpha, args.Lpk, args.tpk, args.distance, int(args.t_signal), int(args.coords[0]), int(args.coords[1]), int(args.nuB), args.sz)
+# elif args.slice == "r-tsig":
+#     filename += "a-{}_Lpk-{:.0e}_tpk-{:.0e}_D-{}_tex-{}_lb-{}-{}_nuB-{}_sz-{:.0e}".format(
+#         args.alpha, args.Lpk, args.tpk, args.distance, int(args.t_extra), int(args.coords[0]), int(args.coords[1]), int(args.nuB), args.sz)
 
-elif args.slice == "l-D":
-    if args.S0 != None:
-        filename += "a-{}_Lpk-{:.0e}_tpk-{:.0e}_r-{}_S0-{}_tex-{}_b-{}_nuB-{}_sz-{:.0e}".format(
-            args.alpha, args.Lpk, args.tpk, int(args.tt_ratio), int(args.S0), int(args.t_extra), int(args.lat), int(args.nuB), args.sz)
-    else:
-        filename += "a-{}_Lpk-{:.0e}_tpk-{:.0e}_r-{}_tsig-{}_tex-{}_b-{}_nuB-{}_sz-{:.0e}".format(args.alpha, args.Lpk, args.tpk, int(
-            args.tt_ratio), int(args.t_signal), int(args.t_extra), int(args.lat), int(args.nuB), args.sz)
+# elif args.slice == "r-tex":
+#     if args.S0 != None:
+#         filename += "a-{}_Lpk-{:.0e}_tpk-{:.0e}_D-{}_S0-{}_lb-{}-{}_nuB-{}_sz-{:.0e}".format(
+#             args.alpha, args.Lpk, args.tpk, args.distance, int(args.S0), int(args.coords[0]), int(args.coords[1]), int(args.nuB), args.sz)
+#     else:
+#         filename += "a-{}_Lpk-{:.0e}_tpk-{:.0e}_D-{}_tsig-{}_lb-{}-{}_nuB-{}_sz-{:.0e}".format(
+#             args.alpha, args.Lpk, args.tpk, args.distance, int(args.t_signal), int(args.coords[0]), int(args.coords[1]), int(args.nuB), args.sz)
 
-elif args.slice == "l-b":
-    if args.S0 != None:
-        filename += "a-{}_Lpk-{:.0e}_tpk-{:.0e}_D-{}_r-{}_S0-{}_tex-{}_nuB-{}_sz-{:.0e}".format(
-            args.alpha, args.Lpk, args.tpk, args.distance, int(args.tt_ratio), int(args.S0), int(args.t_extra), int(args.nuB), args.sz)
-    else:
-        filename += "a-{}_Lpk-{:.0e}_tpk-{:.0e}_D-{}_r-{}_tsig-{}_tex-{}_nuB-{}_sz-{:.0e}".format(
-            args.alpha, args.Lpk, args.tpk, args.distance, int(args.tt_ratio), int(args.t_signal), int(args.t_extra), int(args.nuB), args.sz)
+# elif args.slice == "l-D":
+#     if args.S0 != None:
+#         filename += "a-{}_Lpk-{:.0e}_tpk-{:.0e}_r-{}_S0-{}_tex-{}_b-{}_nuB-{}_sz-{:.0e}".format(
+#             args.alpha, args.Lpk, args.tpk, int(args.tt_ratio), int(args.S0), int(args.t_extra), int(args.lat), int(args.nuB), args.sz)
+#     else:
+#         filename += "a-{}_Lpk-{:.0e}_tpk-{:.0e}_r-{}_tsig-{}_tex-{}_b-{}_nuB-{}_sz-{:.0e}".format(args.alpha, args.Lpk, args.tpk, int(
+#             args.tt_ratio), int(args.t_signal), int(args.t_extra), int(args.lat), int(args.nuB), args.sz)
 
-elif args.slice == "D-t":
-    pass
+# elif args.slice == "l-b":
+#     if args.S0 != None:
+#         filename += "a-{}_Lpk-{:.0e}_tpk-{:.0e}_D-{}_r-{}_S0-{}_tex-{}_nuB-{}_sz-{:.0e}".format(
+#             args.alpha, args.Lpk, args.tpk, args.distance, int(args.tt_ratio), int(args.S0), int(args.t_extra), int(args.nuB), args.sz)
+#     else:
+#         filename += "a-{}_Lpk-{:.0e}_tpk-{:.0e}_D-{}_r-{}_tsig-{}_tex-{}_nuB-{}_sz-{:.0e}".format(
+#             args.alpha, args.Lpk, args.tpk, args.distance, int(args.tt_ratio), int(args.t_signal), int(args.t_extra), int(args.nuB), args.sz)
 
-elif args.slice == "l-t":
-    pass
+# elif args.slice == "D-t":
+#     pass
 
-elif args.slice == "b-t":
-    pass
+# elif args.slice == "l-t":
+#     pass
+
+# elif args.slice == "b-t":
+#     pass
 
 if args.verbose:
     print(filename)
