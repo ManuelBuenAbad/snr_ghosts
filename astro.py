@@ -774,7 +774,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_):
         # finding resolution:
         wavelength = pt.lambda_from_nu(nu)/100.  # wavelength [m]
         # angular size of pixel resolution [rad]
-        theta_res = (1.02*wavelength)/sqrt(eta*4.*area/pi)
+        theta_res = (1.02*wavelength)/sqrt(eta*4.*area/pi) # assuming this is the aperture angle and not the radial angle
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
     elif exper_mode == 'SKA mid':
@@ -786,7 +786,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_):
         # finding resolution:
         wavelength = pt.lambda_from_nu(nu)/100.  # wavelength [m]
         # angular size of pixel resolution [rad]
-        theta_res = (1.02*wavelength)/sqrt(eta*4.*area/pi)
+        theta_res = (1.02*wavelength)/sqrt(eta*4.*area/pi) # assuming this is the aperture angle and not the radial angle
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
 
@@ -837,8 +837,9 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
 
         if average:
             for size_val in size:
+                radial_angle = ct.solid_angle_to_angle(size_val)/2. # need to divide by 2 to get radius
                 new_pos_pix = hp.query_disc(
-                    nside=512, vec=vec, radius=ct.solid_angle_to_angle(size_val))
+                    nside=512, vec=vec, radius=radial_angle)
                 bg_T408.append(np.average(map_allsky_408[new_pos_pix]))
         else:
             # this should be used only for debugging
