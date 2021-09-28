@@ -24,8 +24,6 @@ def_tpk = 100.  # [days]
 def_tmin = def_tpk/365.  # [years]
 
 def_alpha = 0.5
-def_solid = 1.e-6  # [sr]
-
 def_nu_pivot = 1.  # [GHz]
 def_l = 0.  # [deg] galactic center longitude
 def_b = 0.  # [deg] galactic center latitude
@@ -35,7 +33,8 @@ def_b = 0.  # [deg] galactic center latitude
 default_source_input = {'longitude': def_l,  # [deg]
                         'latitude': def_b,  # [deg]
                         'distance': def_D,  # [kpc]
-                        'size': def_solid,  # [sr]
+                        'force_Omega_size_compute': True, # compute source size
+                        'force_Omega_disp_compute': True, # compute DM dispersion angle
                         't_age': def_t0,  # [years]
                         'alpha': def_alpha,
                         'nu_pivot': def_nu_pivot,
@@ -69,19 +68,20 @@ default_data = {'deltaE_over_E': 1.e-3,
                 'exper': 'SKA',
                 'total_observing_time': 100.,
                 'average': True,
+                'DM_profile': 'NFW',
                 'verbose': 0
                 }
 
 
 # Snu_echo_kwargs:
+max_steps = int(3*(def_t0) + 1)
 default_Snu_echo_kwargs = {'tmin_default': None,
-                           'Nt': int(30*def_t0 + 1),  # for a fine enough array
+                           'Nt': min(max_steps, 100001),  # for a fine enough array
                            'xmin': ct._au_over_kpc_,
                            'xmax_default': 100.,
                            'use_quad': False,
                            'lin_space': False,
-                           # for a fine enough array
-                           'Nint': int(30*def_t0 + 1),
+                           'Nint': min(max_steps, 100001),  # for a fine enough array
                            't_extra_old': 0.
                            }
 
