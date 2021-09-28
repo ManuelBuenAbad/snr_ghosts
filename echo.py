@@ -330,8 +330,6 @@ def Omega_size(source_input, verbose=0):
         t_end = source_input['t_age']
         distance = source_input['distance']
         
-        R_trans = (v_free*t_trans)/ct._kpc_over_lightyear_ # radius at the end of the free expansion phase [kpc]
-        
         if verbose > 0:
             print('v_free: %.1e [c]' % v_free)
             print('t_trans: %.1e [c]' % t_trans)
@@ -339,11 +337,12 @@ def Omega_size(source_input, verbose=0):
             print('distance: %.1e kpc' % distance)
             print('R_trans: %.1e kpc' % R_trans)
         
-        if t_trans <= t_end:
-            R_end = R_trans
+        if t_trans >= t_end:
+            R_end = (v_free*t_end)/ct._kpc_over_lightyear_ # radius at the end of the free expansion phase [kpc]
             if verbose > 1:
                 print('R ~ t during free expansion')
         else:
+            R_trans = (v_free*t_trans)/ct._kpc_over_lightyear_ # radius at the end of the free expansion phase [kpc]
             R_end = R_trans * (t_end/t_trans)**(2./5.)
             if verbose > 1:
                 print('R ~ t during free expansion')
