@@ -40,7 +40,7 @@ parser.add_argument('-n', '--nuB', '--nu_Bietenholz',
                     type=float,
                     help="The Bietenholz frequency [GHz]")
 parser.add_argument('-z', '--sz', '--size',
-                    default=1.e-4,
+                    default=None,
                     type=float,
                     help="The size of the source [sr]")
 parser.add_argument('-v', '--verbose',
