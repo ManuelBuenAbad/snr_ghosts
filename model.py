@@ -38,8 +38,13 @@ def snr_routine(ma, ga,
     # Preparing source_input dictionary from SNR object
     # a) coordinates
     l, b = sn_remnant.get_coord()  # [degree]
-    # b) angular size
+    # b) extracting source's size (solid angle)
     size = sn_remnant.get_size()  # [sr]
+    if size == None:
+        force_size = True # there is no known size: compute it
+    else:
+        force_size = False # there is a known size: do not compute it
+    
     # c) distance
     try:
         distance = sn_remnant.get_distance()
@@ -84,6 +89,7 @@ def snr_routine(ma, ga,
         'latitude': b,
         'distance': distance,
         'size': size,
+        'force_Omega_size_compute': force_size,
         'alpha': alpha,
         'nu_pivot': nu_pivot,
         'gamma': gamma
