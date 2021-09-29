@@ -147,14 +147,13 @@ def check_source(source_input, custom_name='custom', verbose=False):
         # update source 'source_input' dictionary to contain some name
         source_input['name'] = custom_name
     
-    if not 'force_Omega_size_compute' in source_input.keys():
+    if (not 'force_Omega_size_compute' in source_input.keys()) or (not 'size' in source_input.keys()):
+        # source's size hasn't been passed, and there is no explicit request on whether to compute it
         source_input['force_Omega_size_compute'] = True
     
-    if not 'force_Omega_disp_compute' in source_input.keys():
+    if (not 'force_Omega_disp_compute' in source_input.keys()) or (not 'Omega_dispersion' in source_input.keys()):
+        # DM's dispersion size hasn't been passed, and there is no explicit request on whether to compute it
         source_input['force_Omega_disp_compute'] = True
-
-    # preparing local copy of source_input by ignoring 'Omega_dispersion' key from source_input check:
-#     local_source_input = {key:value for key, value in source_input.items() if key != 'Omega_dispersion'}
 
     has_all_source_id = set(ap.source_id).issubset(set(source_input.keys()))
     if not has_all_source_id:
@@ -324,6 +323,9 @@ def Omega_size(source_input, verbose=0):
         force_Omega_size_compute = True
     
     if (not ('size' in source_input.keys())) or (force_Omega_size_compute is True):
+        
+        # checking if the dictionaries are in the correct format
+        check_source(source_input)
         
         v_free = 1./30 # speed of the free expansion [c]
         t_trans = source_input['t_trans']
@@ -804,8 +806,6 @@ def Snu_echo(source_input, axion_input, data,
             # corresponding array of l.o.s. positions; inverted to go from lowest to largest, without the offset
             x_arr = ((t_age - t_arr)/(2.*ct._kpc_over_lightyear_))[::-1]
             x_arr += x_offset  # putting back the offset
-
-#             print t_lo, t_hi, t_arr, x_arr
 
         int_arr = integrand(x_arr)
 
