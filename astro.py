@@ -29,7 +29,7 @@ import particle as pt
 # List of required parameters for the sources:
 
 
-source_id = ['name', 'longitude', 'latitude', 'distance', 'size']
+source_id = ['name', 'longitude', 'latitude', 'distance']
 pars_always = ['alpha', 'nu_pivot', 'gamma']
 pars_early = {'eff': ['L_peak', 't_peak'],
               'thy': ['L_norm', 'K2', 'beta', 'delta']
@@ -764,7 +764,8 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_):
     """
 
     if exper_mode == None:
-        area, window, Tr, Omega_res = 0., 0., 0., 0.
+        area, window, Tr, Omega_res = 0., 0., 0., 1.e-100
+    
     elif exper_mode == 'SKA low':
         area = ct._area_ska_low_
         window = np.heaviside(nu - ct._nu_min_ska_low_, 1.) * \
@@ -777,6 +778,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_):
         theta_res = (1.02*wavelength)/sqrt(eta*4.*area/pi) # assuming this is the aperture angle and not the radial angle
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
+    
     elif exper_mode == 'SKA mid':
         area = ct._area_ska_mid_
         window = np.heaviside(nu - ct._nu_min_ska_mid_, 0.) * \
@@ -853,6 +855,7 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
             bg_T408 = np.squeeze(bg_T408)
         else:
             bg_T408 = np.array(bg_T408)
+    
     else:
         new_pos_pix = pos_pix
         bg_T408 = np.average(map_allsky_408[new_pos_pix])
