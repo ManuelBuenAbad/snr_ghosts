@@ -5,3 +5,4 @@ __pycache__
 local_test*
 plots*
 batch_*
+*.pyc
