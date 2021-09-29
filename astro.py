@@ -806,12 +806,12 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
     size : angular size [sr] of the region of interest (default: None)
     average : whether the brightness temperature is averaged over the size of the region of interest (default: False)
     verbose: control of warning output. Switch to False only if you know what you are doing. 
-    load_on_the_fly: flag 
+    load_on_the_fly: flag
     """
 
     if load_on_the_fly:
         if verbose:
-            print('You requested to load Haslem every time bg_408_temp is called. This is highly time-consuming. You should use this only for debugging purpose. ')
+            print('You requested to load Haslem every time bg_408_temp is called. This is highly time-consuming. You should use this only for debugging purpose.')
         # initialize the haslem map
         try:
             path = os.path.dirname(os.path.abspath(__file__))+'/data/'
