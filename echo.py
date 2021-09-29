@@ -146,11 +146,11 @@ def check_source(source_input, custom_name='custom', verbose=False):
     if not 'name' in source_input.keys():
         # update source 'source_input' dictionary to contain some name
         source_input['name'] = custom_name
-    
+
     if (not 'force_Omega_size_compute' in source_input.keys()) or (not 'size' in source_input.keys()):
         # source's size hasn't been passed, and there is no explicit request on whether to compute it
         source_input['force_Omega_size_compute'] = True
-    
+
     if (not 'force_Omega_disp_compute' in source_input.keys()) or (not 'Omega_dispersion' in source_input.keys()):
         # DM's dispersion size hasn't been passed, and there is no explicit request on whether to compute it
         source_input['force_Omega_disp_compute'] = True
@@ -269,7 +269,7 @@ def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_obse
     if not 'deltaE_over_E' in data.keys():
         # update 'data' with default value for deltaE_over_E
         data['deltaE_over_E'] = deltaE_over_E
-    
+
     if not 'DM_profile' in data.keys():
         # update 'data' with default value for 'DM_profile'
         data['DM_profile'] = DM_profile
@@ -310,59 +310,61 @@ def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_obse
 def Omega_size(source_input, verbose=0):
     """
     Computes the solid angle [sr] of the source, based on its other properties.
-    
+
     Parameters
     ----------
     source_input : dictionary with source input parameters
     verbose: verbosity (default: 0)
     """
-    
+
     try:
         force_Omega_size_compute = source_input['force_Omega_size_compute']
-    except KeyError: # should not be necessary, as this function is always called after check_source()
+    except KeyError:  # should not be necessary, as this function is always called after check_source()
         force_Omega_size_compute = True
-    
+
     if (not ('size' in source_input.keys())) or (force_Omega_size_compute is True):
-        
+
         # checking if the dictionaries are in the correct format
         check_source(source_input)
-        
-        v_free = 1./30 # speed of the free expansion [c]
+
+        v_free = ct._v_hom_  # speed of the free expansion [c]
         t_trans = source_input['t_trans']
         t_end = source_input['t_age']
         distance = source_input['distance']
-        
+
         if verbose > 0:
             print('v_free: %.1e [c]' % v_free)
             print('t_trans: %.1e [c]' % t_trans)
             print('t_end: %.1e [c]' % t_end)
             print('distance: %.1e kpc' % distance)
             print('R_trans: %.1e kpc' % R_trans)
-        
+
         if t_trans >= t_end:
-            R_end = (v_free*t_end)/ct._kpc_over_lightyear_ # radius at the end of the free expansion phase [kpc]
+            # radius at the end of the free expansion phase [kpc]
+            R_end = (v_free*t_end)/ct._kpc_over_lightyear_
             if verbose > 1:
                 print('R ~ t during free expansion')
         else:
-            R_trans = (v_free*t_trans)/ct._kpc_over_lightyear_ # radius at the end of the free expansion phase [kpc]
+            # radius at the end of the free expansion phase [kpc]
+            R_trans = (v_free*t_trans)/ct._kpc_over_lightyear_
             R_end = R_trans * (t_end/t_trans)**(2./5.)
             if verbose > 1:
                 print('R ~ t during free expansion')
                 print('R ~ t^(2/5) during adiabatic expansion')
-        
+
         if verbose > 0:
             print('R_end: %.1e kpc' % R_end)
-        
-        theta_source = 2.*(R_end/distance) # angle subtended (twice angular radius) [rad]
-        Omega_size = ct.angle_to_solid_angle(theta_source) # [sr]
+
+        # angle subtended (twice angular radius) [rad]
+        theta_source = 2.*(R_end/distance)
+        Omega_size = ct.angle_to_solid_angle(theta_source)  # [sr]
         source_input['size'] = Omega_size
-        
+
         if verbose > 0:
             print('theta_source: %.1e rad' % theta_source)
             print('size: %.1e sr' % Omega_size)
-    
-    return source_input['size']
 
+    return source_input['size']
 
 
 def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t_extra_old=0., verbose=0):
@@ -381,9 +383,9 @@ def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t
 
     try:
         force_Omega_disp_compute = source_input['force_Omega_disp_compute']
-    except KeyError: # should not be necessary, as this function is always called after check_source()
+    except KeyError:  # should not be necessary, as this function is always called after check_source()
         force_Omega_disp_compute = True
-    
+
     if (not ('Omega_dispersion' in source_input.keys())) or (force_Omega_disp_compute is True):
 
         # checking if the dictionaries are in the correct format
@@ -422,7 +424,8 @@ def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t
         # truncate it with xmax_default
         x_wavefront = min([xmax_default, xmax_tmp])
 
-        theta_sig = 2.*((x_wavefront+distance)/distance)*sigma_v # multiply by 2 to get full arc subtended
+        # multiply by 2 to get full arc subtended
+        theta_sig = 2.*((x_wavefront+distance)/distance)*sigma_v
         if verbose > 0:
             print('theta sig: %.1e' % theta_sig)
         Omega_sig = ct.angle_to_solid_angle(theta_sig)
@@ -434,7 +437,8 @@ def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t
         # first, motion of the source
         ds = sigma_v * x_wavefront
         # then aberration angle
-        theta_ab = ds / distance # this is the entire angle subtended by the smearing of the signal
+        # this is the entire angle subtended by the smearing of the signal
+        theta_ab = ds / distance
         Omega_ab = ct.angle_to_solid_angle(theta_ab)
         source_input['Omega_aberration'] = Omega_ab
 
@@ -488,7 +492,7 @@ def Snu_source(t, nu, source_input, output=None):
 
     # checking if the source_input is in the correct format
     check_source(source_input)
-    
+
     # Computing source's size
     Omega_size(source_input)
 
@@ -753,7 +757,7 @@ def Snu_echo(source_input, axion_input, data,
     # DM_profile is part of 'data' structure, or fall back to NFW
     try:
         DM_profile = data['DM_profile']
-    except KeyError: # should not be necessary, as this function is passed after check_data()
+    except KeyError:  # should not be necessary, as this function is passed after check_data()
         DM_profile = "NFW"
 
     # defining the integrand:

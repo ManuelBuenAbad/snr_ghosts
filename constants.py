@@ -107,6 +107,7 @@ _mu_log10_tpk_50_, _sig_log10_tpk_50_ = 1.6, 0.8  # all types, D<50Mpc
 _mu_log10_tpk_IIb_, _sig_log10_tpk_IIb_ = 1.5, 0.6  # type IIb
 
 #
-# SNR properties
+# SN properties
 #
 _time_of_phase_two_ = 1.e4  # [year]
+_v_hom_ = 2.e7 / _light_speed_  # speed of homologous expansion [c]
