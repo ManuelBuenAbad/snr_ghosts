@@ -18,7 +18,7 @@ def snr_routine(ma, ga,
                 snu_echo_kwargs=None,
                 data=None,
                 output_all=False,
-                verbose=1):
+                verbose=0):
     """
     Computes the full echo routine for any axion parameters (ma, ga) and a particular Supernova Remnant object.
     
@@ -42,8 +42,12 @@ def snr_routine(ma, ga,
     size = sn_remnant.get_size()  # [sr]
     if size == None:
         force_size = True # there is no known size: compute it
+        if verbose > 1:
+            print("SNR size=None, will be forced to compute it from first principles.")
     else:
         force_size = False # there is a known size: do not compute it
+        if verbose > 1:
+            print("SNR size=%.1e. Value will be respected." % size)
     
     # c) distance
     try:
@@ -110,7 +114,7 @@ def snr_routine(ma, ga,
     noise_power = new_output['noise_power']
     signal_noise_ratio = new_output['S/N']
 
-    if verbose > 2:
+    if verbose > 0:
         print('signal power:{}'.format(signal_power))
         print('noise power:{}'.format(noise_power))
         print('s/n: {}\n'.format(signal_noise_ratio))
