@@ -41,16 +41,16 @@ parser = argparse.ArgumentParser(description="Computes the reach for the SNR in 
 
 # Arguments with numerical values:
 parser.add_argument('-N', '--Nsteps', default=None,
-                    type=int, help="The number of steps in the parameter space arrays")
+                    type=int, help="The number of steps in the parameter space arrays (default: None)")
 parser.add_argument('-r', '--tt_ratio', '--ratio', default=None,
-                    type=float, help="The ratio of t_trans/t_pk")
+                    type=float, help="The ratio of t_trans/t_pk (default: None)")
 parser.add_argument('-x', '--t_extra', '--extra', default=None,
-                    type=float, help="The extra age of the SNR, after the adiabatic phase [years]")
+                    type=float, help="The extra age of the SNR, after the adiabatic phase [years] (default: None)")
 parser.add_argument('-n', '--nuB', '--nu_Bietenholz', default=None,
-                    type=float, help="The Bietenholz frequency [GHz]")
+                    type=float, help="The Bietenholz frequency [GHz] (default: None)")
 # True/False flags
-parser.add_argument('-a', '--known_age', action='store_true', help="Whether the age of the SNR is known")
-parser.add_argument('-v', '--verbose', action='store_true', help="Verbosity")
+parser.add_argument('-a', '--known_age', action='store_true', help="Whether the age of the SNR is known (default: False)")
+parser.add_argument('-v', '--verbose', action='store_true', help="Verbosity (default: False)")
     
 # Parsing arguments:
 args = parser.parse_args()
