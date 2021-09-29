@@ -33,8 +33,8 @@ def_b = 0.  # [deg] galactic center latitude
 default_source_input = {'longitude': def_l,  # [deg]
                         'latitude': def_b,  # [deg]
                         'distance': def_D,  # [kpc]
-                        'force_Omega_size_compute': True, # compute source size
-                        'force_Omega_disp_compute': True, # compute DM dispersion angle
+                        'force_Omega_size_compute': True,  # compute source size
+                        'force_Omega_disp_compute': True,  # compute DM dispersion angle
                         't_age': def_t0,  # [years]
                         'alpha': def_alpha,
                         'nu_pivot': def_nu_pivot,
@@ -47,6 +47,8 @@ default_source_input = {'longitude': def_l,  # [deg]
                         }
 
 # axion_input:
+
+
 def ax_in(ma, ga):
     """
     Returns a dictionary with axion parameters.
@@ -75,12 +77,14 @@ default_data = {'deltaE_over_E': 1.e-3,
 # Snu_echo_kwargs:
 max_steps = int(3*(def_t0) + 1)
 default_Snu_echo_kwargs = {'tmin_default': None,
-                           'Nt': min(max_steps, 100001),  # for a fine enough array
+                           # for a fine enough array
+                           'Nt': min(max_steps, 100001),
                            'xmin': ct._au_over_kpc_,
                            'xmax_default': 100.,
                            'use_quad': False,
                            'lin_space': False,
-                           'Nint': min(max_steps, 100001),  # for a fine enough array
+                           # for a fine enough array
+                           'Nint': min(max_steps, 100001),
                            't_extra_old': 0.
                            }
 
@@ -262,9 +266,10 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
         ma, ga, ma_ref, ga_ref, source_input=source_input)
     area, window, Tr, Omega_res = SKA_rescaled_specs(
         ma, ma_ref, data=data)  # SKA specs
-    
+
     # echo's location
-    l_echo = source_input['longitude'] + 180.  # [deg] galactic longitude of echo
+    l_echo = source_input['longitude'] + \
+        180.  # [deg] galactic longitude of echo
     b_echo = -source_input['latitude']  # [deg] galactic latitude of echo
 
     # data
@@ -343,6 +348,10 @@ def full_routine(ma, ga, ga_ref, output,
                                  data=data,
                                  Snu_echo_kwargs=Snu_echo_kwargs,
                                  beta=beta)
+
+    # test:
+    if data['verbose'] > 2:
+        print("routines.py::source_input['size']: %s" % source_input['size'])
 
     # return final output
     return new_output

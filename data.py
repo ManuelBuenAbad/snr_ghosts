@@ -333,7 +333,7 @@ class SuperNovaRemnant(object):
         return
 
     def set_sr(self, sr):
-        """Set the size of the SNR with square-radian 
+        """Set the size of the SNR with square-radian. Allows to be None so that it will be computed based on the two-phase model. 
 
         :param sr: square radian
 
