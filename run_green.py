@@ -84,8 +84,8 @@ elif known_age:
     header = "_Lpk-tpk_wage_tex-{}_nuB-{}.txt".format(int(t_extra), int(nuB))
 
 if verbose:
-    print "tt_ratio={}, t_extra={}, nuB={}, known_age={}".format(tt_ratio, t_extra, nuB, known_age)
-    print header
+    print("tt_ratio={}, t_extra={}, nuB={}, known_age={}".format(tt_ratio, t_extra, nuB, known_age))
+    print(header)
 
 # -------------------------------------------------
 
@@ -141,11 +141,11 @@ for name, snr in snrs_dct.items():
     else: pass
     
     if snr.get_flux_density() == -1:
-        print "no flux density:", name
+        print("no flux density: "+str(name))
         continue
     
     if not snr.is_flux_certain:
-        print "uncertain flux:", name
+        print("uncertain flux: "+str(name))
         continue
     
     snrs_cut[name] = snr
@@ -155,7 +155,7 @@ for name, snr in snrs_dct.items():
     except:
         pass
 
-print "Total no. of SNRs: ", len(snrs_cut), "\n"
+print("Total no. of SNRs: "+str(len(snrs_cut))+"\n")
 
 # -------------------------------------------------
 
@@ -173,16 +173,17 @@ if not known_age:
     age_results = {}
 
 counter = 0
-# sorted_names = snrs_cut.keys()
-# sorted_names.sort()
-# for i, name in tqdm(enumerate(sorted_names)):
-#     snr = snrs_cut[name]
-for name, snr in snrs_cut.items():
+
+sorted_names = snrs_cut.keys()
+sorted_names.sort()
+for i, name in tqdm(enumerate(sorted_names)):
+    snr = snrs_cut[name]
+# for name, snr in snrs_cut.items():
     
     file_name = name+header # name of file
     
     if verbose:
-        print name
+        print(name)
     
     # Reading some important SNR properties:
     gamma = ap.gamma_from_alpha(snr.alpha) # Sedov-Taylor analytic formula
@@ -214,44 +215,44 @@ for name, snr in snrs_cut.items():
             if L0 >= Lpk: # sensible luminosities
                 continue
             
-            lightcurve_params = {'t_peak':tpk,
-                                 'L_peak':Lpk,
-                                 'L_today':L0
+            lightcurve_params = {'t_peak': tpk,
+                                 'L_peak': Lpk,
+                                 'L_today': L0
                                 }
             if flg_r:
                 t_trans = tt_ratio*(tpk/365.)
-                lightcurve_params.update({'t_trans':t_trans})
+                lightcurve_params.update({'t_trans': t_trans})
                 # Computing t_age
                 t_age = ap.tage_compute(Lpk, tpk, t_trans, L0, gamma)
                 
                 if t_age < t_trans: # sensible t_trans (i.e. tpk)
                     continue
             else:
-                lightcurve_params.update({'t_age':t_age})
+                lightcurve_params.update({'t_age': t_age})
             
             if verbose:
-                print t_age
+                print(t_age)
             
             # Snu kwargs
             max_steps = int(3*(t_age) + 1)
-            snu_echo_kwargs = {'tmin_default':None,
-                               'Nt':min(max_steps, 100001),
-                               'xmin':ct._au_over_kpc_,
-                               'xmax_default':100.,
-                               'use_quad':False,
-                               'lin_space':False,
-                               'Nint':min(max_steps, 100001),
-                               't_extra_old':t_extra
+            snu_echo_kwargs = {'tmin_default': None,
+                               'Nt': min(max_steps, 100001),
+                               'xmin': ct._au_over_kpc_,
+                               'xmax_default': 100.,
+                               'use_quad': False,
+                               'lin_space': False,
+                               'Nint': min(max_steps, 100001),
+                               't_extra_old': t_extra
                               }
             
             # data:
-            data = {'deltaE_over_E':1.e-3,
-                    'f_Delta':0.721,
-                    'exper':'SKA',
-                    'total_observing_time':100.,
-                    'verbose':0,
+            data = {'deltaE_over_E': 1.e-3,
+                    'f_Delta': 0.721,
+                    'exper': 'SKA',
+                    'total_observing_time': 100.,
+                    'verbose': 0,
                     'DM_profile': 'NFW',
-                    'average':True
+                    'average': True
                    }
             
             # computing routine
@@ -266,7 +267,7 @@ for name, snr in snrs_cut.items():
             del new_output
             
             if verbose:
-                print "S/N=", z
+                print("S/N= "+str(z))
             
             # building rows
             row_a.append(z) # signal-to-noise ratio
@@ -300,4 +301,4 @@ for name, snr in snrs_cut.items():
     
     # end of routine for fixed snr
 
-print counter
+print(counter)
