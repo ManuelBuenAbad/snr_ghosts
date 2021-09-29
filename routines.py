@@ -46,7 +46,6 @@ default_source_input = {'longitude': def_l,  # [deg]
                         't_peak': def_tpk  # [days]
                         }
 
-
 # axion_input:
 def ax_in(ma, ga):
     """
@@ -86,8 +85,20 @@ default_Snu_echo_kwargs = {'tmin_default': None,
                            }
 
 
-# Routine Functions
+# check default dictionaries
+ec.check_source(default_source_input)
+ec.check_data(default_data)
+# Update source_input with:
+# size
+ec.Omega_size(default_source_input)
+# Omega_dispersion
+Omdisp_kwargs = {key: value
+                 for key, value in default_Snu_echo_kwargs.items()
+                 if key in ['tmin_default', 'xmax_default', 't_extra_old']}
+ec.Omega_dispersion(default_source_input, default_data, **Omdisp_kwargs)
 
+
+# Routine Functions
 
 def fixed_axion_routine(ga_ref, output,
                         source_input=default_source_input,
@@ -251,6 +262,10 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
         ma, ga, ma_ref, ga_ref, source_input=source_input)
     area, window, Tr, Omega_res = SKA_rescaled_specs(
         ma, ma_ref, data=data)  # SKA specs
+    
+    # echo's location
+    l_echo = source_input['longitude'] + 180.  # [deg] galactic longitude of echo
+    b_echo = -source_input['latitude']  # [deg] galactic latitude of echo
 
     # data
     f_Delta = data['f_Delta']  # fraction of signal that falls in bandwidth
@@ -276,7 +291,7 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
     new_output['noise_Omega_obs'] = np.maximum.reduce(
         [new_output['signal_Omega']*np.ones_like(new_output['noise_Omega_res']), new_output['noise_Omega_res']])
     new_output['noise_T408'] = ap.bg_408_temp(
-        source_input['longitude'], source_input['latitude'], size=new_output['noise_Omega_obs'], average=data['average'])
+        l_echo, b_echo, size=new_output['noise_Omega_obs'], average=data['average'])
     new_output['noise_Tnu'] = ap.T_noise(
         nu, Tbg_at_408=new_output['noise_T408'], beta=beta, Tr=Tr)
     new_output['noise_power'] = ap.P_noise(
