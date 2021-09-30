@@ -212,68 +212,76 @@ for i, name in tqdm(enumerate(sorted_names)):
         
         for Lpk in new_Lpk_arr:
             
-            if L0 >= Lpk: # sensible luminosities
-                continue
-            
-            lightcurve_params = {'t_peak': tpk,
-                                 'L_peak': Lpk,
-                                 'L_today': L0
-                                }
-            if flg_r:
-                t_trans = tt_ratio*(tpk/365.)
-                lightcurve_params.update({'t_trans': t_trans})
-                # Computing t_age
-                t_age = ap.tage_compute(Lpk, tpk, t_trans, L0, gamma)
+#             if L0 >= Lpk: # sensible luminosities
+#                 continue
+            try:
                 
-                if t_age < t_trans: # sensible t_trans (i.e. tpk)
-                    continue
-            else:
-                lightcurve_params.update({'t_age': t_age})
+                lightcurve_params = {'t_peak': tpk,
+                                     'L_peak': Lpk,
+                                     'L_today': L0}
+                
+                if flg_r:
+                    t_trans = tt_ratio*(tpk/365.)
+                    lightcurve_params.update({'t_trans': t_trans})
+                    # Computing t_age
+                    t_age = ap.tage_compute(Lpk, tpk, t_trans, L0, gamma)
+#                     if t_age < t_trans: # sensible t_trans (i.e. tpk)
+#                         continue
+
+                else:
+                    lightcurve_params.update({'t_age': t_age})
+                
+                if verbose:
+                    print(t_age)
+                
+                # Snu kwargs
+                max_steps = int(3*(t_age) + 1)
+                snu_echo_kwargs = {'tmin_default': None,
+                                   'Nt': min(max_steps, 100001),
+                                   'xmin': ct._au_over_kpc_,
+                                   'xmax_default': 100.,
+                                   'use_quad': False,
+                                   'lin_space': False,
+                                   'Nint': min(max_steps, 100001),
+                                   't_extra_old': t_extra}
             
-            if verbose:
-                print(t_age)
+                # data:
+                data = {'deltaE_over_E': 1.e-3,
+                        'f_Delta': 0.721,
+                        'exper': 'SKA',
+                        'total_observing_time': 100.,
+                        'verbose': 0,
+                        'DM_profile': 'NFW',
+                        'average': True}
+                
+                # computing routine
+                z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
+                                               snr,
+                                               lightcurve_params=lightcurve_params,
+                                               snu_echo_kwargs=snu_echo_kwargs,
+                                               data=data,
+                                               output_all=True)
+                
+                signal_Snu = new_output['signal_Snu']
+                del new_output
+                
+                if verbose:
+                    print("S/N= "+str(z))
+                
+                # building rows
+                row_a.append(z) # signal-to-noise ratio
+                row_b.append(signal_Snu) # signal S_nu
+                if not known_age:
+                    row_c.append(t_age) # t_age
             
-            # Snu kwargs
-            max_steps = int(3*(t_age) + 1)
-            snu_echo_kwargs = {'tmin_default': None,
-                               'Nt': min(max_steps, 100001),
-                               'xmin': ct._au_over_kpc_,
-                               'xmax_default': 100.,
-                               'use_quad': False,
-                               'lin_space': False,
-                               'Nint': min(max_steps, 100001),
-                               't_extra_old': t_extra
-                              }
-            
-            # data:
-            data = {'deltaE_over_E': 1.e-3,
-                    'f_Delta': 0.721,
-                    'exper': 'SKA',
-                    'total_observing_time': 100.,
-                    'verbose': 0,
-                    'DM_profile': 'NFW',
-                    'average': True
-                   }
-            
-            # computing routine
-            z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
-                                           snr,
-                                           lightcurve_params=lightcurve_params,
-                                           snu_echo_kwargs=snu_echo_kwargs,
-                                           data=data,
-                                           output_all=True)
-            
-            signal_Snu = new_output['signal_Snu']
-            del new_output
-            
-            if verbose:
-                print("S/N= "+str(z))
-            
-            # building rows
-            row_a.append(z) # signal-to-noise ratio
-            row_b.append(signal_Snu) # signal S_nu
-            if not known_age:
-                row_c.append(t_age) # t_age
+            except:
+                # nonsense results; append some ridiculous value
+                ridiculous = 1.e-100
+                
+                row_a.append(ridiculous)
+                row_b.append(ridiculous)
+                if not known_age:
+                    row_c.append(ridiculous)
             
             # end of routine for fixed Lpk
         
