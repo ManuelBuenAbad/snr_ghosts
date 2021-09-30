@@ -52,11 +52,9 @@ parser.add_argument('-i', '--run',
                     help="The run ID number (default: 0)")
 
 
-
 # defining the subparsers, and sending their names to .slice attribute
 subparsers = parser.add_subparsers(
     dest="slice", description="The following subcommand options determine the parameter space slice to be explored. NOTA BENE: A slice is denoted by ParX-ParY, in (x,y) axis ordering. ParX is the x-array and will have Nsteps+1 points; ParY is the y-array will have Nsteps+2 points. The routine starts iterating over the y-array (rows), and then proceeds to iterate over the x-array (columns), for easier plotting.")
-
 
 
 # CASE 1: Lpk-tpk slice
@@ -88,7 +86,6 @@ Lt_parser.add_argument('-lb', '--coords', '--long_lat',
                        type=float,
                        nargs=2,
                        help="The galactic coordinates of the SNR [deg] (default: (0, 0))")
-
 
 
 # CASE 2: tsig-r slice
@@ -125,7 +122,6 @@ tr_parser.add_argument('-lb', '--coords', '--long_lat',
                        type=float,
                        nargs=2,
                        help="The galactic coordinates of the SNR [deg] (default: (0, 0))")
-
 
 
 # CASE 3: tex-r slice
@@ -169,7 +165,6 @@ xr_parser.add_argument('-lb', '--coords', '--long_lat',
                        help="The galactic coordinates of the SNR [deg] (default: (0, 0))")
 
 
-
 # CASE 4: l-D slice
 lD_parser = subparsers.add_parser(
     'l-D', help="l-distance parameter space slice")
@@ -204,7 +199,6 @@ lD_parser.add_argument('-b', '--lat', '--latitude',
                        help="The galactic latitude of the SNR [deg] (default: 0)")
 
 
-
 # CASE 5: l-b slice
 lb_parser = subparsers.add_parser(
     'l-b', help="longitude-latitude paremeter space slice")
@@ -237,7 +231,6 @@ lb_parser.add_argument('-x', '--t_extra', '--extra',
                        default=0.,
                        type=float,
                        help="The extra age of the SNR, after the adiabatic phase [years] (default: 0)")
-
 
 
 # CASE 6: t-D slice
@@ -297,7 +290,6 @@ lt_parser.add_argument('-b', '--lat', '--latitude',
                        help="The galactic latitude of the SNR [deg] (default: 0)")
 
 
-
 # CASE 8: t-b slice
 tb_parser = subparsers.add_parser(
     't-b', help="longitude-t_total parameter space slice")
@@ -326,7 +318,6 @@ tb_parser.add_argument('-l', '--longitude',
                        default=0.,
                        type=float,
                        help="The galactic longitude of the SNR [deg] (default: 0)")
-
 
 
 # Parsing arguments:
@@ -432,7 +423,7 @@ if args.slice == "Lpk-tpk":
     # Saving arrays
     np.savetxt(folder+"run_%d_Lpk_arr_x.txt" % run_id, Lpk_arr)
     np.savetxt(folder+"run_%d_tpk_arr_y.txt" % run_id, tpk_arr)
-    
+
     # Updating SNR parameters:
     snr.set_coord(l=args.coords[0], b=args.coords[1], sign=None)
     snr.set_distance(args.distance)  # no_dist will be off automatically
@@ -462,7 +453,7 @@ if args.slice == "Lpk-tpk":
         t_trans = args.tt_ratio*(tpk/365.)
 
         row_a, row_b, row_c = [], [], []
-        
+
         # x-array:
         for new_Lpk in new_Lpk_arr:
 
@@ -601,7 +592,7 @@ elif args.slice == "tsig-r":
         t_trans = tt_ratio*(args.tpk/365.)
 
         row_a, row_b, row_c = [], [], []
-        
+
         # x-array:
         for t_signal in tsig_arr:
 
@@ -691,7 +682,7 @@ elif args.slice == "tex-r":
     tex_arr = np.logspace(3, 5., Nsteps+1)
     # y-array:
     ratio_arr = np.logspace(1., 2., Nsteps+2)
-    
+
     # Saving arrays
     np.savetxt(folder+"run_%d_tex_arr_x.txt" % run_id, tex_arr)
     np.savetxt(folder+"run_%d_ratio_arr_y.txt" % run_id, ratio_arr)
@@ -832,7 +823,7 @@ elif args.slice == "l-D":
     long_arr = np.linspace(0., 360., Nsteps+1)
     # y-array:
     dist_arr = np.logspace(-1, 0.5, Nsteps+2)
-    
+
     # Saving arrays
     np.savetxt(folder+"run_%d_long_arr_x.txt" % run_id, long_arr)
     np.savetxt(folder+"run_%d_dist_arr_y.txt" % run_id, dist_arr)
@@ -864,18 +855,17 @@ elif args.slice == "l-D":
     elif flg_t:
         s0_Gr = []
 
-    
     # y-array:
-    for D in dist_arr:
-            
+    for D in tqdm(dist_arr):
+
         snr.set_distance(D)
         area = 4.*pi*(snr.distance*ct._kpc_over_cm_)**2.  # [cm^2]
 
         row_a, row_b, row_c = [], [], []
-        
+
         # x-array:
-        for l in tqdm(long_arr):
-            
+        for l in long_arr:
+
             snr.set_coord(l=l, b=None, sign=None)
 
             if flg_t:
@@ -986,7 +976,7 @@ elif args.slice == "l-b":
     long_arr = np.linspace(0., 360., Nsteps+1)
     # y-array:
     lat_arr = np.linspace(-90., 90., Nsteps+2)
-    
+
     # Saving arrays
     np.savetxt(folder+"run_%d_long_arr_x.txt" % run_id, long_arr)
     np.savetxt(folder+"run_%d_lat_arr_y.txt" % run_id, lat_arr)
@@ -1055,17 +1045,17 @@ elif args.slice == "l-b":
     # Result grids:
     sn_Gr = []
     snu_Gr = []
-    
+
     # y-array:
-    for b in lat_arr:
-            
+    for b in tqdm(lat_arr):
+
         snr.set_coord(b=b, l=None, sign=None)
 
         row_a, row_b = [], []
 
         # x-array
-        for l in tqdm(long_arr):
-        
+        for l in long_arr:
+
             snr.set_coord(l=l, b=None, sign=None)
 
             # computing routine
@@ -1162,7 +1152,7 @@ elif args.slice == "t-D":
                             'L_peak': new_Lpk, 't_peak': args.tpk, 't_trans': t_trans}
             L0 = ap.L_source(t_signal, **local_source)  # [cgs]
             S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
-            
+
             snr.set_age(t_signal)
             snr.set_flux_density(S0)
 
@@ -1260,8 +1250,8 @@ elif args.slice == "l-t":
 
     # Commence the routine:
     # y-array:
-    for t in t_arr:
-        
+    for t in tqdm(t_arr):
+
         if t < ct._time_of_phase_two_:
             t_signal = t
             t_extra = 0.
@@ -1269,8 +1259,7 @@ elif args.slice == "l-t":
         else:
             t_signal = ct._time_of_phase_two_
             t_extra = t - ct._time_of_phase_two_
-        
-        
+
         # Updating lightcurve parameters:
         lightcurve_params['t_age'] = t_signal
 
@@ -1300,12 +1289,12 @@ elif args.slice == "l-t":
                 'total_observing_time': 100.,
                 'verbose': 0,
                 'average': True}
-        
+
         row_a, row_b, row_c = [], [], []
-        
+
         # x-array:
-        for longitude in tqdm(long_arr):
-            
+        for longitude in (long_arr):
+
             snr.set_coord(l=longitude, b=args.lat, sign=None)
 
             # computing routine
