@@ -166,11 +166,16 @@ print("Total no. of SNRs: "+str(len(snrs_cut))+"\n")
 # Axion fixed params:
 ga_ref = 1.e-10 # [GeV^-1]
 
+# A small number:
+ridiculous = 1.e-100
+
 # Results dictionaries:
 sn_results = {}
 snu_results = {}
 if not known_age:
     age_results = {}
+else:
+    trans_results = {}
 
 counter = 0
 
@@ -201,14 +206,15 @@ for i, name in tqdm(enumerate(sorted_names)):
     snu_results[name] = []
     if not known_age:
         age_results[name] = []
+    else:
+        trans_results[name] = []
     
     # start!
     for tpk in tpk_arr:
         
         row_a = []
         row_b = []
-        if not known_age:
-            row_c = []
+        row_c = []
         
         for Lpk in new_Lpk_arr:
             
@@ -230,9 +236,19 @@ for i, name in tqdm(enumerate(sorted_names)):
 
                 else:
                     lightcurve_params.update({'t_age': t_age})
+                    _, computed_pars = ap.L_source(t, model='eff',
+                                                   output_pars=True,
+                                                   gamma=gamma,
+                                                   t_peak=tpk, L_peak=Lpk,
+                                                   L_today=L0, t_age=t_age)
+                    t_trans = computed_pars['t_trans']
+                    del computed_pars
                 
                 if verbose:
-                    print(t_age)
+                    if flg_r:
+                        print(t_age)
+                    else:
+                        print(t_trans)
                 
                 # Snu kwargs
                 max_steps = int(3*(t_age) + 1)
@@ -273,15 +289,14 @@ for i, name in tqdm(enumerate(sorted_names)):
                 row_b.append(signal_Snu) # signal S_nu
                 if not known_age:
                     row_c.append(t_age) # t_age
+                else:
+                    row_c.append(t_trans) # t_age
             
             except:
                 # nonsense results; append some ridiculous value
-                ridiculous = 1.e-100
-                
                 row_a.append(ridiculous)
                 row_b.append(ridiculous)
-                if not known_age:
-                    row_c.append(ridiculous)
+                row_c.append(ridiculous)
             
             # end of routine for fixed Lpk
         
@@ -290,6 +305,8 @@ for i, name in tqdm(enumerate(sorted_names)):
         snu_results[name].append(row_b)
         if not known_age:
             age_results[name].append(row_c)
+        else:
+            trans_results[name].append(row_c)
         
         # end of routine for fixed tpk
     
@@ -298,12 +315,16 @@ for i, name in tqdm(enumerate(sorted_names)):
     snu_results[name] = np.array(snu_results[name])
     if not known_age:
         age_results[name] = np.array(age_results[name])
+    else:
+        trans_results[name] = np.array(trans_results[name])
     
     # saving grids
     np.savetxt("./output/green_snr/"+name+"/sn_"+file_name, sn_results[name], delimiter=",")
     np.savetxt("./output/green_snr/"+name+"/echo_"+file_name, snu_results[name], delimiter=",")
     if not known_age:
         np.savetxt("./output/green_snr/"+name+"/tage_"+file_name, age_results[name], delimiter=",")
+    else:
+        np.savetxt("./output/green_snr/"+name+"/ttrans_"+file_name, trans_results[name], delimiter=",")
     
     counter += 1
     
