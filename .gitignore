@@ -6,3 +6,4 @@ local_test*
 plots*
 batch_*
 *.pyc
+**/output/**
