@@ -178,6 +178,9 @@ ga_ref = 1.e-10 # [GeV^-1]
 # A small number:
 ridiculous = 1.e-100
 
+# Maximum number of steps:
+max_steps = 1000001
+
 # Results dictionaries:
 sn_results = {}
 snu_results = {}
@@ -260,14 +263,14 @@ for i, name in tqdm(enumerate(sorted_names)):
                         print("t_trans = "+str(t_trans))
                 
                 # Snu kwargs
-                max_steps = int(3*(t_age) + 1)
+                age_steps = int(1000*(log10(t_age) - log10(tpk/365.)) + 1)
                 snu_echo_kwargs = {'tmin_default': None,
-                                   'Nt': min(max_steps, 100001),
+                                   'Nt': min(age_steps, max_steps),
                                    'xmin': ct._au_over_kpc_,
                                    'xmax_default': 100.,
                                    'use_quad': False,
                                    'lin_space': False,
-                                   'Nint': min(max_steps, 100001),
+                                   'Nint': min(age_steps, max_steps),
                                    't_extra_old': t_extra}
             
                 # data:

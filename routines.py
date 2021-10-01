@@ -75,16 +75,18 @@ default_data = {'deltaE_over_E': 1.e-3,
 
 
 # Snu_echo_kwargs:
-max_steps = int(3*(def_t0) + 1)
+
+age_steps = int(1000*(log10(def_t0) - log10(def_tpk/365.)) + 1)
+max_steps = 1000001
 default_Snu_echo_kwargs = {'tmin_default': None,
                            # for a fine enough array
-                           'Nt': min(max_steps, 100001),
+                           'Nt': min(age_steps, max_steps),
                            'xmin': ct._au_over_kpc_,
                            'xmax_default': 100.,
                            'use_quad': False,
                            'lin_space': False,
                            # for a fine enough array
-                           'Nint': min(max_steps, 100001),
+                           'Nint': min(age_steps, max_steps),
                            't_extra_old': 0.
                            }
 
