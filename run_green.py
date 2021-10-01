@@ -129,23 +129,31 @@ snrs_dct = dt.load_Green_catalogue(snr_name_arr)
 snrs_cut = {}
 for name, snr in snrs_dct.items():
     
-    try: snr.distance
-    except: continue
+    try:
+        snr.distance
+    except:
+        continue
     
-    try: snr.alpha
-    except: continue
+    try:
+        snr.alpha
+    except:
+        continue
     
     if known_age:
-        try: snr.age
-        except: continue
+        try:
+            snr.age
+        except:
+            continue
     else: pass
     
     if snr.get_flux_density() == -1:
-        print("no flux density: "+str(name))
+        if verbose:
+            print("no flux density: "+str(name))
         continue
     
     if not snr.is_flux_certain:
-        print("uncertain flux: "+str(name))
+        if verbose:
+            print("uncertain flux: "+str(name))
         continue
     
     snrs_cut[name] = snr
@@ -155,7 +163,8 @@ for name, snr in snrs_dct.items():
     except:
         pass
 
-print("Total no. of SNRs: "+str(len(snrs_cut))+"\n")
+if verbose:
+    print("Total no. of SNRs: "+str(len(snrs_cut))+"\n")
 
 # -------------------------------------------------
 
@@ -236,7 +245,7 @@ for i, name in tqdm(enumerate(sorted_names)):
 
                 else:
                     lightcurve_params.update({'t_age': t_age})
-                    _, computed_pars = ap.L_source(t, model='eff',
+                    _, computed_pars = ap.L_source(t_age, model='eff',
                                                    output_pars=True,
                                                    gamma=gamma,
                                                    t_peak=tpk, L_peak=Lpk,
@@ -246,9 +255,9 @@ for i, name in tqdm(enumerate(sorted_names)):
                 
                 if verbose:
                     if flg_r:
-                        print(t_age)
+                        print("t_age = "+str(t_age))
                     else:
-                        print(t_trans)
+                        print("t_trans = "+str(t_trans))
                 
                 # Snu kwargs
                 max_steps = int(3*(t_age) + 1)
