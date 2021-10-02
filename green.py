@@ -176,7 +176,8 @@ def snr_reach(name, r=None, nuB=1., tex=0., sn_ratio_threshold=1., nu_pivot=1., 
     # computing the forbidden parameter space region
     nonsense_lum = (L0 >= Lpk_Gr).astype(int) # points where L0 >= Lpk
     if r == None:
-        nonsense_time = np.zeros_like(tpk_Gr) # TODO: change?
+#         nonsense_time = np.zeros_like(tpk_Gr) # TODO: change?
+        nonsense_time = (tgrid < (tpk_Gr/365.)).astype(int)
     else:
         nonsense_time = np.zeros_like(tpk_Gr) # TODO: change?
 #         tt_Gr = r*(tpk_Gr/365.)
