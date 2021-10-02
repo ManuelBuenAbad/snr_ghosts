@@ -279,27 +279,27 @@ ax.set_xlim(-3., 3.);
 ax.set_xlabel(r'$Z$ [normalized variable]', fontsize=label_sz);
 ax.tick_params("both", which="both", labelsize=label_sz, direction="in", length=10.)
 ax.legend(fontsize=legend_sz);
+ax.set_title("SNR "+name+r": distribution of normalized $L_{\rm peak}$ and $t_{\rm peak}$", fontsize=title_sz);
 
-fig.suptitle(r'Distribution of normalized $L_{\rm peak}$ and $t_{\rm peak}$ for '+name, fontsize=title_sz);
 fig.tight_layout()
-plt.savefig(green_path+"{0}/Lpk-tpk_dist_{0}_{1}.pdf".format(name, ident))
+plt.savefig(green_path+"{0}/Lpk-tpk_dist_{0}_{1}.pdf".format(name, ident), bbox_inches="tight")
 
 # ga distribution:
 fig, ax = plt.subplots()
 ax.hist(log10(refined_ga), bins=100, histtype="stepfilled", alpha=0.3, density=True, color='C2', zorder=-1)
-ax.set_xlim(-12, -6);
+ax.set_xlim(-12, -4);
 ax.set_xlabel(r'$\log_{10}\big( g_{a\gamma\gamma} \cdot \mathrm{GeV} \big)$', fontsize=label_sz);
+ax.set_title("SNR "+name+r": distribution of $g_{a\gamma\gamma}$ reach; S/N = "+str(int(sn_th))+", $\nu_a = 1 \, \mathrm{GHz}$", fontsize=title_sz);
 
-ax.axvline(log10(ga_band['0s']), ls="-", color="k", zorder=-1);
+ax.axvline(log10(ga_band['0s']), ls="-", color="k", zorder=-1, lw=2.);
 ax.axvline(log10(ga_band['-1s']), ls="--", color="b", zorder=-1);
 ax.axvline(log10(ga_band['+1s']), ls="--", color="b", zorder=-1);
 ax.axvline(log10(ga_band['-2s']), ls=":", color="r", zorder=-1);
 ax.axvline(log10(ga_band['+2s']), ls=":", color="r", zorder=-1);
 ax.tick_params("both", which="both", labelsize=label_sz, direction="in", length=10.)
 
-fig.suptitle(r'Distribution of $g_{a\gamma\gamma}$ reach for '+name, fontsize=title_sz);
 fig.tight_layout()
-plt.savefig(green_path+"{0}/ga_dist_{0}_{1}.pdf".format(name, ident))
+plt.savefig(green_path+"{0}/ga_dist_{0}_{1}.pdf".format(name, ident), bbox_inches="tight")
 
 # ga(ma) bands:
 fig, ax = plt.subplots()
@@ -312,10 +312,10 @@ ax.set_ylim(1.e-12, 1.e-4);
 ax.set_xlabel(r'$m_a \quad [\mathrm{eV}^{-1}]$', fontsize=label_sz);
 ax.set_ylabel(r'$g_{a\gamma\gamma} \quad [\mathrm{GeV}^{-1}]$', fontsize=label_sz);
 ax.tick_params("both", which="both", labelsize=label_sz, direction="in", length=10.)
+ax.set_title("SNR "+name+r": $g_{a\gamma\gamma}$ reach; S/N = "+str(int(sn_th)), fontsize=title_sz);
 
-fig.suptitle(r'Reach $g_{a\gamma\gamma}$ bands for '+name, fontsize=title_sz);
 fig.tight_layout()
-plt.savefig(green_path+"{0}/{0}_ga_bands_{1}.pdf".format(name, ident))
+plt.savefig(green_path+"{0}/{0}_ga_bands_{1}.pdf".format(name, ident), bbox_inches="tight")
 
 # Saving ga(ma) bands
 np.savetxt(green_path+"{0}/ma_ga_bands_{0}_{1}.txt".format(name, ident), ma_ga_band, delimiter=",")
