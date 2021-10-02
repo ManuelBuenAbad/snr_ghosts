@@ -263,7 +263,7 @@ for i, name in tqdm(enumerate(sorted_names)):
                         print("t_trans = "+str(t_trans))
                 
                 # Snu kwargs
-                age_steps = int(1000*(log10(t_age) - log10(tpk/365.)) + 1)
+                age_steps = abs(int(1000*(log10(t_age) - log10(tpk/365.)) + 1))
                 snu_echo_kwargs = {'tmin_default': None,
                                    'Nt': min(age_steps, max_steps),
                                    'xmin': ct._au_over_kpc_,

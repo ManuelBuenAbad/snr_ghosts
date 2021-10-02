@@ -76,7 +76,7 @@ default_data = {'deltaE_over_E': 1.e-3,
 
 # Snu_echo_kwargs:
 
-age_steps = int(1000*(log10(def_t0) - log10(def_tpk/365.)) + 1)
+age_steps = abs(int(1000*(log10(def_t0) - log10(def_tpk/365.)) + 1))
 max_steps = 1000001
 default_Snu_echo_kwargs = {'tmin_default': None,
                            # for a fine enough array

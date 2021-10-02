@@ -490,7 +490,7 @@ if args.slice == "Lpk-tpk":
 #                     continue
                 
                 # Snu kwargs
-                age_steps = int(1000*(log10(t_signal) - log10(tpk/365.)) + 1)
+                age_steps = abs(int(1000*(log10(t_signal) - log10(tpk/365.)) + 1))
                 snu_echo_kwargs = {'tmin_default': None,
                                    'Nt': min(age_steps, max_steps),
                                    'xmin': ct._au_over_kpc_,
@@ -624,7 +624,7 @@ elif args.slice == "tsig-r":
                 snr.set_flux_density(S0)
                 
                 # Snu kwargs
-                age_steps = int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1)
+                age_steps = abs(int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
                 snu_echo_kwargs = {'tmin_default': None,
                                    'Nt': min(age_steps, max_steps),
                                    'xmin': ct._au_over_kpc_,
@@ -767,7 +767,7 @@ elif args.slice == "tex-r":
 #             continue
 
         # Snu kwargs
-        age_steps = int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1)
+        age_steps = abs(int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
         snu_echo_kwargs = {'tmin_default': None,
                            'Nt': min(age_steps, max_steps),
                            'xmin': ct._au_over_kpc_,
@@ -922,7 +922,7 @@ elif args.slice == "l-D":
 #                     continue
                 
                 # Snu kwargs
-                age_steps = int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1)
+                age_steps = abs(int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
                 snu_echo_kwargs = {'tmin_default': None,
                                    'Nt': min(age_steps, max_steps),
                                    'xmin': ct._au_over_kpc_,
@@ -1058,7 +1058,7 @@ elif args.slice == "l-b":
         sys.exit("EXITING: t_signal = {} < t_trans = {}".format(t_signal, t_trans))
 
     # Snu kwargs
-    age_steps = int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1)
+    age_steps = abs(int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
     snu_echo_kwargs = {'tmin_default': None,
                        'Nt': min(age_steps, max_steps),
                        'xmin': ct._au_over_kpc_,
@@ -1201,7 +1201,7 @@ elif args.slice == "t-D":
                 snr.set_flux_density(S0)
                 
                 # Snu kwargs
-                age_steps = int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1)
+                age_steps = abs(int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
                 snu_echo_kwargs = {'tmin_default': None,
                                    'Nt': min(age_steps, max_steps),
                                    'xmin': ct._au_over_kpc_,
@@ -1322,7 +1322,7 @@ elif args.slice == "l-t":
         snr.set_flux_density(S0)
 
         # Snu kwargs
-        age_steps = int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1)
+        age_steps = abs(int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
         snu_echo_kwargs = {'tmin_default': None,
                            'Nt': min(age_steps, max_steps),
                            'xmin': ct._au_over_kpc_,
@@ -1460,7 +1460,7 @@ elif args.slice == "t-b":
                 snr.set_flux_density(S0)
 
                 # Snu kwargs
-                age_steps = int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1)
+                age_steps = abs(int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
                 snu_echo_kwargs = {'tmin_default': None,
                                    'Nt': min(age_steps, max_steps),
                                    'xmin': ct._au_over_kpc_,
