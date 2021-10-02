@@ -289,7 +289,7 @@ fig, ax = plt.subplots()
 ax.hist(log10(refined_ga), bins=100, histtype="stepfilled", alpha=0.3, density=True, color='C2', zorder=-1)
 ax.set_xlim(-12, -4);
 ax.set_xlabel(r'$\log_{10}\big( g_{a\gamma\gamma} \cdot \mathrm{GeV} \big)$', fontsize=label_sz);
-ax.set_title("SNR "+name+r": distribution of $g_{a\gamma\gamma}$ reach; S/N = "+str(int(sn_th))+", $\nu_a = 1 \, \mathrm{GHz}$", fontsize=title_sz);
+ax.set_title("SNR "+name+r": distribution of $g_{a\gamma\gamma}$ reach; S/N = "+str(int(sn_th))+r", $\nu_a = 1 \, \mathrm{GHz}$", fontsize=title_sz);
 
 ax.axvline(log10(ga_band['0s']), ls="-", color="k", zorder=-1, lw=2.);
 ax.axvline(log10(ga_band['-1s']), ls="--", color="b", zorder=-1);
