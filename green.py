@@ -43,8 +43,6 @@ normal_tpk_arr = (log10(pre_tpk_arr)-ct._mu_log10_tpk_)/ct._sig_log10_tpk_
 # sigmas contours on pre-computed grids
 sigs_Gr = np.sqrt(((log10(pre_Lpk_Gr)-ct._mu_log10_Lpk_)/ct._sig_log10_Lpk_)**2 + ((log10(pre_tpk_Gr)-ct._mu_log10_tpk_)/ct._sig_log10_tpk_)**2)
 
-
-
 # -------------------------------------------------
 
 ###############
@@ -177,11 +175,11 @@ def snr_reach(name, r=None, nuB=1., tex=0., sn_ratio_threshold=1., nu_pivot=1., 
     nonsense_lum = (L0 >= Lpk_Gr).astype(int) # points where L0 >= Lpk
     if r == None:
 #         nonsense_time = np.zeros_like(tpk_Gr) # TODO: change?
-        nonsense_time = (tgrid < (tpk_Gr/365.)).astype(int)
+        nonsense_time = (tgrid < (tpk_Gr/365.)).astype(int) # t_trans < tpk
     else:
         nonsense_time = np.zeros_like(tpk_Gr) # TODO: change?
 #         tt_Gr = r*(tpk_Gr/365.)
-#         nonsense_time = (tgrid < tt_Gr).astype(int) # points where t_age < t_trans
+        nonsense_time = (tgrid < (tpk_Gr/365.)).astype(int) # t_age < tpk
     
     nonsense_params = np.logical_or(nonsense_lum, nonsense_time).astype(int)
     
