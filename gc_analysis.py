@@ -213,7 +213,7 @@ def nu_dependence_fn(nu, sn_remnant):
     # SKA specs
     area, window, Tr, Omega_res = rt.SKA_rescaled_specs(ma, data={'exper':'SKA'})
     # Mock observation solid angle
-    mock_Omega_obs = np.maximum.reduce([mock_Omega_signal*np.ones_like(Omega_res), Omega_res]) 
+    mock_Omega_obs = np.maximum.reduce([mock_Omega_signal*np.ones_like(Omega_res), Omega_res])
     
     # SNR coordinates
     l, b = sn_remnant.get_coord()
