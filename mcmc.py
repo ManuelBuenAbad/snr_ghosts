@@ -79,7 +79,7 @@ def snr_emcee_routine(ga_fn,
                       nL_limits=(None, None),
                       nt_limits=(None, None),
                       forbidden=False,
-                      nwalkers=50, nburn=200, nsteps=2000,
+                      nwalkers=50, nburn=1000, nsteps=5000,
                       **nonsense_kwargs):
     """
     The emcee routine to analyze the Green's Catalog SNR results.
