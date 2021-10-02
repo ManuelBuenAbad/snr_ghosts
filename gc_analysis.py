@@ -58,11 +58,11 @@ parser.add_argument('-n', '--nuB', '--nu_Bietenholz', default=None,
 parser.add_argument('-Z', '--sn_th', '--signal_to_noise_ratio', default=None,
                     type=float, help="The signal-to-noise ratio threshold (default: None)")
 
-parser.add_argument('-N', '--Nsteps', default=50000,
+parser.add_argument('-N', '--Nsteps', default=5000,
                     type=int, help="The number of steps in the parameter space arrays (default: None)")
 parser.add_argument('-w', '--walkers', default=50,
                     type=int, help="The number of steps in the parameter space arrays (default: None)")
-parser.add_argument('-b', '--burn', default=5000,
+parser.add_argument('-b', '--burn', default=1000,
                     type=int, help="The number of steps in the parameter space arrays (default: None)")
 
 # True/False flags
