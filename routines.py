@@ -176,7 +176,7 @@ def Snu_rescale_axion(ma, ga, ma_ref, ga_ref, source_input=default_source_input)
     return nu_fac * ax_pref
 
 
-def SKA_rescaled_specs(ma, ma_ref, data=default_data):
+def SKA_rescaled_specs(ma, data=default_data):
     """
     Returns the SKA specs for the rescaled axion parameters.
 
@@ -191,8 +191,7 @@ def SKA_rescaled_specs(ma, ma_ref, data=default_data):
     nu = np.array(nu)  # converting into array for handling
     if nu.ndim == 0:
         nu = nu[None]
-
-    nu_ref = pt.nu_from_ma(ma_ref)  # [GHz] pivot frequency
+    
     exper = data['exper']  # requested experiment
 
     # computing the collecting area and the frequency sensitivity window of the experiment mode
@@ -267,7 +266,7 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
     factors = Snu_rescale_axion(
         ma, ga, ma_ref, ga_ref, source_input=source_input)
     area, window, Tr, Omega_res = SKA_rescaled_specs(
-        ma, ma_ref, data=data)  # SKA specs
+        ma, data=data)  # SKA specs
 
     # echo's location
     l_echo = source_input['longitude'] + \
