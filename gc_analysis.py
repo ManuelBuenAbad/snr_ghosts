@@ -154,6 +154,7 @@ if verbose:
     print("\nReady to run MCMC!")
 
 sample, ga_reach = mcmc.snr_emcee_routine(ga_fn, nL_limits=nL_limits, nt_limits=nt_limits,
+                                          forbidden=True,
                                           nwalkers=nwalkers, nburn=nburn, nsteps=nsteps,
                                           xarr=normal_Lpk_arr,
                                           yarr=normal_tpk_arr,
