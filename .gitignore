@@ -7,3 +7,4 @@ plots*
 batch_*
 *.pyc
 **/output/**
+**/workspace_notebooks/scratch.ipynb
