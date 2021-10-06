@@ -320,6 +320,29 @@ tb_parser.add_argument('-l', '--longitude',
                        help="The galactic longitude of the SNR [deg] (default: 0)")
 
 
+# CASE 9: t-S0 slice
+tS0_parser = subparsers.add_parser(
+    't-S0', help="distance-t_total parameter space slice")
+
+tS0_parser.add_argument('-p', '--tpk', '--t_peak',
+                        default=(10.**ct._mu_log10_tpk_),
+                        type=float,
+                        help="The peak time of the SNR [days] (default: 10^1.7)")
+tS0_parser.add_argument('-r', '--tt_ratio', '--ratio',
+                        default=30.,
+                        type=float,
+                        help="The ratio of t_trans/t_pk (default: 30)")
+tS0_parser.add_argument('-D', '--distance', '--dist',
+                        default=1.,
+                        type=float,
+                        help="The distance to the source [kpc] (default: 1)")
+tS0_parser.add_argument('-lb', '--coords', '--long_lat',
+                        default=(0., 0.),
+                        type=float,
+                        nargs=2,
+                        help="The galactic coordinates of the SNR [deg] (default: (0, 0))")
+
+
 # Parsing arguments:
 args = parser.parse_args()
 
@@ -460,13 +483,13 @@ if args.slice == "Lpk-tpk":
 
         # x-array:
         for new_Lpk in new_Lpk_arr:
-            
+
             try:
-                
+
                 lightcurve_params = {'t_peak': tpk,
                                      'L_peak': new_Lpk,
                                      't_trans': t_trans}
-                
+
                 if flg_t:
                     # Updating lightcurve parameters
                     t_signal = args.t_signal
@@ -476,21 +499,23 @@ if args.slice == "Lpk-tpk":
                                     'L_peak': new_Lpk, 't_peak': tpk, 't_trans': t_trans}
                     L0 = ap.L_source(t_signal, **local_source)  # [cgs]
                     S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
-                
+
                 elif flg_s:
                     # Computing t_age
-                    t_signal = ap.tage_compute(new_Lpk, tpk, t_trans, L0, gamma)
+                    t_signal = ap.tage_compute(
+                        new_Lpk, tpk, t_trans, L0, gamma)
                     # Updating lightcurve parameters
                     lightcurve_params.update({'L_today': L0})
-                
+
 #                 # Skipping non-sensical parameters:
 #                 if L0 > new_Lpk:  # non-sensical luminosities
 #                     continue
 #                 if t_signal < t_trans:  # non-sensical t_trans (i.e. tpk)
 #                     continue
-                
+
                 # Snu kwargs
-                age_steps = abs(int(1000*(log10(t_signal) - log10(tpk/365.)) + 1))
+                age_steps = abs(
+                    int(1000*(log10(t_signal) - log10(tpk/365.)) + 1))
                 snu_echo_kwargs = {'tmin_default': None,
                                    'Nt': min(age_steps, max_steps),
                                    'xmin': ct._au_over_kpc_,
@@ -499,7 +524,7 @@ if args.slice == "Lpk-tpk":
                                    'lin_space': False,
                                    'Nint': min(age_steps, max_steps),
                                    't_extra_old': args.t_extra}
-                
+
                 # data:
                 data = {'deltaE_over_E': 1.e-3,
                         'f_Delta': 0.721,
@@ -507,7 +532,7 @@ if args.slice == "Lpk-tpk":
                         'total_observing_time': 100.,
                         'verbose': 0,
                         'average': True}
-                
+
                 # computing routine
                 z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
                                                snr,
@@ -515,13 +540,13 @@ if args.slice == "Lpk-tpk":
                                                snu_echo_kwargs=snu_echo_kwargs,
                                                data=data,
                                                output_all=True)
-                
+
                 signal_Snu = new_output['signal_Snu']
                 del new_output
-                
+
                 if args.verbose:
                     print("S/N=", z)
-                
+
                 # building rows
                 row_a.append(z)  # signal-to-noise ratio
                 row_b.append(signal_Snu)  # signal S_nu
@@ -529,7 +554,7 @@ if args.slice == "Lpk-tpk":
                     row_c.append(S0)  # S0
                 elif flg_s:
                     row_c.append(t_signal)  # t_signal
-            
+
             except:
                 # nonsense results; append some ridiculous value
                 row_a.append(ridiculous)
@@ -607,7 +632,7 @@ elif args.slice == "tsig-r":
 
         # x-array:
         for t_signal in tsig_arr:
-            
+
             try:
                 # defining lightcurve parameters:
                 lightcurve_params = {'t_peak': args.tpk,
@@ -622,9 +647,10 @@ elif args.slice == "tsig-r":
                 S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
                 snr.set_age(t_signal)
                 snr.set_flux_density(S0)
-                
+
                 # Snu kwargs
-                age_steps = abs(int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
+                age_steps = abs(
+                    int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
                 snu_echo_kwargs = {'tmin_default': None,
                                    'Nt': min(age_steps, max_steps),
                                    'xmin': ct._au_over_kpc_,
@@ -633,7 +659,7 @@ elif args.slice == "tsig-r":
                                    'lin_space': False,
                                    'Nint': min(age_steps, max_steps),
                                    't_extra_old': args.t_extra}
-                
+
                 # data:
                 data = {'deltaE_over_E': 1.e-3,
                         'f_Delta': 0.721,
@@ -641,7 +667,7 @@ elif args.slice == "tsig-r":
                         'total_observing_time': 100.,
                         'verbose': 0,
                         'average': True}
-                
+
                 # computing routine
                 z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
                                                snr,
@@ -649,18 +675,18 @@ elif args.slice == "tsig-r":
                                                snu_echo_kwargs=snu_echo_kwargs,
                                                data=data,
                                                output_all=True)
-                
+
                 signal_Snu = new_output['signal_Snu']
                 del new_output
-                
+
                 if args.verbose:
                     print("S/N=", z)
-                
+
                 # building rows
                 row_a.append(z)  # signal-to-noise ratio
                 row_b.append(signal_Snu)  # signal S_nu
                 row_c.append(S0)  # S0
-            
+
             except:
                 # nonsense results; append some ridiculous value
                 row_a.append(ridiculous)
@@ -788,11 +814,11 @@ elif args.slice == "tex-r":
 
         # x-array:
         for t_extra in tex_arr:
-            
+
             try:
-                
+
                 snu_echo_kwargs.update({'t_extra_old': t_extra})
-                
+
                 # computing routine
                 z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
                                                snr,
@@ -800,17 +826,17 @@ elif args.slice == "tex-r":
                                                snu_echo_kwargs=snu_echo_kwargs,
                                                data=data,
                                                output_all=True)
-                
+
                 signal_Snu = new_output['signal_Snu']
                 del new_output
-                
+
                 if args.verbose:
                     print("S/N=", z)
-                
+
                 # building rows
                 row_a.append(z)  # signal-to-noise ratio
                 row_b.append(signal_Snu)  # signal S_nu
-            
+
             except:
                 # nonsense results; append some ridiculous value
                 row_a.append(ridiculous)
@@ -891,11 +917,11 @@ elif args.slice == "l-D":
 
         # x-array:
         for l in long_arr:
-            
+
             try:
-                
+
                 snr.set_coord(l=l, b=None, sign=None)
-                
+
                 if flg_t:
                     # Updating lightcurve parameters
                     t_signal = args.t_signal
@@ -905,24 +931,25 @@ elif args.slice == "l-D":
                                     'L_peak': new_Lpk, 't_peak': args.tpk, 't_trans': t_trans}
                     L0 = ap.L_source(t_signal, **local_source)  # [cgs]
                     S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
-                
+
                 elif flg_s:
                     # Computing L0
                     L0 = (snr.snu_at_1GHz*ct._Jy_over_cgs_irrad_)*area  # [cgs]
                     # Computing t_age
                     t_signal = ap.tage_compute(
-                    new_Lpk, args.tpk, t_trans, L0, gamma)
+                        new_Lpk, args.tpk, t_trans, L0, gamma)
                     # Updating lightcurve parameters
                     lightcurve_params.update({'L_today': L0})
-                
+
 #                 # Skipping non-sensical parameters:
 #                 if L0 > new_Lpk:  # non-sensical luminosities
 #                     continue
 #                 if t_signal < t_trans:  # non-sensical t_trans (i.e. tpk)
 #                     continue
-                
+
                 # Snu kwargs
-                age_steps = abs(int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
+                age_steps = abs(
+                    int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
                 snu_echo_kwargs = {'tmin_default': None,
                                    'Nt': min(age_steps, max_steps),
                                    'xmin': ct._au_over_kpc_,
@@ -931,7 +958,7 @@ elif args.slice == "l-D":
                                    'lin_space': False,
                                    'Nint': min(age_steps, max_steps),
                                    't_extra_old': args.t_extra}
-                
+
                 # data:
                 data = {'deltaE_over_E': 1.e-3,
                         'f_Delta': 0.721,
@@ -939,7 +966,7 @@ elif args.slice == "l-D":
                         'total_observing_time': 100.,
                         'verbose': 0,
                         'average': True}
-                
+
                 # computing routine
                 z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
                                                snr,
@@ -947,13 +974,13 @@ elif args.slice == "l-D":
                                                snu_echo_kwargs=snu_echo_kwargs,
                                                data=data,
                                                output_all=True)
-                
+
                 signal_Snu = new_output['signal_Snu']
                 del new_output
-                
+
                 if args.verbose:
                     print("S/N=", z)
-                
+
                 # building rows
                 row_a.append(z)  # signal-to-noise ratio
                 row_b.append(signal_Snu)  # signal S_nu
@@ -961,7 +988,7 @@ elif args.slice == "l-D":
                     row_c.append(S0)  # S0
                 elif flg_s:
                     row_c.append(t_signal)  # t_signal
-            
+
             except:
                 # nonsense results; append some ridiculous value
                 row_a.append(ridiculous)
@@ -1089,11 +1116,11 @@ elif args.slice == "l-b":
 
         # x-array
         for l in long_arr:
-            
+
             try:
-                
+
                 snr.set_coord(l=l, b=None, sign=None)
-                
+
                 # computing routine
                 z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
                                                snr,
@@ -1101,17 +1128,17 @@ elif args.slice == "l-b":
                                                snu_echo_kwargs=snu_echo_kwargs,
                                                data=data,
                                                output_all=True)
-                
+
                 signal_Snu = new_output['signal_Snu']
                 del new_output
-                
+
                 if args.verbose:
                     print("S/N=", z)
-                
+
                 # building rows
                 row_a.append(z)  # signal-to-noise ratio
                 row_b.append(signal_Snu)  # signal S_nu
-            
+
             except:
                 # nonsense results; append some ridiculous value
                 row_a.append(ridiculous)
@@ -1178,30 +1205,31 @@ elif args.slice == "t-D":
 
         # x-array:
         for t in t_arr:
-            
+
             try:
-                
+
                 if t < ct._time_of_phase_two_:
                     t_signal = t
                     t_extra = 0.
-                
+
                 else:
                     t_signal = ct._time_of_phase_two_
                     t_extra = t - ct._time_of_phase_two_
-                
+
                 lightcurve_params['t_age'] = t_signal
-                
+
                 # computing L0 and S0
                 local_source = {'gamma': gamma, 't_age': t_signal,
                                 'L_peak': new_Lpk, 't_peak': args.tpk, 't_trans': t_trans}
                 L0 = ap.L_source(t_signal, **local_source)  # [cgs]
                 S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
-                
+
                 snr.set_age(t_signal)
                 snr.set_flux_density(S0)
-                
+
                 # Snu kwargs
-                age_steps = abs(int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
+                age_steps = abs(
+                    int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
                 snu_echo_kwargs = {'tmin_default': None,
                                    'Nt': min(age_steps, max_steps),
                                    'xmin': ct._au_over_kpc_,
@@ -1210,7 +1238,7 @@ elif args.slice == "t-D":
                                    'lin_space': False,
                                    'Nint': min(age_steps, max_steps),
                                    't_extra_old': t_extra}
-                
+
                 # data:
                 data = {'deltaE_over_E': 1.e-3,
                         'f_Delta': 0.721,
@@ -1226,7 +1254,7 @@ elif args.slice == "t-D":
                                                snu_echo_kwargs=snu_echo_kwargs,
                                                data=data,
                                                output_all=True)
-                
+
                 signal_Snu = new_output['signal_Snu']
                 del new_output
 
@@ -1237,7 +1265,7 @@ elif args.slice == "t-D":
                 row_a.append(z)  # signal-to-noise ratio
                 row_b.append(signal_Snu)  # signal S_nu
                 row_c.append(S0)  # S0
-            
+
             except:
                 # nonsense results; append some ridiculous value
                 row_a.append(ridiculous)
@@ -1344,11 +1372,11 @@ elif args.slice == "l-t":
 
         # x-array:
         for longitude in (long_arr):
-            
+
             try:
-                
+
                 snr.set_coord(l=longitude, b=args.lat, sign=None)
-                
+
                 # computing routine
                 z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
                                                snr,
@@ -1356,18 +1384,18 @@ elif args.slice == "l-t":
                                                snu_echo_kwargs=snu_echo_kwargs,
                                                data=data,
                                                output_all=True)
-                
+
                 signal_Snu = new_output['signal_Snu']
                 del new_output
-                
+
                 if args.verbose:
                     print("S/N=", z)
-                
+
                 # building rows
                 row_a.append(z)  # signal-to-noise ratio
                 row_b.append(signal_Snu)  # signal S_nu
                 row_c.append(S0)  # S0
-            
+
             except:
                 # nonsense results; append some ridiculous value
                 row_a.append(ridiculous)
@@ -1438,19 +1466,19 @@ elif args.slice == "t-b":
 
         # x-array:
         for t in t_arr:
-            
+
             try:
-                
+
                 if t < ct._time_of_phase_two_:
                     t_signal = t
                     t_extra = 0.
-                
+
                 else:
                     t_signal = ct._time_of_phase_two_
                     t_extra = t - ct._time_of_phase_two_
-                
+
                 lightcurve_params['t_age'] = t_signal
-                
+
                 # computing L0 and S0
                 local_source = {'gamma': gamma, 't_age': t_signal,
                                 'L_peak': new_Lpk, 't_peak': args.tpk, 't_trans': t_trans}
@@ -1460,7 +1488,8 @@ elif args.slice == "t-b":
                 snr.set_flux_density(S0)
 
                 # Snu kwargs
-                age_steps = abs(int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
+                age_steps = abs(
+                    int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
                 snu_echo_kwargs = {'tmin_default': None,
                                    'Nt': min(age_steps, max_steps),
                                    'xmin': ct._au_over_kpc_,
@@ -1469,7 +1498,7 @@ elif args.slice == "t-b":
                                    'lin_space': False,
                                    'Nint': min(age_steps, max_steps),
                                    't_extra_old': t_extra}
-                
+
                 # data:
                 data = {'deltaE_over_E': 1.e-3,
                         'f_Delta': 0.721,
@@ -1477,7 +1506,7 @@ elif args.slice == "t-b":
                         'total_observing_time': 100.,
                         'verbose': 0,
                         'average': True}
-                
+
                 # computing routine
                 z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
                                                snr,
@@ -1485,18 +1514,18 @@ elif args.slice == "t-b":
                                                snu_echo_kwargs=snu_echo_kwargs,
                                                data=data,
                                                output_all=True)
-                
+
                 signal_Snu = new_output['signal_Snu']
                 del new_output
-                
+
                 if args.verbose:
                     print("S/N=", z)
-                
+
                 # building rows
                 row_a.append(z)  # signal-to-noise ratio
                 row_b.append(signal_Snu)  # signal S_nu
                 row_c.append(S0)  # S0
-            
+
             except:
                 # nonsense results; append some ridiculous value
                 row_a.append(ridiculous)
@@ -1526,6 +1555,151 @@ elif args.slice == "t-b":
                run_id+filename+".txt", s0_Gr, delimiter=",")
 
     # end of t-b routine
+
+
+# CASE 9:
+if args.slice == "t-S0":
+    # Defining the arrays
+    Nsigs = 3.  # number of standard deviations from the Bietenholz's mean to scan
+    # x-array:
+    t_arr = np.logspace(1, 4, Nsteps+1)
+    # y-array:
+    # Lpk_arr = np.logspace(ct._mu_log10_Lpk_-Nsigs*ct._sig_log10_Lpk_,
+    #                       ct._mu_log10_Lpk_+Nsigs*ct._sig_log10_Lpk_, Nsteps+2)
+    S0_arr = np.logspace(-5, 5, Nsteps+2)
+
+    # new_Lpk_arr = np.copy(Lpk_arr)  # copying peak luminosity array
+    # correcting L_peak by switching from the Bietenholz to the pivot frequencies
+    # new_Lpk_arr *= from_Bieten_to_pivot
+
+    # Saving arrays
+    np.savetxt(folder+"run_%d_t_arr_x.txt" % run_id, t_arr)
+    np.savetxt(folder+"run_%d_S0_arr_y.txt" % run_id, S0_arr)
+
+    # Updating SNR parameters:
+    snr.set_coord(l=args.coords[0], b=args.coords[1], sign=None)
+    snr.set_distance(args.distance)  # no_dist will be off automatically
+
+    area = 4.*pi*(snr.distance*ct._kpc_over_cm_)**2.  # [cm^2]
+    t_trans = args.tt_ratio*(args.tpk/365.)
+
+    # Result grids:
+    sn_Gr = []
+    snu_Gr = []
+    # tsig_Gr = []
+    # s0_Gr = []
+    Lpk_Biet_Gr = []
+
+    # Commence the routine:
+    # y-array:
+    for S0 in tqdm(S0_arr):
+
+        # S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
+        L0 = S0 * ct._Jy_over_cgs_irrad_ * area  # [cgs]
+
+        row_a, row_b, row_c = [], [], []
+
+        # x-array:
+        # for new_Lpk in new_Lpk_arr:
+        for t in t_arr:
+
+            try:
+
+                snr.set_age(t)
+                # Computing Lpk from S0/L0
+                local_source = {'L_today': L0, 'gamma': gamma, 't_age': t,
+                                't_peak': args.tpk, 't_trans': t_trans}
+                # this is Lpeak at Pivot
+                Lpk = ap.L_source(args.tpk/365., **local_source)  # [cgs]
+                # get the Lpeak at Bietenholz freq
+                Lpk_Biet = Lpk / from_Bieten_to_pivot
+
+                # Updating lightcurve parameters
+                lightcurve_params = {'t_peak': args.tpk,
+                                     'L_peak': Lpk,
+                                     't_trans': t_trans,
+                                     't_age': t}
+                # # directly passing L_today is also possible
+                # # for cross check
+                # lightcurve_params = {'t_peak': args.tpk,
+                #                      'L_today': L0,
+                #                      't_trans': t_trans,
+                #                      't_age': t}
+
+                # Snu kwargs
+                age_steps = abs(
+                    int(1000*(log10(t) - log10(args.tpk/365.)) + 1))
+                snu_echo_kwargs = {'tmin_default': None,
+                                   'Nt': min(age_steps, max_steps),
+                                   'xmin': ct._au_over_kpc_,
+                                   'xmax_default': 100.,
+                                   'use_quad': False,
+                                   'lin_space': False,
+                                   'Nint': min(age_steps, max_steps),
+                                   't_extra_old': 0.}
+
+                # data:
+                data = {'deltaE_over_E': 1.e-3,
+                        'f_Delta': 0.721,
+                        'exper': 'SKA',
+                        'total_observing_time': 100.,
+                        'verbose': 0,
+                        'average': True}
+
+                # computing routine
+                z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
+                                               snr,
+                                               lightcurve_params=lightcurve_params,
+                                               snu_echo_kwargs=snu_echo_kwargs,
+                                               data=data,
+                                               output_all=True)
+
+                signal_Snu = new_output['signal_Snu']
+                del new_output
+
+                if args.verbose:
+                    print("S/N=", z)
+
+                # building rows
+                row_a.append(z)  # signal-to-noise ratio
+                row_b.append(signal_Snu)  # signal S_nu
+                row_c.append(Lpk_Biet)  # Lpk at Bietenholz frequency
+
+            except:
+                # for debugging
+                raise Exception
+                # nonsense results; append some ridiculous value
+                row_a.append(ridiculous)
+                row_b.append(ridiculous)
+                row_c.append(ridiculous)
+
+            # end of routine for fixed Lpk
+
+        # appending finished Lpk rows
+        sn_Gr.append(row_a)
+        snu_Gr.append(row_b)
+        # s0_Gr.append(row_c)
+        Lpk_Biet_Gr.append(row_c)
+
+        # end of routine for fixed tpk
+
+    # converting grids to arrays
+    sn_Gr = np.array(sn_Gr)
+    snu_Gr = np.array(snu_Gr)
+    # s0_Gr = np.array(s0_Gr)
+    Lpk_Biet_Gr = np.array(Lpk_Biet_Gr)
+
+    # saving grids
+    np.savetxt(folder+"/run_%d_sn_" % run_id + filename+".txt", sn_Gr,
+               delimiter=",", fmt="%s")  # signal/noise
+    np.savetxt(folder+"/run_%d_echo_" % run_id+filename+".txt",
+               snu_Gr, delimiter=",", fmt="%s")  # Snu of echo signal
+    np.savetxt(folder+"/run_%d_LpkBiet_" % run_id + filename+".txt", Lpk_Biet_Gr,
+               delimiter=",", fmt="%s")  # S0
+    # np.savetxt(folder+"/run_%d_s0_" % run_id + filename+".txt", s0_Gr,
+    #                delimiter=",", fmt="%s")  # S0
+
+    # end of t-S0 routine
 
 ####################################
 # save log file for future reference
@@ -1573,3 +1747,6 @@ with open(log_file, 'w') as f:
 
 # CASE8:
 # python ./run_custom.py --run 1 --nuB 8 --Nsteps 100 t-b --Lpk 3.16e28 --tpk 50.1 --tt_ratio 30 -D 0.5 -l 175
+
+# CASE9:
+# python ./run_custom.py --run 1 --nuB 8 --Nsteps 30 t-S0 --tpk 50.1 --tt_ratio 30 -D 0.5 -lb 175 0
