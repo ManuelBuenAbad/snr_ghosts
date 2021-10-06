@@ -742,13 +742,6 @@ for name, snr in snrs_dct.items():
     except:
         continue
     
-    if known_age:
-        try:
-            snr.age
-        except:
-            continue
-    else: pass
-    
     # ignoring SNRs without known flux
     if snr.get_flux_density() == -1:
         continue
