@@ -124,7 +124,7 @@ file = name+tail
 ###################
 
 # The SNR we are interested in:
-snr = gr.snrs_dct[name]
+snr = dt.snrs_dct[name]
 
 # Loading the S/N, Snu_echo, and t_age grids:
 sn_Gr, echo_Gr, time_Gr = gr.load_green_results(name, r=tt_ratio, tex=t_extra, nuB=nuB)
