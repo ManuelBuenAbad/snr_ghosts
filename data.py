@@ -711,3 +711,61 @@ def load_Green_catalogue(snr_name_arr, pathroot=data_path+'snr_website/www.mrao.
             print('it is about %.0f years old.' % age)
 
     return snrs_dct
+
+
+
+# -------------------------------------------------
+
+#######################
+# SNR GREEN'S CATALOG #
+#######################
+
+# Loading Green's catalog:
+# First let's parse snrs.list.html
+# Names:
+snr_name_arr = load_Green_catalogue_names()
+# Catalog:
+snrs_dct = load_Green_catalogue(snr_name_arr)
+
+# Curating Green's catalog
+snrs_cut = {}
+snrs_age = {}
+for name, snr in snrs_dct.items():
+    
+    try:
+        snr.distance
+    except:
+        continue
+    
+    try:
+        snr.alpha
+    except:
+        continue
+    
+    if known_age:
+        try:
+            snr.age
+        except:
+            continue
+    else: pass
+    
+    # ignoring SNRs without known flux
+    if snr.get_flux_density() == -1:
+        continue
+    
+    # ignoring SNRs with uncertain flux
+#     if not snr.is_flux_certain:
+#         print("uncertain flux: "+str(name))
+#         continue
+    
+    # The SNR passed all the critical cuts: add it to the basic dictionary
+    snrs_cut[name] = snr
+    
+    # check if age is known...
+    try:
+        snr.age
+    except:
+        continue
+    
+    # Add the SNR to the dictionary of those with known age
+    snrs_age[name] = snr

@@ -121,50 +121,22 @@ else:
 # Loading Green's catalog:
 # First let's parse snrs.list.html
 # Names:
-snr_name_arr = dt.load_Green_catalogue_names()
+snr_name_arr = dt.snr_name_arr
 # Catalog:
-snrs_dct = dt.load_Green_catalogue(snr_name_arr)
+snrs_dct = dt.snrs_dct
+snrs_cut = dt.snrs_cut
+snrs_age = dt.snrs_age
 
-# Curating Green's catalog
-snrs_cut = {}
-for name, snr in snrs_dct.items():
-    
-    try:
-        snr.distance
-    except:
-        continue
-    
-    try:
-        snr.alpha
-    except:
-        continue
-    
-    if known_age:
-        try:
-            snr.age
-        except:
-            continue
-    else: pass
-    
-    if snr.get_flux_density() == -1:
-        if verbose:
-            print("no flux density: "+str(name))
-        continue
-    
-    if not snr.is_flux_certain:
-        if verbose:
-            print("uncertain flux: "+str(name))
-        continue
-    
-    snrs_cut[name] = snr
-    # Creating SNR directories:
+# Creating SNR directories:
+for name in snrs_cut.keys():
     try:
         os.makedirs("./output/green_snr/"+name+"/")
     except:
         pass
 
 if verbose:
-    print("Total no. of SNRs: "+str(len(snrs_cut))+"\n")
+    print("Total no. of SNRs with known spectral index, flux density, and distance: "+str(len(snrs_cut))+"\n")
+    print("Total no. of SNRs with an associated historical event (i.e. 'known' age): "+str(len(snrs_age))+"\n")
 
 # -------------------------------------------------
 
