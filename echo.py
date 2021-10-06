@@ -1165,7 +1165,7 @@ def noise(source_input, axion_input, data,
     T_noise = np.squeeze(ap.T_noise(
         nu, Tbg_at_408=Tbg_408_at_echo_loc, Tr=Tr))  # [K]
     noise_power = ap.P_noise(T_noise=T_noise, delnu=delnu, tobs=obs_time,
-                             Omega_obs=Omega_obs, Omega_res=Omega_res)  # [eV^2]
+                             Omega_obs=Omega_obs, Omega_res=Omega_res, nu=nu)  # [eV^2]
 
     # checking for recycle:
     recycle, output = recycle_output
@@ -1249,7 +1249,7 @@ def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._et
     Psig = ap.P_signal(Stot, area, eta=eta, f_Delta=fDelta)
 
     Tnoise = ap.T_noise(nu, Tbg_at_408=Tbg_408, beta=-2.55, Tr=Tr)
-    Pnoise = ap.P_noise(Tnoise, delta_nu, tobs, Omega_obs, Omega_res)
+    Pnoise = ap.P_noise(Tnoise, delta_nu, tobs, Omega_obs, Omega_res, nu)
 
     return Psig/Pnoise
 

@@ -301,7 +301,7 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
     new_output['noise_Tnu'] = ap.T_noise(
         nu, Tbg_at_408=new_output['noise_T408'], beta=beta, Tr=Tr)
     new_output['noise_power'] = ap.P_noise(
-        new_output['noise_Tnu'], new_output['noise_delnu'], tobs=obs_time, Omega_obs=new_output['noise_Omega_obs'], Omega_res=new_output['noise_Omega_res'])
+        new_output['noise_Tnu'], new_output['noise_delnu'], tobs=obs_time, Omega_obs=new_output['noise_Omega_obs'], Omega_res=new_output['noise_Omega_res'], nu=nu)
 
     # S/N:
     new_output['S/N'] = new_output['signal_power']/new_output['noise_power']

@@ -39,8 +39,8 @@ def solid_angle_to_angle(Omega):
 # Unit conversion
 #
 _light_speed_ = 299792458.  # [m/s]
-_year_over_s_ =  NaturalUnit('year/s').val # 31557600
-_GeV_over_g_ = 1000.*NaturalUnit('GeV/kg').val # 5.6095888453893324e+23
+_year_over_s_ = NaturalUnit('year/s').val  # 31557600
+_GeV_over_g_ = 1000.*NaturalUnit('GeV/kg').val  # 5.6095888453893324e+23
 _eV_over_GeV_ = 1.e-9
 _cm_eV_ = NaturalUnit('cm*eV').val
 _kpc_over_cm_ = NaturalUnit('kpc/cm').val  # 3.0857e21
@@ -94,6 +94,16 @@ _nu_min_ska_low_ = 0.05  # [GHz]
 _nu_max_ska_low_ = 0.35  # [GHz]
 _nu_min_ska_mid_ = 0.35  # [GHz]
 _nu_max_ska_mid_ = 15.4  # [GHz]
+
+# diameter of single dish mode. I'm using this for both mid/low
+_SKA_dish_diameter_ = 15.  # [m]
+_SKA1Mid_theta_min_ = 0.09  # [arcmin]
+_SKA1Mid_theta_max_ = 3.6  # [arcmin]
+_SKA2Mid_theta_min_ = 0.04  # [arcmin]
+_SKA2Mid_theta_max_ = 3.6  # [arcmin]
+_SKALow_theta_min_ = 3.6  # [arcmin]
+_SKALow_theta_max_ = 25.2  # [arcmin]
+
 
 #
 # SN fits from Bietenholz 2021
