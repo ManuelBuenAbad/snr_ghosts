@@ -752,7 +752,7 @@ def SKA_exper_nu(nu):
     return exper_mode
 
 
-def SKA_specs(nu, exper_mode, eta=ct._eta_ska_):
+def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, get_dish=False):
     """
     Returns the specifications (area [m^2], window, receiver noise brightness temperature [K], and solid angle resolution [sr]) of the SKA experiment mode, for the given frequency [GHz].
 
@@ -761,11 +761,12 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_):
     nu : frequency [GHz]
     exper_mode : mode in which the experiment is working
     eta: the detector efficiency (default: 0.8)
+    get_dish: whether output the number of dishes. Useful for noise estimate in single dish mode
     """
 
     if exper_mode == None:
-        area, window, Tr, Omega_res = 0., 0., 0., 1.e-100
-    
+        area, window, Tr, Omega_res, number_of_dishes = 0., 0., 0., 1.e-100, 1e100
+
     elif exper_mode == 'SKA low':
         area = ct._area_ska_low_
         window = np.heaviside(nu - ct._nu_min_ska_low_, 1.) * \
@@ -775,10 +776,14 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_):
         # finding resolution:
         wavelength = pt.lambda_from_nu(nu)/100.  # wavelength [m]
         # angular size of pixel resolution [rad]
-        theta_res = (1.02*wavelength)/sqrt(eta*4.*area/pi) # assuming this is the aperture angle and not the radial angle
+        # theta_res = (1.02*wavelength)/sqrt(eta*4.*area/pi) # assuming this is the aperture angle and not the radial angle
+        # assuming this is the aperture angle and not the radial angle
+        theta_res = (1.02*wavelength)/ct._SKA_dish_diameter_/sqrt(eta)
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
-    
+        number_of_dishes = ct._area_ska_low_ / \
+            (np.pi * ct._SKA_dish_diameter_**2 / 4.)
+
     elif exper_mode == 'SKA mid':
         area = ct._area_ska_mid_
         window = np.heaviside(nu - ct._nu_min_ska_mid_, 0.) * \
@@ -788,11 +793,18 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_):
         # finding resolution:
         wavelength = pt.lambda_from_nu(nu)/100.  # wavelength [m]
         # angular size of pixel resolution [rad]
-        theta_res = (1.02*wavelength)/sqrt(eta*4.*area/pi) # assuming this is the aperture angle and not the radial angle
+        # assuming this is the aperture angle and not the radial angle
+        # theta_res = (1.02*wavelength)/sqrt(eta*4.*area/pi)
+        theta_res = (1.02*wavelength)/ct._SKA_dish_diameter_/sqrt(eta)
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
+        number_of_dishes = ct._area_ska_mid_ / \
+            (np.pi * ct._SKA_dish_diameter_**2 / 4.)
 
-    return area, window, Tr, Omega_res
+    if get_dish:
+        return area, window, Tr, Omega_res, number_of_dishes
+    else:
+        return area, window, Tr, Omega_res
 
 
 def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=False):
@@ -839,7 +851,8 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
 
         if average:
             for size_val in size:
-                radial_angle = ct.solid_angle_to_angle(size_val)/2. # need to divide by 2 to get radius
+                radial_angle = ct.solid_angle_to_angle(
+                    size_val)/2.  # need to divide by 2 to get radius
                 new_pos_pix = hp.query_disc(
                     nside=512, vec=vec, radius=radial_angle)
                 bg_T408.append(np.average(map_allsky_408[new_pos_pix]))
@@ -855,7 +868,7 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
             bg_T408 = np.squeeze(bg_T408)
         else:
             bg_T408 = np.array(bg_T408)
-    
+
     else:
         new_pos_pix = pos_pix
         bg_T408 = np.average(map_allsky_408[new_pos_pix])
@@ -888,7 +901,7 @@ def T_noise(nu, Tbg_at_408=27, beta=-2.55, Tr=0.):
     return res
 
 
-def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res):
+def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu):
     """
     The power of the noise [eV^2].
 
@@ -907,9 +920,28 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res):
         factor = max(sqrt(Omega_obs/Omega_res), 1)
     except ValueError:
         factor = np.array([max(x, 1) for x in sqrt(Omega_obs/Omega_res)])
+    # this is the noise of a single dish
     res = 2. * T_noise * ct._K_over_eV_ * \
         sqrt(delnu * ct._GHz_over_eV_/(tobs * ct._hour_eV_)) * \
         factor
+
+    # converting noise of single dish to noise of the array all
+    # dishes. dealing with \sqrt(N) noise for N dishes
+    try:
+        # determine what exp we are looking at
+        exper_mode = SKA_exper_nu(nu)
+        _, _, _, _, number_of_dishes = SKA_specs(
+            nu, exper_mode, get_dish=True)
+        # convert to the noise of all dishes combined
+        res *= np.sqrt(number_of_dishes)
+    except ValueError:
+        for i, nu_i in enumerate(nu):
+            # determine what exp we are looking at
+            exper_mode = SKA_exper_nu(nu_i)
+            _, _, _, _, number_of_dishes = SKA_specs(
+                nu_i, exper_mode, get_dish=True)
+            # convert to the noise of all dishes combined
+            res[i] *= np.sqrt(number_of_dishes)
     return res
 
 
