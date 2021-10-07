@@ -795,6 +795,10 @@ for name, snr in snrs_dct.items():
 # AGE COMPUTATION
 #-----------------
 
+# a default array
+age_arr = np.logspace(-1, 7, 10001)
+
+
 def ED_fn(t, t_bench, R_bench, model):
     """
     Blast radius [pc] as a function of time for the Ejecta-Dominated era. Based on Truelove & McKee 1999 (TM99).
@@ -938,6 +942,6 @@ def model_age(R, model='estimate', M_ej=1., E_sn=1., rho0=1.):
             """
             return log10(Rb_fn(t, t_bench, R_bench, model)) - log10(R)
         
-        age = zeros(LogDelRb, np.logspace(-1, 7, 10001))
+        age = zeros(LogDelRb, age_arr)
         
         return age
