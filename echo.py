@@ -1264,7 +1264,13 @@ def ga_reach(sn_val, sn_ref, ga_ref):
     sn_ref : a reference signal-to-noise ratio
     ga_ref : the reference axion-photon coupling at which the reference signal-to-noise ratio was computed [GeV^-1]
     """
-
+    try:
+        for i in range(len(sn_ref)):
+            if sn_ref[i] == 0:
+                sn_ref[i] = 1.e-100
+                print("zero found at %d-th entry:" %i)
+    except:
+        pass
     return ga_ref * sqrt(sn_val/sn_ref)
 
 
