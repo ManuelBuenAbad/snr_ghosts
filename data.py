@@ -2,13 +2,19 @@
 Module that loads the data components
 """
 
+# getting future division
+from __future__ import division
+
+# numpy
 import numpy as np
-#import requests
+from numpy import pi, sqrt, log, log10, power, exp
+
 from astroquery.simbad import Simbad
 from astropy.coordinates import SkyCoord
 from datetime import datetime
 import re
 import os
+from astro import crossings as zeros
 import constants as ct
 
 # location of the data path
@@ -452,6 +458,19 @@ class SuperNovaRemnant(object):
             self.diam = -1  # use -1 to indicate unknown diameter
 
         return self.diam
+    
+    def get_radius(self):
+        """compute the radius of the SNR [pc]
+        
+        """
+        if self.no_dist is False:
+            dist = self.distance
+            radius = (dist * self.ang_size / 60. * np.pi/180. * ct._kpc_over_pc_)/2.
+            self.radius = radius
+        else:
+            self.radius = -1  # use -1 to indicate unknown diameter
+
+        return self.radius
 
     def get_SB(self):
         """get the surface brightness [Jy/sr]
@@ -769,3 +788,156 @@ for name, snr in snrs_dct.items():
     
     # Add the SNR to the dictionary of those with known age
     snrs_age[name] = snr
+
+
+
+#----------------------------------------------
+# AGE COMPUTATION
+#-----------------
+
+def ED_fn(t, t_bench, R_bench, model):
+    """
+    Blast radius [pc] as a function of time for the Ejecta-Dominated era. Based on Truelove & McKee 1999 (TM99).
+    
+    Parameters
+    ----------
+    t : time [years]
+    t_bench : benchmark time [years]
+    R_bench : benchmark radius [pc]
+    model : model of the expansion ('TM99-simple'/'TM99-0' for a simplified version of TM99 or for the case with n=0 ejecta.)
+    """
+    
+    tstar = t/t_bench
+    
+    if model == 'TM99-simple':
+        # power law R~t
+        Rstar = tstar
+    elif model == 'TM99-0':
+        # TM99, Table 5
+        Rstar = 2.01*tstar*(1. + 1.72 * tstar**(3./2.))**(-2./3.)
+        
+    return R_bench*Rstar
+
+
+
+def ST_fn(t, t_bench, R_bench, model):
+    """
+    Blast radius [pc] as a function of time for the Sedov-Taylor era. Based on Truelove & McKee 1999 (TM99).
+    
+    Parameters
+    ----------
+    t : time [years]
+    t_bench : benchmark time [years]
+    R_bench : benchmark radius [pc]
+    model : model of the expansion ('TM99-simple'/'TM99-0' for a simplified version of TM99 or for the case with n=0 ejecta.)
+    """
+    
+    tstar = t/t_bench
+    
+    if model == 'TM99-simple':
+        # power law R~t^(2/5)
+        Rstar = tstar**(2./5.)
+    elif model == 'TM99-0':
+        # TM99, Table 5
+        arg = (1.42*tstar - 0.254)
+        # regularizing:
+        arg = np.where(arg <= 0., 1.e-100, arg)
+        Rstar = arg**(2./5.)
+        
+    return R_bench*Rstar
+
+
+
+def Rb_fn(t, t_bench, R_bench, model):
+    """
+    Blast radius [pc] as a function of time. Based on Truelove & McKee 1999 (TM99).
+    
+    Parameters
+    ----------
+    t : time [years]
+    t_bench : benchmark time [years]
+    R_bench : benchmark radius [pc]
+    model : model of the expansion ('TM99-simple'/'TM99-0' for a simplified version of TM99 or for the case with n=0 ejecta.)
+    """
+    # broken function:
+    if model == 'TM99-simple':
+        two_phase = np.minimum.reduce([ED_fn(t, t_bench, R_bench, model), ST_fn(t, t_bench, R_bench, model)])
+    
+    elif model == 'TM99-0':
+        two_phase = np.maximum.reduce([ED_fn(t, t_bench, R_bench, model), ST_fn(t, t_bench, R_bench, model)])
+    
+    return two_phase
+
+
+
+def model_age(R, model='estimate', M_ej=1., E_sn=1., rho0=1.):
+    """
+    R : SNR radius today [pc]
+    model : 'estimate'/'TM99-simple'/TM99-0'': whether the simple one-phase 'estimate' model is used, or instead the two-phase Truelove-McKee model (ED-ST, or Ejecta-Dominated -- Sedov-Taylor), either in a simplified form, or for n=0 (uniform) ejecta profile.
+    M_ej : Mass of the ejecta [M_sun] (default: 1.)
+    E_sn : Energy of the SNR [1.e51 ergs] (default: 1.)
+    rho0 : Mass density of surrounding medium [m_proton/cm^3] (default: 1.)
+    """
+    if not model in ['estimate', 'TM99-simple', 'TM99-0']:
+        raise ValueError("model={} is currently unsupported.".format(model))
+    
+    if model == 'estimate':
+        # https://chandra.harvard.edu/edu/formal/age_snr/pencil_paper.pdf
+        
+        R_m = R*(ct._kpc_over_m_/1000.) # [m]
+        vol_m3 = (4./3.) * pi * R_m**3. # [m^3]
+        
+        m_proton = 0.93827208816*ct._GeV_over_g_ * 1.e-3 # [kg]
+        density = (m_proton*rho0)*1.e6 # [kg/m^3]
+        mass = density*vol_m3 # [kg]
+        
+        E_sn_J = (E_sn*1.e51)*(1.e-7) # [J]
+        ke = 0.25*E_sn_J # [J]
+        
+        vel = sqrt(2.*ke / mass) # [m/s]
+        age = (R_m/vel)/ct._year_over_s_ # [years]
+        
+        return age
+        
+        
+    elif model in ['TM99-simple', 'TM99-0']:
+        # Article: https://iopscience.iop.org/article/10.1086/313176
+        # Erratum: https://iopscience.iop.org/article/10.1086/313385
+        # Revisited: arXiv:2109.03612
+        
+        n0 = rho0/1. # number density [cm^-3]
+        
+        # Characteristic scales: Table 2
+        R_ch = 3.07 * M_ej**(1./3.) * n0**(-1./3.) # [pc]
+        t_ch = 423. * E_sn**(-1./2.) * M_ej**(5./6.) * n0**(-1./3.) # [years]
+        
+        # Sedov-Taylor scales: Table 3 (rounding up, for various ejecta power-law indices)
+        
+        if model == 'TM99-simple':
+            tstar_ST = 0.4
+            Rstar_ST = 0.7
+        elif model == 'TM99-0':
+            tstar_ST = 0.4950
+            Rstar_ST = 0.7276
+        
+        # Sedov-Taylor radius and age
+        t_ST = tstar_ST*t_ch
+        R_ST = Rstar_ST*R_ch
+        
+        if model == 'TM99-simple':
+            t_bench = t_ST
+            R_bench = R_ST
+        elif model == 'TM99-0':
+            t_bench = t_ch
+            R_bench = R_ch
+        
+        # defining the evolution in the two phases
+        def LogDelRb(t):
+            """
+            Function whose zeros we need to find in order to solve for the time [years] as a function of the radius [pc].
+            """
+            return log10(Rb_fn(t, t_bench, R_bench, model)) - log10(R)
+        
+        age = zeros(LogDelRb, np.logspace(-1, 7, 10001))
+        
+        return age
