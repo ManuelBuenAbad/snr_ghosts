@@ -444,7 +444,7 @@ class SuperNovaRemnant(object):
 
         """
 
-        if self.no_dist is False and self.no_flux is False:
+        if self.no_dist is False:
             dist = self.distance
             diam = dist * self.ang_size / 60. * np.pi/180. * ct._kpc_over_pc_
             self.diam = diam
@@ -730,7 +730,14 @@ snrs_dct = load_Green_catalogue(snr_name_arr)
 # Curating Green's catalog
 snrs_cut = {}
 snrs_age = {}
+snrs_age_only = {}
 for name, snr in snrs_dct.items():
+    
+    try:
+        snr.age
+        snrs_age_only[name] = snr
+    except:
+        pass
     
     try:
         snr.distance
