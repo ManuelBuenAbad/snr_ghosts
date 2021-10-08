@@ -33,7 +33,6 @@ def_b = 0.  # [deg] galactic center latitude
 default_source_input = {'longitude': def_l,  # [deg]
                         'latitude': def_b,  # [deg]
                         'distance': def_D,  # [kpc]
-                        'force_Omega_size_compute': True,  # compute source size
                         'force_Omega_disp_compute': True,  # compute DM dispersion angle
                         't_age': def_t0,  # [years]
                         'alpha': def_alpha,
@@ -95,8 +94,6 @@ default_Snu_echo_kwargs = {'tmin_default': None,
 ec.check_source(default_source_input)
 ec.check_data(default_data)
 # Update source_input with:
-# size
-ec.Omega_size(default_source_input)
 # Omega_dispersion
 Omdisp_kwargs = {key: value
                  for key, value in default_Snu_echo_kwargs.items()
@@ -191,7 +188,7 @@ def SKA_rescaled_specs(ma, data=default_data):
     nu = np.array(nu)  # converting into array for handling
     if nu.ndim == 0:
         nu = nu[None]
-    
+
     exper = data['exper']  # requested experiment
 
     # computing the collecting area and the frequency sensitivity window of the experiment mode
@@ -349,10 +346,6 @@ def full_routine(ma, ga, ga_ref, output,
                                  data=data,
                                  Snu_echo_kwargs=Snu_echo_kwargs,
                                  beta=beta)
-
-    # test:
-    if data['verbose'] > 2:
-        print("routines.py::source_input['size']: %s" % source_input['size'])
 
     # return final output
     return new_output

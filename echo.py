@@ -44,7 +44,6 @@ a la Boltzmann equations. The three main structures are:
                 'L_today' : luminosity today [erg*s^-1*Hz^-1]
         
         # Optional:
-            'force_Omega_size_compute' : whether the source's solid angle is computed (default: True)
             'force_Omega_disp_compute' : whether the dispersion solid angle is computed (default: True) 
 
 2. The 'axion_input' dict includes the following keys:
@@ -146,10 +145,6 @@ def check_source(source_input, custom_name='custom', verbose=False):
     if not 'name' in source_input.keys():
         # update source 'source_input' dictionary to contain some name
         source_input['name'] = custom_name
-
-    if (not 'force_Omega_size_compute' in source_input.keys()) or (not 'size' in source_input.keys()):
-        # source's size hasn't been passed, and there is no explicit request on whether to compute it
-        source_input['force_Omega_size_compute'] = True
 
     if (not 'force_Omega_disp_compute' in source_input.keys()) or (not 'Omega_dispersion' in source_input.keys()):
         # DM's dispersion size hasn't been passed, and there is no explicit request on whether to compute it
@@ -309,7 +304,7 @@ def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_obse
 
 def Omega_size(source_input, verbose=0):
     """
-    Computes the solid angle [sr] of the source, based on its other properties.
+    Computes the solid angle [sr] of the source, based on its other properties. Can be called only after only after check_source()
 
     Parameters
     ----------
@@ -318,15 +313,13 @@ def Omega_size(source_input, verbose=0):
     """
 
     try:
-        force_Omega_size_compute = source_input['force_Omega_size_compute']
-    except KeyError:  # should not be necessary, as this function is always called after check_source()
-        force_Omega_size_compute = True
+        Omega_size = source_input['size']
+        if Omega_size is None:
+            raise KeyError
 
-    if (not ('size' in source_input.keys())) or (force_Omega_size_compute is True):
-
-        # checking if the dictionaries are in the correct format
+    except KeyError:
+        # catches either 'size' is not in source_input.key(), or it's there but None
         check_source(source_input)
-
         v_free = ct._v_hom_  # speed of the free expansion [c]
         t_trans = source_input['t_trans']
         t_end = source_input['t_age']
@@ -358,13 +351,12 @@ def Omega_size(source_input, verbose=0):
         # angle subtended (twice angular radius) [rad]
         theta_source = 2.*(R_end/distance)
         Omega_size = ct.angle_to_solid_angle(theta_source)  # [sr]
-        source_input['size'] = Omega_size
 
         if verbose > 0:
             print('theta_source: %.1e rad' % theta_source)
             print('size: %.1e sr' % Omega_size)
 
-    return source_input['size']
+    return Omega_size
 
 
 def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t_extra_old=0., verbose=0):
@@ -493,8 +485,7 @@ def Snu_source(t, nu, source_input, output=None):
     # checking if the source_input is in the correct format
     check_source(source_input)
 
-    # Computing source's size
-    Omega_size(source_input)
+    # source's size is not used here
 
     alpha = source_input['alpha']  # spectral index
     nu_pivot = source_input['nu_pivot']  # [GHz] pivot/reference frequency
@@ -667,9 +658,9 @@ def Snu_echo(source_input, axion_input, data,
     check_axion(axion_input)
     check_data(data)
 
-    # Update source_input with:
+    # # Update source_input with:
     # size
-    Omega_size(source_input)
+    # source's size is not used here
     # Omega_dispersion
     Omega_dispersion(source_input, data,
                      tmin_default=tmin_default,
@@ -979,9 +970,9 @@ def signal(source_input, axion_input, data,
     check_axion(axion_input)
     check_data(data)
 
-    # Update source_input with:
-    # size
-    Omega_size(source_input)
+    # # Update source_input with:
+    # # size
+    Omega_source = Omega_size(source_input)
     # Omega_dispersion
     Omega_dispersion(source_input, data,
                      tmin_default=Snu_echo_kwargs['tmin_default'],
@@ -1001,14 +992,14 @@ def signal(source_input, axion_input, data,
 
     # solid angle of signal
     signal_Omega = max(
-        source_input['size'], source_input['Omega_dispersion'], source_input['Omega_aberration'])
+        Omega_source, source_input['Omega_dispersion'], source_input['Omega_aberration'])
     try:
         verbose = data['verbose']
         if verbose > 2:
-            print("echo.py: : source_input['size']=%.1e, \n\
+            print("echo.py: : size=%.1e, \n\
 \tsource_input['Omega_dispersion']=% .1e, \n\
 \tsource_input['Omega_aberration']= % .1e" % (
-                source_input['size'],
+                Omega_source,
                 source_input['Omega_dispersion'],
                 source_input['Omega_aberration']))
     except KeyError:
@@ -1111,15 +1102,13 @@ def noise(source_input, axion_input, data,
     check_data(data)
 
     # Update source_input with:
-    # size
-    Omega_size(source_input)
     # Omega_dispersion
     Omega_dispersion(source_input, data, **Omdisp_kwargs)
 
     # source parameters
     l_source = source_input['longitude']  # [deg] galactic longitude of source
     b_source = source_input['latitude']  # [deg] galactic latitude of source
-    Omega_source = source_input['size']  # [sr] solid angle of source
+    Omega_source = Omega_size(source_input)  # [sr] solid angle of source
 
     # TODO: compute the angular properties of the echo
     l_echo = l_source + 180.  # [deg] galactic longitude of echo
