@@ -1002,6 +1002,17 @@ def signal(source_input, axion_input, data,
     # solid angle of signal
     signal_Omega = max(
         source_input['size'], source_input['Omega_dispersion'], source_input['Omega_aberration'])
+    try:
+        verbose = data['verbose']
+        if verbose > 2:
+            print("echo.py: : source_input['size']=%.1e, \n\
+\tsource_input['Omega_dispersion']=% .1e, \n\
+\tsource_input['Omega_aberration']= % .1e" % (
+                source_input['size'],
+                source_input['Omega_dispersion'],
+                source_input['Omega_aberration']))
+    except KeyError:
+        pass
 
     # # test
     # print("echo.py: source_input['Omega_aberration']=%.1e" %
@@ -1268,7 +1279,7 @@ def ga_reach(sn_val, sn_ref, ga_ref):
         for i in range(len(sn_ref)):
             if sn_ref[i] == 0:
                 sn_ref[i] = 1.e-100
-                print("zero found at %d-th entry:" %i)
+                print("zero found at %d-th entry:" % i)
     except:
         pass
     return ga_ref * sqrt(sn_val/sn_ref)

@@ -778,11 +778,11 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, get_dish=False):
         # angular size of pixel resolution [rad]
         # theta_res = (1.02*wavelength)/sqrt(eta*4.*area/pi) # assuming this is the aperture angle and not the radial angle
         # assuming this is the aperture angle and not the radial angle
-        theta_res = (1.02*wavelength)/ct._SKA_dish_diameter_/sqrt(eta)
+        theta_res = (1.02*wavelength)/ct._SKALow_dish_diameter_/sqrt(eta)
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
         number_of_dishes = ct._area_ska_low_ / \
-            (np.pi * ct._SKA_dish_diameter_**2 / 4.)
+            (np.pi * ct._SKALow_dish_diameter_**2 / 4.)
 
     elif exper_mode == 'SKA mid':
         area = ct._area_ska_mid_
@@ -795,11 +795,11 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, get_dish=False):
         # angular size of pixel resolution [rad]
         # assuming this is the aperture angle and not the radial angle
         # theta_res = (1.02*wavelength)/sqrt(eta*4.*area/pi)
-        theta_res = (1.02*wavelength)/ct._SKA_dish_diameter_/sqrt(eta)
+        theta_res = (1.02*wavelength)/ct._SKA1Mid_dish_diameter_/sqrt(eta)
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
         number_of_dishes = ct._area_ska_mid_ / \
-            (np.pi * ct._SKA_dish_diameter_**2 / 4.)
+            (np.pi * ct._SKA1Mid_dish_diameter_**2 / 4.)
 
     if get_dish:
         return area, window, Tr, Omega_res, number_of_dishes

@@ -96,7 +96,8 @@ _nu_min_ska_mid_ = 0.35  # [GHz]
 _nu_max_ska_mid_ = 15.4  # [GHz]
 
 # diameter of single dish mode. I'm using this for both mid/low
-_SKA_dish_diameter_ = 15.  # [m]
+_SKALow_dish_diameter_ = 35.  # [m]
+_SKA1Mid_dish_diameter_ = 15.  # [m]
 _SKA1Mid_theta_min_ = 0.09  # [arcmin]
 _SKA1Mid_theta_max_ = 3.6  # [arcmin]
 _SKA2Mid_theta_min_ = 0.04  # [arcmin]
