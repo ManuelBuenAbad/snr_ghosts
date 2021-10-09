@@ -18,9 +18,9 @@ a la Boltzmann equations. The three main structures are:
         'alpha' :       spectral index of source
         'nu_pivot' :    pivot frequency of source's spectrum
         'gamma' :       adiabatic expansion index of source
+        'size' :        solid angle size of source [sr]
         
         # computable keys and values:
-        'size' :        solid angle size of source [sr]
         'Omega_dispersion' : solid angle due to DM velocity dispersion [sr]
         
         # modeling keys and values:
@@ -45,6 +45,7 @@ a la Boltzmann equations. The three main structures are:
         
         # Optional:
             'force_Omega_disp_compute' : whether the dispersion solid angle is computed (default: True) 
+            'use_free_expansion' : set the contribution of the free expansion part to be zero, and only account the signal from the adiabatic phase. 
 
 2. The 'axion_input' dict includes the following keys:
         'ma' :              the axion mass [eV]

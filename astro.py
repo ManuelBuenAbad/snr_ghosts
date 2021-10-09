@@ -632,7 +632,16 @@ def L_source(t, model='eff', output_pars=False, **kwargs):
     Lf = L_free(t, model=model, **known)  # computing early-times luminosity
     La = L_adiab(t, **adiab_kwargs)  # computing adiabatic luminosity
 
-    Lum = Lf*np.heaviside(t_trans - t, 1.) + La*np.heaviside(t - t_trans, 0.)
+    if not 'use_free_expansion' in kwargs.keys():
+        use_free_expansion = 1.
+    else:
+        if kwargs['use_free_expansion'] is False:
+            use_free_expansion = 0.
+        else:
+            use_free_expansion = 1.
+
+    Lum = Lf*np.heaviside(t_trans - t, 1.) * \
+        use_free_expansion + La*np.heaviside(t - t_trans, 0.)
 
     if output_pars:
         return Lum, return_pars
