@@ -85,17 +85,38 @@ _cygA_bg_T_at_408Hz_ = 27.  # [K]
 #
 # Experiment specs
 #
-_area_ska_low_ = 419000.  # [m^2]
-_area_ska_mid_ = 1.e6  # [m^2]
+#
+# SKA aperture area
+#
+# _area_ska_low_ = 419000.  # [m^2] Ghosh et al
+# _area_ska_mid_ = 1.e6  # [m^2] Ghosh et al
+
+# the effective  area of SKA-low:
+# num_of_stations * pi * D**2 / 4
+# num_of_stations: 512
+# station effective size: D = 38 m (summary v4, instead of 35 m)
+_area_ska_low_ = 580372.  # [m^2]
+
+# the effective  area of SKA1-low:
+# pi/4 * (133 * 15**2 + 64 * 13.5**2)
+# 133 SKA 15m-dishes, 64 MeerKAT 13.5-dishes
+_area_ska_mid_ = 32647  # [m^2]
+
+#
+# SKA freq
+#
 _band_width_ska_low_ = 0.3  # [GHz]
 _band_width_ska_mid_ = 15.05  # [GHz]
 _eta_ska_ = 0.8  # detector efficiency, same for mid and low
 _nu_min_ska_low_ = 0.05  # [GHz]
 _nu_max_ska_low_ = 0.35  # [GHz]
-_nu_min_ska_mid_ = 0.35  # [GHz]
-_nu_max_ska_mid_ = 15.4  # [GHz]
+_nu_min_ska_mid_ = 0.35  # [GHz] # both SKA1/2
+_nu_max_ska_mid_ = 15.4  # [GHz] # this is SKA1-mid
+_nu_max_ska2_mid_ = 30.  # [GHz] # this is SKA2-mid c.f. Caputo
 
-# diameter of single dish mode. I'm using this for both mid/low
+#
+# SKA beam geometry
+#
 _SKALow_dish_diameter_ = 35.  # [m]
 _SKA1Mid_dish_diameter_ = 15.  # [m]
 _SKA1Mid_theta_min_ = 0.09  # [arcmin]
