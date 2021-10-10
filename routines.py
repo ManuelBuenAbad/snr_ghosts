@@ -71,6 +71,7 @@ default_data = {'deltaE_over_E': 1.e-3,
                 'DM_profile': 'NFW',
                 'verbose': 0
                 }
+# I'm not setting 'correlation_mode' for now to expose and update all old code through Exceptions. After the code stabilizes we can set it to "dish only".
 
 
 # Snu_echo_kwargs:
@@ -190,40 +191,43 @@ def SKA_rescaled_specs(ma, data=default_data):
         nu = nu[None]
 
     exper = data['exper']  # requested experiment
+    correlation_mode = data['correlation_mode']
 
     # computing the collecting area and the frequency sensitivity window of the experiment mode
     if exper == 'SKA':  # in case the range is frequency-dependent
 
         nu_flat = nu.flatten()
 
-        area, window, Tr, Omega_res = [], [], [], []
+        area, window, Tr, Omega_res, Omega_max = [], [], [], [], []
         for nn in nu_flat:
 
             exper_mode = ap.SKA_exper_nu(nn)
-            aa, ww, tr, od = ap.SKA_specs(nn, exper_mode, eta=ct._eta_ska_)
+            aa, ww, tr, od, mm = ap.SKA_specs(
+                nn, exper_mode, eta=ct._eta_ska_, correlation_mode=correlation_mode)
 
             area.append(aa)
             window.append(ww)
             Tr.append(tr)
             Omega_res.append(od)
+            Omega_max.append(mm)
 
-        area, window, Tr, Omega_res = np.array(area), np.array(
-            window), np.array(Tr), np.array(Omega_res)
-        area, window, Tr, Omega_res = np.reshape(area, nu.shape), np.reshape(
-            window, nu.shape), np.reshape(Tr, nu.shape), np.reshape(Omega_res, nu.shape)
-        area, window, Tr, Omega_res = np.squeeze(area), np.squeeze(
-            window), np.squeeze(Tr), np.squeeze(Omega_res)
+        area, window, Tr, Omega_res, Omega_max = np.array(area), np.array(
+            window), np.array(Tr), np.array(Omega_res), np.array(Omega_max)
+        area, window, Tr, Omega_res, Omega_max = np.reshape(area, nu.shape), np.reshape(
+            window, nu.shape), np.reshape(Tr, nu.shape), np.reshape(Omega_res, nu.shape), np.reshape(Omega_max, nu.shape)
+        area, window, Tr, Omega_res, Omega_max = np.squeeze(area), np.squeeze(
+            window), np.squeeze(Tr), np.squeeze(Omega_res), np.squeeze(Omega_max)
 
     elif exper in ['SKA low', 'SKA mid']:  # in case the range was fixed by hand
         exper_mode = exper
-        area, window, Tr, Omega_res = ap.SKA_specs(
-            nu, exper_mode, eta=ct._eta_ska_)
+        area, window, Tr, Omega_res, Omega_max = ap.SKA_specs(
+            nu, exper_mode, eta=ct._eta_ska_, correlation_mode=correlation_mode)
 
     else:
         raise ValueError(
             "data['exper'] must be either 'SKA', 'SKA low', or 'SKA mid'. Please update accordingly.")
 
-    return area, window, Tr, Omega_res
+    return area, window, Tr, Omega_res, Omega_max
 
 
 def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
@@ -262,7 +266,7 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
     # for echo's spectral irradiance
     factors = Snu_rescale_axion(
         ma, ga, ma_ref, ga_ref, source_input=source_input)
-    area, window, Tr, Omega_res = SKA_rescaled_specs(
+    area, window, Tr, Omega_res, Omega_max = SKA_rescaled_specs(
         ma, data=data)  # SKA specs
 
     # echo's location
@@ -273,7 +277,7 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
     # data
     f_Delta = data['f_Delta']  # fraction of signal that falls in bandwidth
     obs_time = data['total_observing_time']  # total observation time [hr]
-
+    correlation_mode = data['correlation_mode']  # single dish vs interf mode
     # rescaled output
     new_output = {}
 
@@ -291,17 +295,21 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
     new_output['noise_nu'] = ref_dict['noise_nu']*nu_rescale
     new_output['noise_delnu'] = ref_dict['noise_delnu']*nu_rescale
     new_output['noise_Omega_res'] = Omega_res
-    new_output['noise_Omega_obs'] = np.maximum.reduce(
+    Omega_obs = np.maximum.reduce(
         [new_output['signal_Omega']*np.ones_like(new_output['noise_Omega_res']), new_output['noise_Omega_res']])
+    new_output['noise_Omega_obs'] = Omega_obs
     new_output['noise_T408'] = ap.bg_408_temp(
         l_echo, b_echo, size=new_output['noise_Omega_obs'], average=data['average'])
     new_output['noise_Tnu'] = ap.T_noise(
         nu, Tbg_at_408=new_output['noise_T408'], beta=beta, Tr=Tr)
     new_output['noise_power'] = ap.P_noise(
-        new_output['noise_Tnu'], new_output['noise_delnu'], tobs=obs_time, Omega_obs=new_output['noise_Omega_obs'], Omega_res=new_output['noise_Omega_res'], nu=nu)
+        new_output['noise_Tnu'], new_output['noise_delnu'], tobs=obs_time, Omega_obs=new_output['noise_Omega_obs'], Omega_res=new_output['noise_Omega_res'], nu=nu, correlation_mode=correlation_mode)
 
     # S/N:
-    new_output['S/N'] = new_output['signal_power']/new_output['noise_power']
+    # truncate the S/N due to extended objects. This is overly-cautious because when computing ref it's already truncated; and it's not a function of ma.
+    is_visible = np.where(Omega_obs > Omega_max, 0., 1.)
+    new_output['S/N'] = new_output['signal_power'] / \
+        new_output['noise_power'] * is_visible
 
     # axion:
     new_output['ma'] = ma

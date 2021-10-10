@@ -246,7 +246,7 @@ def check_axion(axion_input):
     return
 
 
-def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_observing_time=100., average=True, DM_profile='NFW', verbose=0):
+def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_observing_time=100., average=True, DM_profile='NFW', correlation_mode='single dish', verbose=0):
     """
     Checks if the 'data' dictionary of a source is in the necessary format.
 
@@ -259,8 +259,16 @@ def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_obse
     total_observing_time : total time of observation [hours] (default: 100.)
     average : whether the background noise brightness temperature will be averaged over the angular size of the source (default: True)
     DM_profile : the DM density profile (default: 'NFW')
+    correlation_mode: the correlation mode of the telescope, either "single dish" or "interferometry". 
     verbose : verbosity (default: 0)
     """
+
+    # I'm not setting default to expose all old calls through Exceptions.
+    # We can enable the following after all ws/scripts are updated
+
+    # if not 'correlation_mode' in data.keys():
+    #     # running mode, "single dish" or "interferometry"
+    #     data['correlation_mode'] = correlation_mode
 
     if not 'deltaE_over_E' in data.keys():
         # update 'data' with default value for deltaE_over_E
@@ -990,6 +998,8 @@ def signal(source_input, axion_input, data,
     delnu = nu*deltaE_over_E  # [GHz] bandwidth
     f_Delta = data['f_Delta']  # the fraction of flux in the bandwidth
     exper = data['exper']  # experiment requested
+    # "single dish" or "interferometry"
+    correlation_mode = data['correlation_mode']
 
     # solid angle of signal
     signal_Omega = max(
@@ -1023,18 +1033,25 @@ def signal(source_input, axion_input, data,
             "data['exper'] must be either 'SKA', 'SKA low', or 'SKA mid'. Please update accordingly.")
 
     # computing the collecting area and the frequency sensitivity window of the experiment mode
-    area, window, _, _ = ap.SKA_specs(nu, exper_mode)
+    area, window, _, _, Omega_max = ap.SKA_specs(
+        nu, exper_mode, correlation_mode=correlation_mode)
+
+    # cut out extended signal, due to physical size/ dispersion/ aberration
+    if signal_Omega > Omega_max:
+        is_visible = 0.
+    else:
+        is_visible = 1.
 
     # checking for recycle:
     recycle, output = recycle_output
 
     if (not recycle) or (type(output) != dict):
-        signal_Snu = Snu_echo(source_input, axion_input, data,
-                              recycle_output=recycle_output,
-                              **Snu_echo_kwargs)  # [Jy]
+        signal_Snu = is_visible * Snu_echo(source_input, axion_input, data,
+                                           recycle_output=recycle_output,
+                                           **Snu_echo_kwargs)  # [Jy]
 
     elif recycle and ('echo_Snu' in output.keys()):
-        signal_Snu = output['echo_Snu']  # [Jy]
+        signal_Snu = is_visible * output['echo_Snu']  # [Jy]
 
     else:
         raise ValueError(
@@ -1052,6 +1069,9 @@ def signal(source_input, axion_input, data,
     # truncate the power according to the SKA freq range window
     signal_power *= window
 
+    # truncate the power from source of large size
+    signal_power *= is_visible
+
     if recycle and (type(output) == dict):
 
         output['signal_nu'] = nu
@@ -1060,6 +1080,9 @@ def signal(source_input, axion_input, data,
         output['signal_Snu'] = signal_Snu
         output['signal_S_echo'] = signal_S_echo
         output['signal_power'] = signal_power
+
+        output['signal_Omega_max'] = Omega_max
+        output['signal_visible'] = is_visible
 
         # output
         if data['verbose'] > 0:
@@ -1131,6 +1154,7 @@ def noise(source_input, axion_input, data,
     exper = data['exper']  # experiment requested
     # whether we average the noise brightness temperature over the angular size of the source
     average = data['average']
+    correlation_mode = data['correlation_mode']
 
     # # test
     # print("echo.py: source_input['Omega_aberration']=%.1e" %
@@ -1153,7 +1177,8 @@ def noise(source_input, axion_input, data,
     # dlog T_noise/dlog nu ~ -beta*deltaE_over_E ~ -0.00255)
 
     # reading out the receiver's noise brightness temperature and solid angle resolution
-    _, _, Tr, Omega_res = ap.SKA_specs(nu, exper_mode)
+    _, _, Tr, Omega_res, Omega_max = ap.SKA_specs(
+        nu, exper_mode, correlation_mode=correlation_mode)
 
     # the observation solid angle [sr]
     Omega_obs = max(Omega_res, signal_Omega)
@@ -1166,7 +1191,8 @@ def noise(source_input, axion_input, data,
     T_noise = np.squeeze(ap.T_noise(
         nu, Tbg_at_408=Tbg_408_at_echo_loc, Tr=Tr))  # [K]
     noise_power = ap.P_noise(T_noise=T_noise, delnu=delnu, tobs=obs_time,
-                             Omega_obs=Omega_obs, Omega_res=Omega_res, nu=nu)  # [eV^2]
+                             Omega_obs=Omega_obs, Omega_res=Omega_res,
+                             nu=nu, correlation_mode=correlation_mode)  # [eV^2]
 
     # checking for recycle:
     recycle, output = recycle_output
@@ -1223,7 +1249,7 @@ def sn_ratio(signal_power, noise_power,
     return res
 
 
-def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._eta_ska_, fDelta=0.721, tobs=100.):
+def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._eta_ska_, fDelta=0.721, tobs=100.,  correlation_mode=None):
     """
     Simpler signal-to-noise ratio formula.
 
@@ -1237,6 +1263,7 @@ def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._et
     eta: the detector efficiency (default: 0.8)
     fDelta : the fraction of signal falling withing the bandwidth (default: 0.721)
     tobs : the total observation time [hours] (default: 100)
+    correlation_mode : the correlation mode of the experiment <"single dish"|"interferometry"> (default: None)
     """
 
     delta_nu_in_eV = delta_nu * ct._GHz_over_eV_
@@ -1245,9 +1272,13 @@ def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._et
 
     # experiment
     exper_mode = ap.SKA_exper_nu(nu)
-    area, window, Tr, Omega_res = ap.SKA_specs(nu, exper_mode, eta=eta)
+    area, window, Tr, Omega_res, Omega_max = ap.SKA_specs(
+        nu, exper_mode, eta=eta, correlation_mode=correlation_mode)
 
-    Psig = ap.P_signal(Stot, area, eta=eta, f_Delta=fDelta)
+    if Omega_obs > Omega_max:
+        Psig = 0.
+    else:
+        Psig = ap.P_signal(Stot, area, eta=eta, f_Delta=fDelta)
 
     Tnoise = ap.T_noise(nu, Tbg_at_408=Tbg_408, beta=-2.55, Tr=Tr)
     Pnoise = ap.P_noise(Tnoise, delta_nu, tobs, Omega_obs, Omega_res, nu)
@@ -1269,7 +1300,7 @@ def ga_reach(sn_val, sn_ref, ga_ref):
         for i in range(len(sn_ref)):
             if sn_ref[i] == 0:
                 sn_ref[i] = 1.e-100
-                print("zero found at %d-th entry:" % i)
+                # print("zero found at %d-th entry:" % i)
     except:
         pass
     return ga_ref * sqrt(sn_val/sn_ref)

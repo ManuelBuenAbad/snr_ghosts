@@ -761,7 +761,7 @@ def SKA_exper_nu(nu):
     return exper_mode
 
 
-def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, get_dish=False):
+def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, get_dish=False, correlation_mode=None):
     """
     Returns the specifications (area [m^2], window, receiver noise brightness temperature [K], and solid angle resolution [sr]) of the SKA experiment mode, for the given frequency [GHz].
 
@@ -771,12 +771,13 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, get_dish=False):
     exper_mode : mode in which the experiment is working
     eta: the detector efficiency (default: 0.8)
     get_dish: whether output the number of dishes. Useful for noise estimate in single dish mode
+    correlation_mode: whether to run in interferometry mode or single dish mode. Default None is meant to raise error if not assigned explicitly. 
     """
 
     if exper_mode == None:
-        area, window, Tr, Omega_res, number_of_dishes = 0., 0., 0., 1.e-100, 1e100
+        area, window, Tr, Omega_res, Omega_max, number_of_dishes = 0., 0., 0., 1.e-100, np.inf, 1e100
 
-    elif exper_mode == 'SKA low':
+    elif exper_mode == 'SKA low' and correlation_mode == "single dish":
         area = ct._area_ska_low_
         window = np.heaviside(nu - ct._nu_min_ska_low_, 1.) * \
             np.heaviside(ct._nu_max_ska_low_ - nu, 1.)
@@ -792,8 +793,26 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, get_dish=False):
             theta_res)  # solid angle of resolution [sr]
         number_of_dishes = ct._area_ska_low_ / \
             (np.pi * ct._SKALow_dish_diameter_**2 / 4.)
+        Omega_max = np.inf  # being sloppy here but we never reach FOV
 
-    elif exper_mode == 'SKA mid':
+    elif exper_mode == 'SKA low' and correlation_mode == "interferometry":
+        area = ct._area_ska_low_
+        window = np.heaviside(nu - ct._nu_min_ska_low_, 1.) * \
+            np.heaviside(ct._nu_max_ska_low_ - nu, 1.)
+        Tr = 40.
+
+        # finding resolution:
+        # treating resolution and max differently here
+        theta_res = ct._SKALow_theta_min_ * ct._arcmin_over_radian_
+        Omega_res = ct.angle_to_solid_angle(
+            theta_res)  # solid angle of resolution [sr]
+        theta_max = ct._SKALow_theta_max_ * ct._arcmin_over_radian_
+        Omega_max = ct.angle_to_solid_angle(
+            theta_max)  # solid angle of resolution [sr]
+        # for interferometry mode there shouldn't be an extra 1/sqrt(number_of_dishes) factor in noise
+        number_of_dishes = 1.
+
+    elif exper_mode == 'SKA mid' and correlation_mode == "single dish":
         area = ct._area_ska_mid_
         window = np.heaviside(nu - ct._nu_min_ska_mid_, 0.) * \
             np.heaviside(ct._nu_max_ska_mid_ - nu, 1.)
@@ -809,11 +828,29 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, get_dish=False):
             theta_res)  # solid angle of resolution [sr]
         number_of_dishes = ct._area_ska_mid_ / \
             (np.pi * ct._SKA1Mid_dish_diameter_**2 / 4.)
+        Omega_max = np.inf  # being sloppy here but we never reach FOV
+
+    elif exper_mode == 'SKA mid' and correlation_mode == "interferometry":
+        area = ct._area_ska_mid_
+        window = np.heaviside(nu - ct._nu_min_ska_mid_, 0.) * \
+            np.heaviside(ct._nu_max_ska_mid_ - nu, 1.)
+        Tr = 20.
+
+        # finding resolution:
+        # treating resolution and max differently here
+        theta_res = ct._SKA1Mid_theta_min_ * ct._arcmin_over_radian_
+        Omega_res = ct.angle_to_solid_angle(
+            theta_res)  # solid angle of resolution [sr]
+        theta_max = ct._SKA1Mid_theta_max_ * ct._arcmin_over_radian_
+        Omega_max = ct.angle_to_solid_angle(
+            theta_max)  # solid angle of resolution [sr]
+        # for interferometry mode there shouldn't be an extra 1/sqrt(number_of_dishes) factor in noise
+        number_of_dishes = 1.
 
     if get_dish:
-        return area, window, Tr, Omega_res, number_of_dishes
+        return area, window, Tr, Omega_res, Omega_max, number_of_dishes
     else:
-        return area, window, Tr, Omega_res
+        return area, window, Tr, Omega_res, Omega_max
 
 
 def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=False):
@@ -910,7 +947,7 @@ def T_noise(nu, Tbg_at_408=27, beta=-2.55, Tr=0.):
     return res
 
 
-def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu):
+def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     """
     The power of the noise [eV^2].
 
@@ -921,6 +958,7 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu):
     tobs: the total observation time [hour]
     Omega_obs: the observation solid angle [sr]
     Omega_res: the resolution solid angle [sr]
+    correlation_mode: the correlation mode, "single dish" or "interferometry".
     """
     # Even though we always feed P_noise() with Omega_obs >= Omega_res
     # I'm adding an extra check here just in case I get sloppy in the
@@ -934,23 +972,27 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu):
         sqrt(delnu * ct._GHz_over_eV_/(tobs * ct._hour_eV_)) * \
         factor
 
-    # converting noise of single dish to noise of the array all
-    # dishes. dealing with \sqrt(N) noise for N dishes
-    try:
-        # determine what exp we are looking at
-        exper_mode = SKA_exper_nu(nu)
-        _, _, _, _, number_of_dishes = SKA_specs(
-            nu, exper_mode, get_dish=True)
-        # convert to the noise of all dishes combined
-        res *= np.sqrt(number_of_dishes)
-    except ValueError:
-        for i, nu_i in enumerate(nu):
+    if correlation_mode == "single dish":
+        # converting noise of single dish to noise of the array all
+        # dishes. dealing with \sqrt(N) noise for N dishes
+        try:
             # determine what exp we are looking at
-            exper_mode = SKA_exper_nu(nu_i)
-            _, _, _, _, number_of_dishes = SKA_specs(
-                nu_i, exper_mode, get_dish=True)
+            exper_mode = SKA_exper_nu(nu)
+            _, _, _, _, _, number_of_dishes = SKA_specs(
+                nu, exper_mode, get_dish=True, correlation_mode=correlation_mode)
             # convert to the noise of all dishes combined
-            res[i] *= np.sqrt(number_of_dishes)
+            res *= np.sqrt(number_of_dishes)
+        except ValueError:
+            for i, nu_i in enumerate(nu):
+                # determine what exp we are looking at
+                exper_mode = SKA_exper_nu(nu_i)
+                _, _, _, _, _,  number_of_dishes = SKA_specs(
+                    nu_i, exper_mode, get_dish=True, correlation_mode=correlation_mode)
+                # convert to the noise of all dishes combined
+                res[i] *= np.sqrt(number_of_dishes)
+    else:
+        pass
+
     return res
 
 
