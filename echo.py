@@ -1036,22 +1036,26 @@ def signal(source_input, axion_input, data,
     area, window, _, _, Omega_max = ap.SKA_specs(
         nu, exper_mode, correlation_mode=correlation_mode)
 
-    # cut out extended signal, due to physical size/ dispersion/ aberration
-    if signal_Omega > Omega_max:
-        is_visible = 0.
-    else:
-        is_visible = 1.
+    # # cut out extended signal, due to physical size/ dispersion/ aberration
+    # if signal_Omega > Omega_max:
+    #     # print('hit')
+    #     # print('signal_Omega:%s' % signal_Omega)
+    #     # print('Omega_max:%s' % Omega_max)
+    #     is_visible = 0.
+    # else:
+    #     is_visible = 1.
+    #     # moving is_visible to routine as this method is only called once for a collection of ma
 
     # checking for recycle:
     recycle, output = recycle_output
 
     if (not recycle) or (type(output) != dict):
-        signal_Snu = is_visible * Snu_echo(source_input, axion_input, data,
-                                           recycle_output=recycle_output,
-                                           **Snu_echo_kwargs)  # [Jy]
+        signal_Snu = Snu_echo(source_input, axion_input, data,
+                              recycle_output=recycle_output,
+                              **Snu_echo_kwargs)  # [Jy]
 
     elif recycle and ('echo_Snu' in output.keys()):
-        signal_Snu = is_visible * output['echo_Snu']  # [Jy]
+        signal_Snu = output['echo_Snu']  # [Jy]
 
     else:
         raise ValueError(
@@ -1069,8 +1073,8 @@ def signal(source_input, axion_input, data,
     # truncate the power according to the SKA freq range window
     signal_power *= window
 
-    # truncate the power from source of large size
-    signal_power *= is_visible
+    # # truncate the power from source of large size
+    # signal_power *= is_visible
 
     if recycle and (type(output) == dict):
 
@@ -1082,7 +1086,7 @@ def signal(source_input, axion_input, data,
         output['signal_power'] = signal_power
 
         output['signal_Omega_max'] = Omega_max
-        output['signal_visible'] = is_visible
+        # output['signal_visible'] = is_visible
 
         # output
         if data['verbose'] > 0:

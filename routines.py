@@ -307,6 +307,13 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
 
     # S/N:
     # truncate the S/N due to extended objects. This is overly-cautious because when computing ref it's already truncated; and it's not a function of ma.
+    try:
+        verbose = data['verbose']
+    except KeyError:
+        verbose = 0
+
+    if verbose > 2:
+        print('routines.py::Omega_max:', Omega_max)
     is_visible = np.where(Omega_obs > Omega_max, 0., 1.)
     new_output['S/N'] = new_output['signal_power'] / \
         new_output['noise_power'] * is_visible

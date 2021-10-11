@@ -121,10 +121,13 @@ _SKALow_dish_diameter_ = 35.  # [m]
 _SKA1Mid_dish_diameter_ = 15.  # [m]
 _SKA1Mid_theta_min_ = 0.09  # [arcmin] for interferometry mode
 _SKA1Mid_theta_max_ = 3.6  # [arcmin] for interferometry mode
+# _SKA1Mid_theta_min_ = 3.6  # # TEST only!!
+# _SKA1Mid_theta_max_ = 100  # # TEST only!!
 _SKA2Mid_theta_min_ = 0.04  # [arcmin] for interferometry mode
 _SKA2Mid_theta_max_ = 3.6  # [arcmin] for interferometry mode
 _SKALow_theta_min_ = 3.6  # [arcmin] for interferometry mode
-_SKALow_theta_max_ = 25.2  # [arcmin] for interferometry mode
+# _SKALow_theta_max_ = 25.2  # [arcmin] for interferometry mode
+_SKALow_theta_max_ = 50.  # #TEST only!!
 
 
 #
