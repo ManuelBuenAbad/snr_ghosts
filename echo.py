@@ -1004,6 +1004,7 @@ def signal(source_input, axion_input, data,
     # solid angle of signal
     signal_Omega = max(
         Omega_source, source_input['Omega_dispersion'], source_input['Omega_aberration'])
+    theta_sig = ct.solid_angle_to_angle(signal_Omega)
     try:
         verbose = data['verbose']
         if verbose > 2:
@@ -1033,8 +1034,10 @@ def signal(source_input, axion_input, data,
             "data['exper'] must be either 'SKA', 'SKA low', or 'SKA mid'. Please update accordingly.")
 
     # computing the collecting area and the frequency sensitivity window of the experiment mode
-    area, window, _, _, Omega_max = ap.SKA_specs(
-        nu, exper_mode, correlation_mode=correlation_mode)
+    area, window, _, _, _, _ = ap.SKA_specs(
+        nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_sig)
+    # area, window, _, _, Omega_max = ap.SKA_specs(
+    #     nu, exper_mode, correlation_mode=correlation_mode)
 
     # # cut out extended signal, due to physical size/ dispersion/ aberration
     # if signal_Omega > Omega_max:
@@ -1084,8 +1087,7 @@ def signal(source_input, axion_input, data,
         output['signal_Snu'] = signal_Snu
         output['signal_S_echo'] = signal_S_echo
         output['signal_power'] = signal_power
-
-        output['signal_Omega_max'] = Omega_max
+        # output['signal_Omega_max'] = Omega_max
         # output['signal_visible'] = is_visible
 
         # output
@@ -1144,6 +1146,7 @@ def noise(source_input, axion_input, data,
     # [sr] solid angle of echo
     signal_Omega = max(source_input['Omega_dispersion'],
                        Omega_source, source_input['Omega_aberration'])
+    theta_sig = ct.solid_angle_to_angle(signal_Omega)
 
     # axion parameters
     ma = axion_input['ma']  # [eV] axion mass
@@ -1181,10 +1184,13 @@ def noise(source_input, axion_input, data,
     # dlog T_noise/dlog nu ~ -beta*deltaE_over_E ~ -0.00255)
 
     # reading out the receiver's noise brightness temperature and solid angle resolution
-    _, _, Tr, Omega_res, Omega_max = ap.SKA_specs(
-        nu, exper_mode, correlation_mode=correlation_mode)
+    # area, window, _, _, _, _ = ap.SKA_specs(
+    #     nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_sig)
+    _, _, Tr, Omega_res, _, _ = ap.SKA_specs(
+        nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_sig)
 
     # the observation solid angle [sr]
+    # only meaningful for single dish mode. Interferometry mode doesn't change anything as Omega_res is given Omega_sig
     Omega_obs = max(Omega_res, signal_Omega)
 
     # compute background brightness temperature at 408 MHz at the location of the echo.
@@ -1194,9 +1200,13 @@ def noise(source_input, axion_input, data,
     # computing total noise brightness temperature
     T_noise = np.squeeze(ap.T_noise(
         nu, Tbg_at_408=Tbg_408_at_echo_loc, Tr=Tr))  # [K]
-    noise_power = ap.P_noise(T_noise=T_noise, delnu=delnu, tobs=obs_time,
-                             Omega_obs=Omega_obs, Omega_res=Omega_res,
-                             nu=nu, correlation_mode=correlation_mode)  # [eV^2]
+    noise_power = ap.P_noise(T_noise=T_noise,
+                             delnu=delnu,
+                             tobs=obs_time,
+                             Omega_obs=Omega_obs,
+                             Omega_res=Omega_res,
+                             nu=nu,
+                             correlation_mode=correlation_mode)  # [eV^2]
 
     # checking for recycle:
     recycle, output = recycle_output
@@ -1253,7 +1263,7 @@ def sn_ratio(signal_power, noise_power,
     return res
 
 
-def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._eta_ska_, fDelta=0.721, tobs=100.,  correlation_mode=None):
+def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._eta_ska_, fDelta=0.721, tobs=100.,  correlation_mode=None, theta_sig=None):
     """
     Simpler signal-to-noise ratio formula.
 
@@ -1268,6 +1278,7 @@ def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._et
     fDelta : the fraction of signal falling withing the bandwidth (default: 0.721)
     tobs : the total observation time [hours] (default: 100)
     correlation_mode : the correlation mode of the experiment <"single dish"|"interferometry"> (default: None)
+    theta_sig: the size of the signal to be observed, relevant for the interferometry mode [radian]. (default: None)
     """
 
     delta_nu_in_eV = delta_nu * ct._GHz_over_eV_
@@ -1276,16 +1287,18 @@ def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._et
 
     # experiment
     exper_mode = ap.SKA_exper_nu(nu)
-    area, window, Tr, Omega_res, Omega_max = ap.SKA_specs(
+    area, window, Tr, Omega_res, _, _ = ap.SKA_specs(
         nu, exper_mode, eta=eta, correlation_mode=correlation_mode)
 
-    if Omega_obs > Omega_max:
-        Psig = 0.
-    else:
-        Psig = ap.P_signal(Stot, area, eta=eta, f_Delta=fDelta)
+    # if Omega_obs > Omega_max:
+    #     Psig = 0.
+    # else:
+    #    Psig = ap.P_signal(Stot, area, eta=eta, f_Delta=fDelta)
+    Psig = ap.P_signal(Stot, area, eta=eta, f_Delta=fDelta)
 
     Tnoise = ap.T_noise(nu, Tbg_at_408=Tbg_408, beta=-2.55, Tr=Tr)
-    Pnoise = ap.P_noise(Tnoise, delta_nu, tobs, Omega_obs, Omega_res, nu)
+    Pnoise = ap.P_noise(Tnoise, delta_nu, tobs, Omega_obs,
+                        Omega_res, nu, correlation_mode)
 
     return Psig/Pnoise
 

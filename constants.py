@@ -7,6 +7,7 @@ from __future__ import division
 from MyUnit import NaturalUnit
 #import astropy.units as u
 import numpy as np
+import os
 
 
 def angle_to_solid_angle(theta):
@@ -31,6 +32,46 @@ def solid_angle_to_angle(Omega):
 
     theta = 2. * np.arccos(1 - Omega/(2.*np.pi))
     return theta
+
+
+def get_baseline(r, dist_r_arr, dist_frac_arr, Ntot=511, exper_mode=None):
+    """Compute the averaged baseline distance assuming they distribute according to dist_r_arr and dist_frac_arr
+
+    :param r: radius from the center for telescopes whose baseline length is to be estimated
+    :param dist_r_arr: grid's radius from the center
+    :param dist_frac_arr: the distribution (of fraction of total telescopes) as a function of dist_r_arr.
+    :param Ntot: total number of telescopes
+    :param exper_mode: "SKA low" or "SKA mid"
+    :returns: the baseline length of telescopes with a distance r from the center
+    :rtype: 
+
+    """
+    fraction = np.interp(np.log10(r), np.log10(dist_r_arr), (dist_frac_arr))
+    number_of_tel = Ntot * fraction
+    B_eff = 2.*r / np.sqrt(number_of_tel)
+    if exper_mode == "SKA mid":
+        minimal_baseline = _SKA1Mid_dish_diameter_
+        maximal_baseline = _SKA1Mid_maximal_baseline_
+    elif exper_mode == "SKA low":
+        minimal_baseline = _SKALow_dish_diameter_
+        maximal_baseline = _SKALow_maximal_baseline_
+
+    # treating the empty bins, which leads to np.inf in baseline
+    try:
+        if r < 1.e3 and number_of_tel == 0:
+            B_eff = minimal_baseline
+        if r > 1.e3 and number_of_tel == 0:
+            B_eff = maximal_baseline
+    except ValueError:
+        mask1 = np.where(number_of_tel == 0, True, False)
+        mask2 = np.where(r < 1.e3, True, False)
+        mask_small = mask1 * mask2
+        B_eff[mask_small] = minimal_baseline
+
+        mask2 = np.where(r > 1.e3, True, False)
+        mask_large = mask1 * mask2
+        B_eff[mask_large] = maximal_baseline
+    return B_eff
 
 
 # TODO: remember to harden the numbers to speed up the code
@@ -121,14 +162,87 @@ _SKALow_dish_diameter_ = 35.  # [m]
 _SKA1Mid_dish_diameter_ = 15.  # [m]
 _SKA1Mid_theta_min_ = 0.09  # [arcmin] for interferometry mode
 _SKA1Mid_theta_max_ = 3.6  # [arcmin] for interferometry mode
-# _SKA1Mid_theta_min_ = 3.6  # # TEST only!!
-# _SKA1Mid_theta_max_ = 100  # # TEST only!!
+# _SKA1Mid_theta_min_ = 3.6  # # TEST only. Don't use it!!
+# _SKA1Mid_theta_max_ = 100  # # TEST only. Don't use it!!
 _SKA2Mid_theta_min_ = 0.04  # [arcmin] for interferometry mode
 _SKA2Mid_theta_max_ = 3.6  # [arcmin] for interferometry mode
 _SKALow_theta_min_ = 3.6  # [arcmin] for interferometry mode
-# _SKALow_theta_max_ = 25.2  # [arcmin] for interferometry mode
-_SKALow_theta_max_ = 50.  # #TEST only!!
+_SKALow_theta_max_ = 25.2  # [arcmin] for interferometry mode
+# _SKALow_theta_max_ = 50.  # #TEST only. Don't use it!!
 
+#
+# SKA array configuration
+#
+
+_SKA1Mid_maximal_baseline_ = 150000.  # [m]
+_SKA1Mid_number_of_dishes_ = 133. + 64.
+_SKA1Mid_total_baselines_ = _SKA1Mid_number_of_dishes_ * \
+    (_SKA1Mid_number_of_dishes_-1.) / 2.
+
+_SKALow_maximal_baseline_ = 80000.  # [m]
+_SKALow_number_of_stations_ = 512.
+_SKALow_total_baselines_ = _SKALow_number_of_stations_ * \
+    (_SKALow_number_of_stations_ - 1.) / 2.
+
+# the value of theta_sig/theta_b at which the given baseline loses the signal
+# fudge factor */ 2
+_SKA_factor_lose_signal_ = 1
+
+SKA_conf = {}
+
+# SKA-low
+path = os.path.dirname(os.path.abspath(__file__))+"/data/SKA1-low_accumu.csv"
+SKA_conf['low'] = np.loadtxt(path, delimiter=',')
+
+x = SKA_conf['low'][:, 0]
+y = SKA_conf['low'][:, 1]
+bins = np.logspace(1, 5, 20)  # bin it
+hist = np.interp(np.log10(bins), np.log10(
+    x), y, left=0)  # sample at the bin edges
+dist_r_arr = bins[1:]  # get the bin edges
+dist_frac_arr = (hist[1:] - hist[:-1])  # get the distribution
+baseline_arr = get_baseline(
+    dist_r_arr, dist_r_arr=dist_r_arr, dist_frac_arr=dist_frac_arr, exper_mode="SKA low")
+SKA_conf['low baseline distribution'] = (baseline_arr, dist_frac_arr)
+SKA_conf['low baseline cumulative'] = (baseline_arr, np.cumsum(dist_frac_arr))
+
+# garbage collection to avoid errors
+SKA_conf['debug low'] = (x, y, bins, hist, dist_r_arr,
+                         dist_frac_arr, baseline_arr)
+del x
+del y
+del bins
+del hist
+del dist_r_arr
+del dist_frac_arr
+del baseline_arr
+
+# SKA-mid
+path = os.path.dirname(os.path.abspath(__file__))+"/data/SKA1-mid_accumu.csv"
+SKA_conf['mid'] = np.loadtxt(path, delimiter=',')
+
+x = SKA_conf['mid'][:, 0]
+y = SKA_conf['mid'][:, 1]
+bins = np.logspace(1, 5, 20)  # bin it
+hist = np.interp(np.log10(bins), np.log10(
+    x), y, left=0)  # sample at the bin edges
+dist_r_arr = bins[1:]  # get the bin edges
+dist_frac_arr = (hist[1:] - hist[:-1])  # get the distribution
+baseline_arr = get_baseline(
+    dist_r_arr, dist_r_arr=dist_r_arr, dist_frac_arr=dist_frac_arr, exper_mode="SKA mid")
+SKA_conf['mid baseline distribution'] = (baseline_arr, dist_frac_arr)
+SKA_conf['mid baseline cumulative'] = (baseline_arr, np.cumsum(dist_frac_arr))
+
+# garbage collection to avoid errors
+SKA_conf['debug mid'] = (x, y, bins, hist, dist_r_arr,
+                         dist_frac_arr, baseline_arr)
+del x
+del y
+del bins
+del hist
+del dist_r_arr
+del dist_frac_arr
+del baseline_arr
 
 #
 # SN fits from Bietenholz 2021

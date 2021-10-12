@@ -761,21 +761,22 @@ def SKA_exper_nu(nu):
     return exper_mode
 
 
-def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, get_dish=False, correlation_mode=None):
+def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig=None):
     """
-    Returns the specifications (area [m^2], window, receiver noise brightness temperature [K], and solid angle resolution [sr]) of the SKA experiment mode, for the given frequency [GHz].
+    Returns the specifications (area [m^2], window, receiver noise brightness temperature [K], and solid angle resolution [sr], FIXME) of the SKA experiment mode, for the given frequency [GHz].
 
     Parameters
     ----------
     nu : frequency [GHz]
     exper_mode : mode in which the experiment is working
     eta: the detector efficiency (default: 0.8)
-    get_dish: whether output the number of dishes. Useful for noise estimate in single dish mode
-    correlation_mode: whether to run in interferometry mode or single dish mode. Default None is meant to raise error if not assigned explicitly. 
+    correlation_mode: whether to run in interferometry mode or single dish mode. Default None is meant to raise error if not assigned explicitly.
+    theta_sig: the signal size we want to observe [radian]
     """
 
     if exper_mode == None:
-        area, window, Tr, Omega_res, Omega_max, number_of_dishes = 0., 0., 0., 1.e-100, np.inf, 1e100
+        # area, window, Tr, Omega_res, Omega_max, number_of_dishes = 0., 0., 0., 1.e-100, np.inf, 1e100
+        area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = 0., 0., 0., 1.e-100, 0., 0.  # set to zero so it will raise error if not treated
 
     elif exper_mode == 'SKA low' and correlation_mode == "single dish":
         area = ct._area_ska_low_
@@ -793,24 +794,36 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, get_dish=False, correlation_mode
             theta_res)  # solid angle of resolution [sr]
         number_of_dishes = ct._area_ska_low_ / \
             (np.pi * ct._SKALow_dish_diameter_**2 / 4.)
-        Omega_max = np.inf  # being sloppy here but we never reach FOV
+        number_of_measurements = number_of_dishes
+        # Omega_max = np.inf  # being sloppy here but we never reach FOV
 
     elif exper_mode == 'SKA low' and correlation_mode == "interferometry":
-        area = ct._area_ska_low_
         window = np.heaviside(nu - ct._nu_min_ska_low_, 1.) * \
             np.heaviside(ct._nu_max_ska_low_ - nu, 1.)
         Tr = 40.
 
-        # finding resolution:
-        # treating resolution and max differently here
-        theta_res = ct._SKALow_theta_min_ * ct._arcmin_over_radian_
+        # get the required baseline length for nu
+        wavelength = pt.lambda_from_nu(nu) / 100.  # wavelength [m]
+        critical_baseline_length = (
+            1.02*wavelength) / (theta_sig)\
+            * ct._SKA_factor_lose_signal_  # fudge factor could be ~ 2 or 3 to deem the signal cannot be observed
+        # get the active number of baselines
+        active_fraction_of_baselines = SKA_get_active_baseline(
+            critical_baseline_length, exper_mode='SKA low')
+        # taking the resolution to be exactly the signal size
+        # penalty is taken care of through active_fraction_of_baselines
+        theta_res = theta_sig * ct._arcmin_over_radian_
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
-        theta_max = ct._SKALow_theta_max_ * ct._arcmin_over_radian_
-        Omega_max = ct.angle_to_solid_angle(
-            theta_max)  # solid angle of resolution [sr]
-        # for interferometry mode there shouldn't be an extra 1/sqrt(number_of_dishes) factor in noise
-        number_of_dishes = 1.
+        # for interferometry mode noise has 1/sqrt(number of active baselines) factor
+        number_of_measurements = active_fraction_of_baselines * ct._SKALow_total_baselines_
+        # assuming the fraction of baseline is the same for the fraction of stations
+        area = ct._area_ska_low_ * active_fraction_of_baselines
+        number_of_dishes = ct._area_ska_low_ / \
+            (np.pi * ct._SKALow_dish_diameter_**2 / 4.) * \
+            active_fraction_of_baselines
+        # print("SKA-low, nu=%.1e GHz, critical_baseline=%.1em" %
+        #       (nu, critical_baseline_length))
 
     elif exper_mode == 'SKA mid' and correlation_mode == "single dish":
         area = ct._area_ska_mid_
@@ -828,29 +841,44 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, get_dish=False, correlation_mode
             theta_res)  # solid angle of resolution [sr]
         number_of_dishes = ct._area_ska_mid_ / \
             (np.pi * ct._SKA1Mid_dish_diameter_**2 / 4.)
+        number_of_measurements = number_of_dishes
         Omega_max = np.inf  # being sloppy here but we never reach FOV
 
     elif exper_mode == 'SKA mid' and correlation_mode == "interferometry":
+
         area = ct._area_ska_mid_
         window = np.heaviside(nu - ct._nu_min_ska_mid_, 0.) * \
             np.heaviside(ct._nu_max_ska_mid_ - nu, 1.)
         Tr = 20.
 
-        # finding resolution:
-        # treating resolution and max differently here
-        theta_res = ct._SKA1Mid_theta_min_ * ct._arcmin_over_radian_
+        # get the required baseline length for nu
+        wavelength = pt.lambda_from_nu(nu) / 100.  # wavelength [m]
+        critical_baseline_length = (
+            1.02*wavelength) / (theta_sig)\
+            * ct._SKA_factor_lose_signal_  # fudge factor 2 to deem the signal cannot be observed
+        # print("SKA1-mid, nu=%.1e GHz, critical_baseline=%.1em" %
+        #       (nu, critical_baseline_length))
+        # get the active number of baselines
+        active_fraction_of_baselines = SKA_get_active_baseline(
+            critical_baseline_length, exper_mode='SKA mid')
+        # taking the resolution to be exactly the signal size
+        # penalty is taken care of through active_num_of_baselines
+        theta_res = theta_sig
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
-        theta_max = ct._SKA1Mid_theta_max_ * ct._arcmin_over_radian_
-        Omega_max = ct.angle_to_solid_angle(
-            theta_max)  # solid angle of resolution [sr]
-        # for interferometry mode there shouldn't be an extra 1/sqrt(number_of_dishes) factor in noise
-        number_of_dishes = 1.
+        # for interferometry mode noise has 1/sqrt(number of active baselines) factor
+        number_of_measurements = active_fraction_of_baselines * ct._SKA1Mid_total_baselines_
+        # assuming the fraction of baseline is the same for the fraction of dishes
+        area = ct._area_ska_mid_ * active_fraction_of_baselines
+        number_of_dishes = ct._area_ska_mid_ / \
+            (np.pi * ct._SKA1Mid_dish_diameter_**2 / 4.) * \
+            active_fraction_of_baselines
 
-    if get_dish:
-        return area, window, Tr, Omega_res, Omega_max, number_of_dishes
-    else:
-        return area, window, Tr, Omega_res, Omega_max
+    # in case the number of baselines is zero
+    if number_of_measurements == 0:
+        number_of_measurements = 1e-100
+
+    return area, window, Tr, Omega_res, number_of_dishes, number_of_measurements
 
 
 def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=False):
@@ -863,7 +891,7 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
     b : latitude [deg]
     size : angular size [sr] of the region of interest (default: None)
     average : whether the brightness temperature is averaged over the size of the region of interest (default: False)
-    verbose: control of warning output. Switch to False only if you know what you are doing. 
+    verbose: control of warning output. Switch to False only if you know what you are doing.
     load_on_the_fly: flag
     """
 
@@ -960,38 +988,95 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     Omega_res: the resolution solid angle [sr]
     correlation_mode: the correlation mode, "single dish" or "interferometry".
     """
-    # Even though we always feed P_noise() with Omega_obs >= Omega_res
-    # I'm adding an extra check here just in case I get sloppy in the
-    # future
-    try:
-        factor = max(sqrt(Omega_obs/Omega_res), 1)
-    except ValueError:
-        factor = np.array([max(x, 1) for x in sqrt(Omega_obs/Omega_res)])
     # this is the noise of a single dish
     res = 2. * T_noise * ct._K_over_eV_ * \
-        sqrt(delnu * ct._GHz_over_eV_/(tobs * ct._hour_eV_)) * \
-        factor
+        sqrt(delnu * ct._GHz_over_eV_/(tobs * ct._hour_eV_))
+
+    theta_obs = ct.solid_angle_to_angle(Omega_obs)
 
     if correlation_mode == "single dish":
-        # converting noise of single dish to noise of the array all
-        # dishes. dealing with \sqrt(N) noise for N dishes
+        # Even though we always feed P_noise() with Omega_obs >= Omega_res
+        # I'm adding an extra check here just in case I get sloppy in the
+        # future
         try:
-            # determine what exp we are looking at
-            exper_mode = SKA_exper_nu(nu)
-            _, _, _, _, _, number_of_dishes = SKA_specs(
-                nu, exper_mode, get_dish=True, correlation_mode=correlation_mode)
-            # convert to the noise of all dishes combined
-            res *= np.sqrt(number_of_dishes)
+            factor = max(sqrt(Omega_obs/Omega_res), 1)
         except ValueError:
-            for i, nu_i in enumerate(nu):
-                # determine what exp we are looking at
-                exper_mode = SKA_exper_nu(nu_i)
-                _, _, _, _, _,  number_of_dishes = SKA_specs(
-                    nu_i, exper_mode, get_dish=True, correlation_mode=correlation_mode)
-                # convert to the noise of all dishes combined
-                res[i] *= np.sqrt(number_of_dishes)
+            factor = np.array([max(x, 1) for x in sqrt(Omega_obs/Omega_res)])
+        res *= factor
+
+    nu = np.array(nu)
+    if nu.ndim == 0:
+        is_scalar = True
+        # nu = nu[None]
     else:
-        pass
+        is_scalar = False
+
+    if is_scalar:
+        # determine what exp we are looking at
+        exper_mode = SKA_exper_nu(nu)
+        _, _, _, _, number_of_dishes, number_of_measurements = SKA_specs(
+            nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_obs)
+        # convert to the noise of all dishes combined
+        # print('hit')
+        # print("number_of_dishes:", number_of_dishes)
+        # print("np.sqrt(number_of_measurements):",
+        #       np.sqrt(number_of_measurements))
+
+        res *= number_of_dishes/np.sqrt(number_of_measurements)
+    else:
+        for i, nu_i in enumerate(nu):
+            # determine what exp we are looking at
+            exper_mode = SKA_exper_nu(nu_i)
+            # try:
+            _, _, _, _, number_of_dishes, number_of_measurements = SKA_specs(
+                nu_i, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_obs[i])
+            # except ValueError:
+            #     raise
+            #     print("exper_mode", exper_mode)
+            #     print("correlation_mode", correlation_mode)
+            #     print("theta_sig", theta_obs)
+
+            # convert to the noise of all dishes combined
+            # print("res[i]:", res[i])
+            # print("number_of_dishes:", number_of_dishes)
+            # print("np.sqrt(number_of_measurements):",
+            #      np.sqrt(number_of_measurements))
+            res[i] *= number_of_dishes / np.sqrt(number_of_measurements)
+
+    #     # converting noise of single dish to noise of the array all
+    #     # dishes. dealing with \sqrt(N) noise for N dishes
+    #     try:
+    #         # determine what exp we are looking at
+    #         exper_mode = SKA_exper_nu(nu)
+    #         _, _, _, _, number_of_dishes, number_of_measurements = SKA_specs(
+    #             nu, exper_mode, correlation_mode=correlation_mode)
+    #         # convert to the noise of all dishes combined
+    #         res *= number_of_dishes/np.sqrt(number_of_measurements)
+    #     except ValueError:
+    #         for i, nu_i in enumerate(nu):
+    #             # determine what exp we are looking at
+    #             exper_mode = SKA_exper_nu(nu_i)
+    #         _, _, _, _, number_of_dishes, number_of_measurements = SKA_specs(
+    #             nu_i, exper_mode, correlation_mode=correlation_mode)
+    #         # convert to the noise of all dishes combined
+    #         res[i] *= number_of_dishes/np.sqrt(number_of_measurements)
+    # elif correlation_mode == "interferometry":
+    #     # need to takes into account the number of baselines
+    #     try:
+    #         # determine what exp we are looking at
+    #         exper_mode = SKA_exper_nu(nu)
+    #         area, _, _, _, number_of_dishes, number_of_baselines = SKA_specs(
+    #             nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_obs)
+    #         # convert to the noise of all dishes combined
+    #         res *= number_of_dishes/np.sqrt(number_of_baselines)
+    #     except ValueError:
+    #         for i, nu_i in enumerate(nu):
+    #             # determine what exp we are looking at
+    #             exper_mode = SKA_exper_nu(nu_i)
+    #             area, _, _, _, number_of_dishes, number_of_baselines = SKA_specs(
+    #                 nu_i, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_obs)
+    #             # convert to the noise of all dishes combined
+    #             res[i] *= number_of_dishes/np.sqrt(number_of_measurements)
 
     return res
 
@@ -1010,4 +1095,25 @@ def P_signal(S, A, eta=ct._eta_ska_, f_Delta=1.):
     res = S * eta * A * f_Delta
     # fix units
     res *= ct._m_eV_**2
+    return res
+
+
+# SKA specific
+def SKA_get_active_baseline(length, exper_mode):
+    """Get the active number of baselines in the interferometry mode
+
+    :param length: critical baseline below which the signal can be resolved
+    :param exper_mode: "SKA low" or "SKA mid"
+    :returns: number of baselines that sees the signal
+
+    """
+    if exper_mode == "SKA low":
+        baseline_arr, cumu_frac_arr = ct.SKA_conf['low baseline cumulative']
+    if exper_mode == "SKA mid":
+        baseline_arr, cumu_frac_arr = ct.SKA_conf['mid baseline cumulative']
+
+    # baseline_arr[baseline_arr == np.inf] = 1.e-100
+    res = np.interp(np.log(length), np.log(baseline_arr),
+                    cumu_frac_arr, left=0, right=1)
+    # return baseline_arr, cumu_frac_arr
     return res

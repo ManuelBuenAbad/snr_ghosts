@@ -71,7 +71,7 @@ default_data = {'deltaE_over_E': 1.e-3,
                 'DM_profile': 'NFW',
                 'verbose': 0
                 }
-# I'm not setting 'correlation_mode' for now to expose and update all old code through Exceptions. After the code stabilizes we can set it to "dish only".
+# I'm not setting 'correlation_mode' for now to expose and update all old code through Exceptions. After the code stabilizes we can set it to "single dish" or "interferometry".
 
 
 # Snu_echo_kwargs:
@@ -174,7 +174,7 @@ def Snu_rescale_axion(ma, ga, ma_ref, ga_ref, source_input=default_source_input)
     return nu_fac * ax_pref
 
 
-def SKA_rescaled_specs(ma, data=default_data):
+def SKA_rescaled_specs(ma, data=default_data, theta_sig=None):
     """
     Returns the SKA specs for the rescaled axion parameters.
 
@@ -183,6 +183,7 @@ def SKA_rescaled_specs(ma, data=default_data):
     ma : axion mass [eV]
     ma_ref : reference axion mass [eV]
     data : dictionary with environmental, experimental, and observational data (default: default_data)
+    theta_sig: signal size [radian]
     """
 
     nu = pt.nu_from_ma(ma)  # [GHz] new frequency
@@ -198,36 +199,37 @@ def SKA_rescaled_specs(ma, data=default_data):
 
         nu_flat = nu.flatten()
 
-        area, window, Tr, Omega_res, Omega_max = [], [], [], [], []
+        area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = [], [], [], [], [], []
         for nn in nu_flat:
 
             exper_mode = ap.SKA_exper_nu(nn)
-            aa, ww, tr, od, mm = ap.SKA_specs(
-                nn, exper_mode, eta=ct._eta_ska_, correlation_mode=correlation_mode)
+            aa, ww, tr, od, nd, nm = ap.SKA_specs(
+                nn, exper_mode, eta=ct._eta_ska_, correlation_mode=correlation_mode, theta_sig=theta_sig)
 
             area.append(aa)
             window.append(ww)
             Tr.append(tr)
             Omega_res.append(od)
-            Omega_max.append(mm)
+            number_of_dishes.append(nd)
+            number_of_measurements.append(nm)
 
-        area, window, Tr, Omega_res, Omega_max = np.array(area), np.array(
-            window), np.array(Tr), np.array(Omega_res), np.array(Omega_max)
-        area, window, Tr, Omega_res, Omega_max = np.reshape(area, nu.shape), np.reshape(
-            window, nu.shape), np.reshape(Tr, nu.shape), np.reshape(Omega_res, nu.shape), np.reshape(Omega_max, nu.shape)
-        area, window, Tr, Omega_res, Omega_max = np.squeeze(area), np.squeeze(
-            window), np.squeeze(Tr), np.squeeze(Omega_res), np.squeeze(Omega_max)
+        area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = np.array(area), np.array(
+            window), np.array(Tr), np.array(Omega_res), np.array(number_of_dishes), np.array(number_of_measurements)
+        area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = np.reshape(area, nu.shape), np.reshape(
+            window, nu.shape), np.reshape(Tr, nu.shape), np.reshape(Omega_res, nu.shape), np.reshape(number_of_dishes, nu.shape), np.reshape(number_of_measurements, nu.shape)
+        area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = np.squeeze(area), np.squeeze(
+            window), np.squeeze(Tr), np.squeeze(Omega_res), np.squeeze(number_of_dishes), np.squeeze(number_of_measurements)
 
     elif exper in ['SKA low', 'SKA mid']:  # in case the range was fixed by hand
         exper_mode = exper
-        area, window, Tr, Omega_res, Omega_max = ap.SKA_specs(
-            nu, exper_mode, eta=ct._eta_ska_, correlation_mode=correlation_mode)
+        area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = ap.SKA_specs(
+            nu, exper_mode, eta=ct._eta_ska_, correlation_mode=correlation_mode, theta_sig=theta_sig)
 
     else:
         raise ValueError(
             "data['exper'] must be either 'SKA', 'SKA low', or 'SKA mid'. Please update accordingly.")
 
-    return area, window, Tr, Omega_res, Omega_max
+    return area, window, Tr, Omega_res, number_of_dishes, number_of_measurements
 
 
 def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
@@ -266,8 +268,16 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
     # for echo's spectral irradiance
     factors = Snu_rescale_axion(
         ma, ga, ma_ref, ga_ref, source_input=source_input)
-    area, window, Tr, Omega_res, Omega_max = SKA_rescaled_specs(
-        ma, data=data)  # SKA specs
+
+    # dealing with resolution and max observable angle
+    theta_sig = ct.solid_angle_to_angle(ref_dict['signal_Omega'])
+    # area_ref, window_ref, Tr_ref, Omega_res_ref, number_of_dishes_ref, number_of_measurements_ref = SKA_rescaled_specs(
+    #     ma_ref, data=data, theta_sig=theta_sig)  # SKA specs
+    area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = SKA_rescaled_specs(
+        ma, data=data, theta_sig=theta_sig)  # SKA specs
+    # factor_of_signal = area / area_ref
+    # factor_of_noise = area / area_ref * \
+    #     np.sqrt(number_of_measurements_ref / number_of_measurements)
 
     # echo's location
     l_echo = source_input['longitude'] + \
@@ -302,8 +312,13 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
         l_echo, b_echo, size=new_output['noise_Omega_obs'], average=data['average'])
     new_output['noise_Tnu'] = ap.T_noise(
         nu, Tbg_at_408=new_output['noise_T408'], beta=beta, Tr=Tr)
-    new_output['noise_power'] = ap.P_noise(
-        new_output['noise_Tnu'], new_output['noise_delnu'], tobs=obs_time, Omega_obs=new_output['noise_Omega_obs'], Omega_res=new_output['noise_Omega_res'], nu=nu, correlation_mode=correlation_mode)
+    new_output['noise_power'] = ap.P_noise(new_output['noise_Tnu'],
+                                           new_output['noise_delnu'],
+                                           tobs=obs_time,
+                                           Omega_obs=new_output['noise_Omega_obs'],
+                                           Omega_res=new_output['noise_Omega_res'],
+                                           nu=nu,
+                                           correlation_mode=correlation_mode)
 
     # S/N:
     # truncate the S/N due to extended objects. This is overly-cautious because when computing ref it's already truncated; and it's not a function of ma.
@@ -314,9 +329,8 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
 
     if verbose > 2:
         print('routines.py::Omega_max:', Omega_max)
-    is_visible = np.where(Omega_obs > Omega_max, 0., 1.)
-    new_output['S/N'] = new_output['signal_power'] / \
-        new_output['noise_power'] * is_visible
+    # is_visible = np.where(Omega_obs > Omega_max, 0., 1.)
+    new_output['S/N'] = new_output['signal_power'] / new_output['noise_power']
 
     # axion:
     new_output['ma'] = ma
