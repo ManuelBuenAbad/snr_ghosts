@@ -160,15 +160,6 @@ _nu_max_ska2_mid_ = 30.  # [GHz] # this is SKA2-mid c.f. Caputo
 #
 _SKALow_dish_diameter_ = 35.  # [m]
 _SKA1Mid_dish_diameter_ = 15.  # [m]
-_SKA1Mid_theta_min_ = 0.09  # [arcmin] for interferometry mode
-_SKA1Mid_theta_max_ = 3.6  # [arcmin] for interferometry mode
-# _SKA1Mid_theta_min_ = 3.6  # # TEST only. Don't use it!!
-# _SKA1Mid_theta_max_ = 100  # # TEST only. Don't use it!!
-_SKA2Mid_theta_min_ = 0.04  # [arcmin] for interferometry mode
-_SKA2Mid_theta_max_ = 3.6  # [arcmin] for interferometry mode
-_SKALow_theta_min_ = 3.6  # [arcmin] for interferometry mode
-_SKALow_theta_max_ = 25.2  # [arcmin] for interferometry mode
-# _SKALow_theta_max_ = 50.  # #TEST only. Don't use it!!
 
 #
 # SKA array configuration
