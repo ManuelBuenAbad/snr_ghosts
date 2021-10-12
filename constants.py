@@ -186,7 +186,7 @@ _SKALow_total_baselines_ = _SKALow_number_of_stations_ * \
 
 # the value of theta_sig/theta_b at which the given baseline loses the signal
 # fudge factor */ 2
-_SKA_factor_lose_signal_ = 1
+_SKA_factor_lose_signal_ = 1.
 
 SKA_conf = {}
 

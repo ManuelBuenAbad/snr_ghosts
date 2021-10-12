@@ -763,7 +763,7 @@ def SKA_exper_nu(nu):
 
 def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig=None):
     """
-    Returns the specifications (area [m^2], window, receiver noise brightness temperature [K], and solid angle resolution [sr], FIXME) of the SKA experiment mode, for the given frequency [GHz].
+    Returns the specifications (area [m^2], window, receiver noise brightness temperature [K], and solid angle resolution [sr], number_of_dishes, number_of_measurements) of the SKA experiment mode, for the given frequency [GHz].
 
     Parameters
     ----------
@@ -1017,66 +1017,14 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
         _, _, _, _, number_of_dishes, number_of_measurements = SKA_specs(
             nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_obs)
         # convert to the noise of all dishes combined
-        # print('hit')
-        # print("number_of_dishes:", number_of_dishes)
-        # print("np.sqrt(number_of_measurements):",
-        #       np.sqrt(number_of_measurements))
-
         res *= number_of_dishes/np.sqrt(number_of_measurements)
     else:
         for i, nu_i in enumerate(nu):
             # determine what exp we are looking at
             exper_mode = SKA_exper_nu(nu_i)
-            # try:
             _, _, _, _, number_of_dishes, number_of_measurements = SKA_specs(
                 nu_i, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_obs[i])
-            # except ValueError:
-            #     raise
-            #     print("exper_mode", exper_mode)
-            #     print("correlation_mode", correlation_mode)
-            #     print("theta_sig", theta_obs)
-
-            # convert to the noise of all dishes combined
-            # print("res[i]:", res[i])
-            # print("number_of_dishes:", number_of_dishes)
-            # print("np.sqrt(number_of_measurements):",
-            #      np.sqrt(number_of_measurements))
             res[i] *= number_of_dishes / np.sqrt(number_of_measurements)
-
-    #     # converting noise of single dish to noise of the array all
-    #     # dishes. dealing with \sqrt(N) noise for N dishes
-    #     try:
-    #         # determine what exp we are looking at
-    #         exper_mode = SKA_exper_nu(nu)
-    #         _, _, _, _, number_of_dishes, number_of_measurements = SKA_specs(
-    #             nu, exper_mode, correlation_mode=correlation_mode)
-    #         # convert to the noise of all dishes combined
-    #         res *= number_of_dishes/np.sqrt(number_of_measurements)
-    #     except ValueError:
-    #         for i, nu_i in enumerate(nu):
-    #             # determine what exp we are looking at
-    #             exper_mode = SKA_exper_nu(nu_i)
-    #         _, _, _, _, number_of_dishes, number_of_measurements = SKA_specs(
-    #             nu_i, exper_mode, correlation_mode=correlation_mode)
-    #         # convert to the noise of all dishes combined
-    #         res[i] *= number_of_dishes/np.sqrt(number_of_measurements)
-    # elif correlation_mode == "interferometry":
-    #     # need to takes into account the number of baselines
-    #     try:
-    #         # determine what exp we are looking at
-    #         exper_mode = SKA_exper_nu(nu)
-    #         area, _, _, _, number_of_dishes, number_of_baselines = SKA_specs(
-    #             nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_obs)
-    #         # convert to the noise of all dishes combined
-    #         res *= number_of_dishes/np.sqrt(number_of_baselines)
-    #     except ValueError:
-    #         for i, nu_i in enumerate(nu):
-    #             # determine what exp we are looking at
-    #             exper_mode = SKA_exper_nu(nu_i)
-    #             area, _, _, _, number_of_dishes, number_of_baselines = SKA_specs(
-    #                 nu_i, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_obs)
-    #             # convert to the noise of all dishes combined
-    #             res[i] *= number_of_dishes/np.sqrt(number_of_measurements)
 
     return res
 
