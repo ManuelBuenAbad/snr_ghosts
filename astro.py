@@ -430,7 +430,6 @@ def sandwich_logeqn(Lpk, tpk, L0, t0, gamma, tt):
     return eqn
 
 
-
 def tage_compute(Lpk, tpk, t_trans, L_today, gamma):
     """
     Returns the age [years] of a SNR given Lpk, tpk, t_trans, L_today, and gamma.
@@ -540,7 +539,8 @@ def L_source(t, model='eff', output_pars=False, **kwargs):
             def fn(Ltt): return sandwich_logeqn(L_peak, t_peak, L_today,
                                                 t_age, gamma, 10.**Ltt)  # function to minimize
             try:
-                Lt_cross = np.squeeze(zeros(fn, log10(t_arr_default))) # NOTE: added 'np.squeeze'
+                # NOTE: added 'np.squeeze'
+                Lt_cross = np.squeeze(zeros(fn, log10(t_arr_default)))
                 t_cross = 10.**Lt_cross
                 t_trans = max(t_cross)
             except ValueError:
@@ -710,7 +710,6 @@ def dimless_lum(gamma, frac_tpk, sup, tau):
     return free*np.heaviside(frac_tt-tau, 0.) + adiab*np.heaviside(tau-frac_tt, 1.)
 
 
-
 # SNR evolution analytic models
 
 def ED_fn(t, t_bench, R_bench, model):
@@ -735,7 +734,6 @@ def ED_fn(t, t_bench, R_bench, model):
         Rstar = 2.01*tstar*(1. + 1.72 * tstar**(3./2.))**(-2./3.)
 
     return R_bench*Rstar
-
 
 
 def ST_fn(t, t_bench, R_bench, model):
@@ -765,7 +763,6 @@ def ST_fn(t, t_bench, R_bench, model):
     return R_bench*Rstar
 
 
-
 def Rb_TM99(t, t_bench, R_bench, model):
     """
     Blast radius [pc] as a function of SNR age [years]. Based on Truelove & McKee 1999 (TM99).
@@ -779,13 +776,14 @@ def Rb_TM99(t, t_bench, R_bench, model):
     """
     # broken function:
     if model == 'TM99-simple':
-        two_phase = np.minimum.reduce([ED_fn(t, t_bench, R_bench, model), ST_fn(t, t_bench, R_bench, model)])
+        two_phase = np.minimum.reduce(
+            [ED_fn(t, t_bench, R_bench, model), ST_fn(t, t_bench, R_bench, model)])
 
     elif model == 'TM99-0':
-        two_phase = np.maximum.reduce([ED_fn(t, t_bench, R_bench, model), ST_fn(t, t_bench, R_bench, model)])
+        two_phase = np.maximum.reduce(
+            [ED_fn(t, t_bench, R_bench, model), ST_fn(t, t_bench, R_bench, model)])
 
     return two_phase
-
 
 
 def model_age(R, model='estimate', M_ej=1., E_sn=1., rho0=1.):
@@ -806,32 +804,31 @@ def model_age(R, model='estimate', M_ej=1., E_sn=1., rho0=1.):
     if model == 'estimate':
         # https://chandra.harvard.edu/edu/formal/age_snr/pencil_paper.pdf
 
-        R_m = R*(ct._kpc_over_m_/1000.) # [m]
-        vol_m3 = (4./3.) * pi * R_m**3. # [m^3]
+        R_m = R*(ct._kpc_over_m_/1000.)  # [m]
+        vol_m3 = (4./3.) * pi * R_m**3.  # [m^3]
 
-        m_proton = 0.93827208816*ct._GeV_over_g_ * 1.e-3 # [kg]
-        density = (m_proton*rho0)*1.e6 # [kg/m^3]
-        mass = density*vol_m3 # [kg]
+        m_proton = 0.93827208816*ct._GeV_over_g_ * 1.e-3  # [kg]
+        density = (m_proton*rho0)*1.e6  # [kg/m^3]
+        mass = density*vol_m3  # [kg]
 
-        E_sn_J = (E_sn*1.e51)*(1.e-7) # [J]
-        ke = 0.25*E_sn_J # [J]
+        E_sn_J = (E_sn*1.e51)*(1.e-7)  # [J]
+        ke = 0.25*E_sn_J  # [J]
 
-        vel = sqrt(2.*ke / mass) # [m/s]
-        age = (R_m/vel)/ct._year_over_s_ # [years]
+        vel = sqrt(2.*ke / mass)  # [m/s]
+        age = (R_m/vel)/ct._year_over_s_  # [years]
 
         return age
-
 
     elif model in ['TM99-simple', 'TM99-0']:
         # Article: https://iopscience.iop.org/article/10.1086/313176
         # Erratum: https://iopscience.iop.org/article/10.1086/313385
         # Revisited: arXiv:2109.03612
 
-        n0 = rho0/1. # number density [cm^-3]
+        n0 = rho0/1.  # number density [cm^-3]
 
         # Characteristic scales: Table 2
-        R_ch = 3.07 * M_ej**(1./3.) * n0**(-1./3.) # [pc]
-        t_ch = 423. * E_sn**(-1./2.) * M_ej**(5./6.) * n0**(-1./3.) # [years]
+        R_ch = 3.07 * M_ej**(1./3.) * n0**(-1./3.)  # [pc]
+        t_ch = 423. * E_sn**(-1./2.) * M_ej**(5./6.) * n0**(-1./3.)  # [years]
 
         # Sedov-Taylor scales: Table 3 (rounding up, for various ejecta power-law indices)
 
@@ -941,7 +938,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
             critical_baseline_length, exper_mode='SKA low')
         # taking the resolution to be exactly the signal size
         # penalty is taken care of through active_fraction_of_baselines
-        theta_res = theta_sig * ct._arcmin_over_radian_
+        theta_res = theta_sig
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
         # for interferometry mode noise has 1/sqrt(number of active baselines) factor
