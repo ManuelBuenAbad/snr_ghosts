@@ -834,9 +834,9 @@ def lin_reg_pred(R, method='lin'):
     R_arr = np.array(R).reshape(-1, 1)
 
     if method == 'lin':
-        return reg_lin.predict(R_arr)
+        return np.squeeze(reg_lin.predict(R_arr))
     elif method == 'log':
-        return 10.**reg_log.predict(log10(R_arr))
+        return np.squeeze(10.**reg_log.predict(log10(R_arr)))
     else:
         raise ValueError("method={} cannot be used. Use 'lin' or 'log'".format(method))
 

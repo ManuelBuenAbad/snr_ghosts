@@ -540,7 +540,7 @@ def L_source(t, model='eff', output_pars=False, **kwargs):
             def fn(Ltt): return sandwich_logeqn(L_peak, t_peak, L_today,
                                                 t_age, gamma, 10.**Ltt)  # function to minimize
             try:
-                Lt_cross = zeros(fn, log10(t_arr_default))[0] # NOTE: added [0]
+                Lt_cross = np.squeeze(zeros(fn, log10(t_arr_default))) # NOTE: added 'np.squeeze'
                 t_cross = 10.**Lt_cross
                 t_trans = max(t_cross)
             except ValueError:
@@ -860,7 +860,7 @@ def model_age(R, model='estimate', M_ej=1., E_sn=1., rho0=1.):
             """
             return log10(Rb_TM99(t, t_bench, R_bench, model)) - log10(R)
 
-        age = zeros(LogDelRb, t_arr_default)[0]
+        age = np.squeeze(zeros(LogDelRb, t_arr_default))
 
         return age
 
