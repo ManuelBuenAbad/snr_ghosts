@@ -34,7 +34,7 @@ def solid_angle_to_angle(Omega):
     return theta
 
 
-def get_baseline(r, dist_r_arr, dist_frac_arr, Ntot=511, exper_mode=None):
+def get_baseline(r, dist_r_arr, dist_frac_arr, Ntot=None, exper_mode=None):
     """Compute the averaged baseline distance assuming they distribute according to dist_r_arr and dist_frac_arr
 
     :param r: radius from the center for telescopes whose baseline length is to be estimated
@@ -193,7 +193,7 @@ hist = np.interp(np.log10(bins), np.log10(
 dist_r_arr = bins[1:]  # get the bin edges
 dist_frac_arr = (hist[1:] - hist[:-1])  # get the distribution
 baseline_arr = get_baseline(
-    dist_r_arr, dist_r_arr=dist_r_arr, dist_frac_arr=dist_frac_arr, exper_mode="SKA low")
+    dist_r_arr, dist_r_arr=dist_r_arr, dist_frac_arr=dist_frac_arr, exper_mode="SKA low", Ntot=_SKALow_number_of_stations_)
 SKA_conf['low baseline distribution'] = (baseline_arr, dist_frac_arr)
 SKA_conf['low baseline cumulative'] = (baseline_arr, np.cumsum(dist_frac_arr))
 
@@ -220,7 +220,7 @@ hist = np.interp(np.log10(bins), np.log10(
 dist_r_arr = bins[1:]  # get the bin edges
 dist_frac_arr = (hist[1:] - hist[:-1])  # get the distribution
 baseline_arr = get_baseline(
-    dist_r_arr, dist_r_arr=dist_r_arr, dist_frac_arr=dist_frac_arr, exper_mode="SKA mid")
+    dist_r_arr, dist_r_arr=dist_r_arr, dist_frac_arr=dist_frac_arr, exper_mode="SKA mid", Ntot=_SKA1Mid_number_of_dishes_)
 SKA_conf['mid baseline distribution'] = (baseline_arr, dist_frac_arr)
 SKA_conf['mid baseline cumulative'] = (baseline_arr, np.cumsum(dist_frac_arr))
 
