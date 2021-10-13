@@ -41,6 +41,7 @@ default_source_input = {'longitude': def_l,  # [deg]
                         'gamma': ap.gamma_from_alpha(def_alpha),
                         'model': 'eff',
                         'L_today': def_L0,  # [erg * s^-1 * Hz^-1]
+                        'use_free_expansion': True, # include free expansion
                         't_trans': def_tt,  # [years]
                         't_peak': def_tpk  # [days]
                         }
@@ -238,7 +239,7 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
                     Snu_echo_kwargs=default_Snu_echo_kwargs,
                     beta=-2.55):
     """
-    Compute the rescaling echo routine for any axion parameters (ma, ga) based on pre-computed reference echo quantities. The idea is to make as few integrations as possible: only the single theory point with ma_ref and ga_ref is integrated and the rest signal from (ma, ga) can be computed through the rescaling of prefactor. 
+    Compute the rescaling echo routine for any axion parameters (ma, ga) based on pre-computed reference echo quantities. The idea is to make as few integrations as possible: only the single theory point with ma_ref and ga_ref is integrated and the rest signal from (ma, ga) can be computed through the rescaling of prefactor.
 
     Parameters
     ----------

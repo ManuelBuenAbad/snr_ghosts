@@ -8,7 +8,7 @@ import numpy as np
 
 from numpy import pi, sqrt, exp, power, log, log10
 from scipy.integrate import trapz
-from scipy.optimize import fsolve, bisect, brentq
+from scipy.optimize import fsolve
 from scipy.special import erf, lambertw
 from inspect import getargspec
 
@@ -24,6 +24,8 @@ from astropy.coordinates import Galactic
 
 import constants as ct
 import particle as pt
+
+from tools import zeros
 
 #########################################
 # List of required parameters for the sources:
@@ -53,7 +55,7 @@ source_input = {key: source_id+pars_always+value +
 
 
 # default time array [years]
-t_arr_default = np.logspace(-4, 11, 10001)
+t_arr_default = np.logspace(-4, 11, 50001)
 
 # initialize the haslem map
 try:
@@ -428,34 +430,6 @@ def sandwich_logeqn(Lpk, tpk, L0, t0, gamma, tt):
     return eqn
 
 
-def crossings(fn, arr):
-    """
-    Find where a function crosses 0. Returns the zeroes of the function.
-
-    Parameters
-    ----------
-    fn : function
-    arr : array of arguments for function
-    """
-
-    fn_arr = fn(arr)
-
-    where_arr = np.where(np.logical_or((fn_arr[:-1] < 0.) * (fn_arr[1:] > 0.),
-                                       (fn_arr[:-1] > 0.) * (fn_arr[1:] < 0.))
-                         )[0]
-
-    cross_arr = []
-    if len(where_arr) > 0:
-        for i in range(len(where_arr)):
-            cross_arr.append(
-                brentq(fn, arr[where_arr[i]],
-                       arr[where_arr[i] + 1])
-            )
-
-    cross_arr = np.array(cross_arr)
-
-    return cross_arr
-
 
 def tage_compute(Lpk, tpk, t_trans, L_today, gamma):
     """
@@ -566,7 +540,7 @@ def L_source(t, model='eff', output_pars=False, **kwargs):
             def fn(Ltt): return sandwich_logeqn(L_peak, t_peak, L_today,
                                                 t_age, gamma, 10.**Ltt)  # function to minimize
             try:
-                Lt_cross = crossings(fn, log10(t_arr_default))
+                Lt_cross = zeros(fn, log10(t_arr_default))[0] # NOTE: added [0]
                 t_cross = 10.**Lt_cross
                 t_trans = max(t_cross)
             except ValueError:
@@ -734,6 +708,161 @@ def dimless_lum(gamma, frac_tpk, sup, tau):
     adiab = dimless_adiab(gamma, sup, tau)
 
     return free*np.heaviside(frac_tt-tau, 0.) + adiab*np.heaviside(tau-frac_tt, 1.)
+
+
+
+# SNR evolution analytic models
+
+def ED_fn(t, t_bench, R_bench, model):
+    """
+    Blast radius [pc] as a function of time for the Ejecta-Dominated era. Based on Truelove & McKee 1999 (TM99).
+
+    Parameters
+    ----------
+    t : time [years]
+    t_bench : benchmark time [years]
+    R_bench : benchmark radius [pc]
+    model : model of the expansion ('TM99-simple'/'TM99-0' for a simplified version of TM99 or for the case with n=0 ejecta.)
+    """
+
+    tstar = t/t_bench
+
+    if model == 'TM99-simple':
+        # power law R~t
+        Rstar = tstar
+    elif model == 'TM99-0':
+        # TM99, Table 5
+        Rstar = 2.01*tstar*(1. + 1.72 * tstar**(3./2.))**(-2./3.)
+
+    return R_bench*Rstar
+
+
+
+def ST_fn(t, t_bench, R_bench, model):
+    """
+    Blast radius [pc] as a function of time for the Sedov-Taylor era. Based on Truelove & McKee 1999 (TM99).
+
+    Parameters
+    ----------
+    t : time [years]
+    t_bench : benchmark time [years]
+    R_bench : benchmark radius [pc]
+    model : model of the expansion ('TM99-simple'/'TM99-0' for a simplified version of TM99 or for the case with n=0 ejecta.)
+    """
+
+    tstar = t/t_bench
+
+    if model == 'TM99-simple':
+        # power law R~t^(2/5)
+        Rstar = tstar**(2./5.)
+    elif model == 'TM99-0':
+        # TM99, Table 5
+        arg = (1.42*tstar - 0.254)
+        # regularizing:
+        arg = np.where(arg <= 0., 1.e-100, arg)
+        Rstar = arg**(2./5.)
+
+    return R_bench*Rstar
+
+
+
+def Rb_TM99(t, t_bench, R_bench, model):
+    """
+    Blast radius [pc] as a function of SNR age [years]. Based on Truelove & McKee 1999 (TM99).
+
+    Parameters
+    ----------
+    t : time [years]
+    t_bench : benchmark time [years]
+    R_bench : benchmark radius [pc]
+    model : model of the expansion ('TM99-simple'/'TM99-0' for a simplified version of TM99 or for the case with n=0 ejecta.)
+    """
+    # broken function:
+    if model == 'TM99-simple':
+        two_phase = np.minimum.reduce([ED_fn(t, t_bench, R_bench, model), ST_fn(t, t_bench, R_bench, model)])
+
+    elif model == 'TM99-0':
+        two_phase = np.maximum.reduce([ED_fn(t, t_bench, R_bench, model), ST_fn(t, t_bench, R_bench, model)])
+
+    return two_phase
+
+
+
+def model_age(R, model='estimate', M_ej=1., E_sn=1., rho0=1.):
+    """
+    Age [years] as a function of the SNR blast radius [pc]. Using either a simple model, or formulas by Truelove & McKee 1999 (TM99).
+
+    Parameters
+    ----------
+    R : SNR radius today [pc]
+    model : 'estimate'/'TM99-simple'/TM99-0'': whether the simple one-phase 'estimate' model is used, or instead the two-phase Truelove-McKee model (ED-ST, or Ejecta-Dominated -- Sedov-Taylor), either in a simplified form, or for n=0 (uniform) ejecta profile.
+    M_ej : Mass of the ejecta [M_sun] (default: 1.)
+    E_sn : Energy of the SNR [1.e51 ergs] (default: 1.)
+    rho0 : Mass density of surrounding medium [m_proton/cm^3] (default: 1.)
+    """
+    if not model in ['estimate', 'TM99-simple', 'TM99-0']:
+        raise ValueError("model={} is currently unsupported.".format(model))
+
+    if model == 'estimate':
+        # https://chandra.harvard.edu/edu/formal/age_snr/pencil_paper.pdf
+
+        R_m = R*(ct._kpc_over_m_/1000.) # [m]
+        vol_m3 = (4./3.) * pi * R_m**3. # [m^3]
+
+        m_proton = 0.93827208816*ct._GeV_over_g_ * 1.e-3 # [kg]
+        density = (m_proton*rho0)*1.e6 # [kg/m^3]
+        mass = density*vol_m3 # [kg]
+
+        E_sn_J = (E_sn*1.e51)*(1.e-7) # [J]
+        ke = 0.25*E_sn_J # [J]
+
+        vel = sqrt(2.*ke / mass) # [m/s]
+        age = (R_m/vel)/ct._year_over_s_ # [years]
+
+        return age
+
+
+    elif model in ['TM99-simple', 'TM99-0']:
+        # Article: https://iopscience.iop.org/article/10.1086/313176
+        # Erratum: https://iopscience.iop.org/article/10.1086/313385
+        # Revisited: arXiv:2109.03612
+
+        n0 = rho0/1. # number density [cm^-3]
+
+        # Characteristic scales: Table 2
+        R_ch = 3.07 * M_ej**(1./3.) * n0**(-1./3.) # [pc]
+        t_ch = 423. * E_sn**(-1./2.) * M_ej**(5./6.) * n0**(-1./3.) # [years]
+
+        # Sedov-Taylor scales: Table 3 (rounding up, for various ejecta power-law indices)
+
+        if model == 'TM99-simple':
+            tstar_ST = 0.4
+            Rstar_ST = 0.7
+        elif model == 'TM99-0':
+            tstar_ST = 0.4950
+            Rstar_ST = 0.7276
+
+        # Sedov-Taylor radius and age
+        t_ST = tstar_ST*t_ch
+        R_ST = Rstar_ST*R_ch
+
+        if model == 'TM99-simple':
+            t_bench = t_ST
+            R_bench = R_ST
+        elif model == 'TM99-0':
+            t_bench = t_ch
+            R_bench = R_ch
+
+        # defining the evolution in the two phases
+        def LogDelRb(t):
+            """
+            Function whose zeros we need to find in order to solve for the time [years] as a function of the radius [pc].
+            """
+            return log10(Rb_TM99(t, t_bench, R_bench, model)) - log10(R)
+
+        age = zeros(LogDelRb, t_arr_default)[0]
+
+        return age
 
 
 #########################################

@@ -9,13 +9,16 @@ from __future__ import division
 import numpy as np
 from numpy import pi, sqrt, log, log10, power, exp
 
+from sklearn.linear_model import LinearRegression as LR
+
 from astroquery.simbad import Simbad
 from astropy.coordinates import SkyCoord
 from datetime import datetime
 import re
 import os
-from astro import crossings as zeros
+
 import constants as ct
+from astro import model_age
 
 # location of the data path
 data_path = os.path.dirname(os.path.abspath(__file__))+'/data/'
@@ -323,7 +326,7 @@ class SuperNovaRemnant(object):
             self.b *= -1.
 
     def set_flux_density(self, Snu, is_flux_certain='y'):
-        """Set the flux density according 
+        """Set the flux density according
 
         :param Snu: flux density at 1 GHz [Jy]
         :param is_flux_certain: flag to show whether it has large uncertainty in distance (default: 'y')
@@ -339,7 +342,7 @@ class SuperNovaRemnant(object):
         return
 
     def set_sr(self, sr):
-        """Set the size of the SNR with square-radian. Allows to be None so that it will be computed based on the two-phase model. 
+        """Set the size of the SNR with square-radian. Allows to be None so that it will be computed based on the two-phase model.
 
         :param sr: square radian
 
@@ -394,8 +397,8 @@ class SuperNovaRemnant(object):
     def set_type(self, snr_type, is_certain):
         """set SNR type, S: shell, F: fill, C: combination
 
-        :param snr_type: type of SNR 
-        :param is_certain: flag to show if it's certain. "?" set to False. 
+        :param snr_type: type of SNR
+        :param is_certain: flag to show if it's certain. "?" set to False.
 
         """
 
@@ -458,10 +461,10 @@ class SuperNovaRemnant(object):
             self.diam = -1  # use -1 to indicate unknown diameter
 
         return self.diam
-    
+
     def get_radius(self):
         """compute the radius of the SNR [pc]
-        
+
         """
         if self.no_dist is False:
             dist = self.distance
@@ -693,13 +696,15 @@ def load_Green_catalogue(snr_name_arr, pathroot=data_path+'snr_website/www.mrao.
                 # parse the remnant with known age
                 m = re.search('AD</SPAN>(\d\d\d\d).*$', line)
                 if m is not None:
-                    print('%s is suggested to be related to SN explosion at AD:%s' % (
+                    if verbose > 0:
+                        print('%s is suggested to be related to SN explosion at AD:%s' % (
                         snr_name, m.group(1)))
                     snr_obj.set_age(2021 - float(m.group(1)))
                 else:
                     m = re.search('AD</SPAN>(\d\d\d).*$', line)
                     if m is not None:
-                        print('%s is suggested to be related to SN explosion at AD:%s' % (
+                        if verbose > 0:
+                            print('%s is suggested to be related to SN explosion at AD:%s' % (
                             snr_name, m.group(1)))
                         snr_obj.set_age(2021 - float(m.group(1)))
                     # the following doesn't yield anything so skip it for now.
@@ -716,7 +721,8 @@ def load_Green_catalogue(snr_name_arr, pathroot=data_path+'snr_website/www.mrao.
                     else:
                         m = re.search('.*remnant of(.*)', line)
                         if m is not None:
-                            print('%s could be related to %s' %
+                            if verbose > 0:
+                                print('%s could be related to %s' %
                                   (snr_name, m.group(1)))
                 # the special one, Cas A, not in standard format
                 if snr_obj.name == 'G111.7-2.1':
@@ -727,7 +733,8 @@ def load_Green_catalogue(snr_name_arr, pathroot=data_path+'snr_website/www.mrao.
 
         age = snr_obj.get_age()
         if age is not None:
-            print('it is about %.0f years old.' % age)
+            if verbose > 0:
+                print('it is about %.0f years old.' % age)
 
     return snrs_dct
 
@@ -751,41 +758,41 @@ snrs_cut = {}
 snrs_age = {}
 snrs_age_only = {}
 for name, snr in snrs_dct.items():
-    
+
     try:
         snr.age
         snrs_age_only[name] = snr
     except:
         pass
-    
+
     try:
         snr.distance
     except:
         continue
-    
+
     try:
         snr.alpha
     except:
         continue
-    
+
     # ignoring SNRs without known flux
     if snr.get_flux_density() == -1:
         continue
-    
+
     # ignoring SNRs with uncertain flux
 #     if not snr.is_flux_certain:
 #         print("uncertain flux: "+str(name))
 #         continue
-    
+
     # The SNR passed all the critical cuts: add it to the basic dictionary
     snrs_cut[name] = snr
-    
+
     # check if age is known...
     try:
         snr.age
     except:
         continue
-    
+
     # Add the SNR to the dictionary of those with known age
     snrs_age[name] = snr
 
@@ -795,153 +802,57 @@ for name, snr in snrs_dct.items():
 # AGE COMPUTATION
 #-----------------
 
-# a default array
-age_arr = np.logspace(-1, 7, 10001)
+TR_arr = []
+
+for name, snr in snrs_age_only.items():
+    if snr.no_dist:
+        continue
+    try:
+        R = snr.get_radius()
+        TR_arr.append([snr.age, R])
+    except:
+        continue
+
+TR_arr = np.array(TR_arr)
+TR_arr = np.sort(TR_arr, axis=0)
+TR_arr = TR_arr[:-1] # dropping the last one, which happens to be degenerate
+
+X = TR_arr[:,1].reshape((-1, 1)) # training sample, of shape (n_samples, n_features)
+y = TR_arr[:,0] # target values, of shape (, n_samples)
+
+# fitting linear regression:
+reg_lin = LR().fit(X, y)
+reg_log = LR().fit(log10(X), log10(y))
+del X, y, TR_arr
 
 
-def ED_fn(t, t_bench, R_bench, model):
+def lin_reg_pred(R, method='lin'):
     """
-    Blast radius [pc] as a function of time for the Ejecta-Dominated era. Based on Truelove & McKee 1999 (TM99).
-    
-    Parameters
-    ----------
-    t : time [years]
-    t_bench : benchmark time [years]
-    R_bench : benchmark radius [pc]
-    model : model of the expansion ('TM99-simple'/'TM99-0' for a simplified version of TM99 or for the case with n=0 ejecta.)
+    Linear regression for the age [years] as a function of the radius [pc], fitted on the SNR with known age.
     """
-    
-    tstar = t/t_bench
-    
-    if model == 'TM99-simple':
-        # power law R~t
-        Rstar = tstar
-    elif model == 'TM99-0':
-        # TM99, Table 5
-        Rstar = 2.01*tstar*(1. + 1.72 * tstar**(3./2.))**(-2./3.)
-        
-    return R_bench*Rstar
+
+    R_arr = np.array(R).reshape(-1, 1)
+
+    if method == 'lin':
+        return reg_lin.predict(R_arr)
+    elif method == 'log':
+        return 10.**reg_log.predict(log10(R_arr))
+    else:
+        raise ValueError("method={} cannot be used. Use 'lin' or 'log'".format(method))
 
 
-
-def ST_fn(t, t_bench, R_bench, model):
+def age_from_radius(R, method=None, **kwargs):
     """
-    Blast radius [pc] as a function of time for the Sedov-Taylor era. Based on Truelove & McKee 1999 (TM99).
-    
-    Parameters
-    ----------
-    t : time [years]
-    t_bench : benchmark time [years]
-    R_bench : benchmark radius [pc]
-    model : model of the expansion ('TM99-simple'/'TM99-0' for a simplified version of TM99 or for the case with n=0 ejecta.)
+    Computes the age [years] of a SNR based on its radius [pc].
     """
-    
-    tstar = t/t_bench
-    
-    if model == 'TM99-simple':
-        # power law R~t^(2/5)
-        Rstar = tstar**(2./5.)
-    elif model == 'TM99-0':
-        # TM99, Table 5
-        arg = (1.42*tstar - 0.254)
-        # regularizing:
-        arg = np.where(arg <= 0., 1.e-100, arg)
-        Rstar = arg**(2./5.)
-        
-    return R_bench*Rstar
 
+    if method in ['lin', 'log']:
+        age = lin_reg_pred(R, method=method)
 
+    elif method in ['estimate', 'TM99-0', 'TM99-simple']:
+        age = model_age(R, model=method, **kwargs)
 
-def Rb_fn(t, t_bench, R_bench, model):
-    """
-    Blast radius [pc] as a function of time. Based on Truelove & McKee 1999 (TM99).
-    
-    Parameters
-    ----------
-    t : time [years]
-    t_bench : benchmark time [years]
-    R_bench : benchmark radius [pc]
-    model : model of the expansion ('TM99-simple'/'TM99-0' for a simplified version of TM99 or for the case with n=0 ejecta.)
-    """
-    # broken function:
-    if model == 'TM99-simple':
-        two_phase = np.minimum.reduce([ED_fn(t, t_bench, R_bench, model), ST_fn(t, t_bench, R_bench, model)])
-    
-    elif model == 'TM99-0':
-        two_phase = np.maximum.reduce([ED_fn(t, t_bench, R_bench, model), ST_fn(t, t_bench, R_bench, model)])
-    
-    return two_phase
+    else:
+        raise ValueError("method={} not currently supported.".format(method))
 
-
-
-def model_age(R, model='estimate', M_ej=1., E_sn=1., rho0=1.):
-    """
-    R : SNR radius today [pc]
-    model : 'estimate'/'TM99-simple'/TM99-0'': whether the simple one-phase 'estimate' model is used, or instead the two-phase Truelove-McKee model (ED-ST, or Ejecta-Dominated -- Sedov-Taylor), either in a simplified form, or for n=0 (uniform) ejecta profile.
-    M_ej : Mass of the ejecta [M_sun] (default: 1.)
-    E_sn : Energy of the SNR [1.e51 ergs] (default: 1.)
-    rho0 : Mass density of surrounding medium [m_proton/cm^3] (default: 1.)
-    """
-    if not model in ['estimate', 'TM99-simple', 'TM99-0']:
-        raise ValueError("model={} is currently unsupported.".format(model))
-    
-    if model == 'estimate':
-        # https://chandra.harvard.edu/edu/formal/age_snr/pencil_paper.pdf
-        
-        R_m = R*(ct._kpc_over_m_/1000.) # [m]
-        vol_m3 = (4./3.) * pi * R_m**3. # [m^3]
-        
-        m_proton = 0.93827208816*ct._GeV_over_g_ * 1.e-3 # [kg]
-        density = (m_proton*rho0)*1.e6 # [kg/m^3]
-        mass = density*vol_m3 # [kg]
-        
-        E_sn_J = (E_sn*1.e51)*(1.e-7) # [J]
-        ke = 0.25*E_sn_J # [J]
-        
-        vel = sqrt(2.*ke / mass) # [m/s]
-        age = (R_m/vel)/ct._year_over_s_ # [years]
-        
-        return age
-        
-        
-    elif model in ['TM99-simple', 'TM99-0']:
-        # Article: https://iopscience.iop.org/article/10.1086/313176
-        # Erratum: https://iopscience.iop.org/article/10.1086/313385
-        # Revisited: arXiv:2109.03612
-        
-        n0 = rho0/1. # number density [cm^-3]
-        
-        # Characteristic scales: Table 2
-        R_ch = 3.07 * M_ej**(1./3.) * n0**(-1./3.) # [pc]
-        t_ch = 423. * E_sn**(-1./2.) * M_ej**(5./6.) * n0**(-1./3.) # [years]
-        
-        # Sedov-Taylor scales: Table 3 (rounding up, for various ejecta power-law indices)
-        
-        if model == 'TM99-simple':
-            tstar_ST = 0.4
-            Rstar_ST = 0.7
-        elif model == 'TM99-0':
-            tstar_ST = 0.4950
-            Rstar_ST = 0.7276
-        
-        # Sedov-Taylor radius and age
-        t_ST = tstar_ST*t_ch
-        R_ST = Rstar_ST*R_ch
-        
-        if model == 'TM99-simple':
-            t_bench = t_ST
-            R_bench = R_ST
-        elif model == 'TM99-0':
-            t_bench = t_ch
-            R_bench = R_ch
-        
-        # defining the evolution in the two phases
-        def LogDelRb(t):
-            """
-            Function whose zeros we need to find in order to solve for the time [years] as a function of the radius [pc].
-            """
-            return log10(Rb_fn(t, t_bench, R_bench, model)) - log10(R)
-        
-        age = zeros(LogDelRb, age_arr)
-        
-        return age
+    return age
