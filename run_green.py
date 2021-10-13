@@ -355,6 +355,10 @@ for i, name in tqdm(enumerate(sorted_names)):
         with open(echo_file, 'w') as f:
             f.write(str(signal_Snu))
 
+        tage_file = os.path.join(snr_folder, "tage_"+file_name)
+        with open(tage_file, 'w') as f:
+            f.write(str(t_age))
+
     # free+adiabatic
     else:
         # need to change Lpk @ nuB ---> Lpk @ 1 GHz
