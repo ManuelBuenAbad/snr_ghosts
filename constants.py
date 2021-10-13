@@ -1,5 +1,5 @@
 """
-This is a module for the contants. 
+This is a module for the contants.
 Requires MyUnit.py
 """
 
@@ -23,7 +23,7 @@ def angle_to_solid_angle(theta):
 
 
 def solid_angle_to_angle(Omega):
-    """convert solid angle to angle 
+    """convert solid angle to angle
 
     :param Omega: soild angle that the object subtends [sr]
     :returns: angle of the object [radian]
@@ -43,7 +43,7 @@ def get_baseline(r, dist_r_arr, dist_frac_arr, Ntot=511, exper_mode=None):
     :param Ntot: total number of telescopes
     :param exper_mode: "SKA low" or "SKA mid"
     :returns: the baseline length of telescopes with a distance r from the center
-    :rtype: 
+    :rtype:
 
     """
     fraction = np.interp(np.log10(r), np.log10(dist_r_arr), (dist_frac_arr))
@@ -252,4 +252,5 @@ _mu_log10_tpk_IIb_, _sig_log10_tpk_IIb_ = 1.5, 0.6  # type IIb
 # SN properties
 #
 _time_of_phase_two_ = 1.e4  # [year]
-_v_hom_ = 2.e7 / _light_speed_  # speed of homologous expansion [c]
+_v_hom_ = 2.e7 / _light_speed_  # = 0.0667128 [c] speed of homologous expansion
+_v_TM99_ = ((0.7*3.07*_kpc_over_m_/1000.)/(0.4*423.*_year_over_s_) / _light_speed_) # = 0.0414252 [c] approximate speed during free expansion, according to TM99 (for M_ej = 1 Msun, E_sn = 1.e51 erg, and rho0 = proton_mass/cm^3)

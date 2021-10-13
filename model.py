@@ -64,21 +64,22 @@ def snr_routine(ma, ga,
     if nu_pivot is None:
         nu_pivot = 1.  # [GHz]
     # g) lightcurve_params:
-    if len(lightcurve_params) > 4:
+    if not 'use_free_expansion' in lightcurve_params.keys():
+        lightcurve_params['use_free_expansion'] = True
+
+    if len(lightcurve_params) > 5:
         raise ValueError(
-            "'lightcure_params' has too many parameters. Please refer to astro.pars_required.")
-    elif len(lightcurve_params) == 4:
+            "'lightcurve_params' has too many parameters. Please refer to astro.pars_required.")
+    elif len(lightcurve_params) == 5:
         pass
-    elif len(lightcurve_params) == 3:
+    elif len(lightcurve_params) == 4:
         if 'L_today' in lightcurve_params.keys():
             raise KeyError(
-                "'lightcurve_params' has 3 parameters and 'L_today' is one of them. Either pass 4 parameters, or pass 3 without 'L_today', which will be read directly from 'sn_remnant'.")
+                "'lightcurve_params' has 3 parameters (+ 'use_free_expansion'), and 'L_today' is one of them. Either pass 4 (+1) parameters, or pass 3 (+!) without 'L_today', which will be read directly from 'sn_remnant'.")
 
         try:
             S0 = sn_remnant.get_flux_density()  # [Jy] at 1 GHz
-            area = 4.*np.pi*(distance*ct._kpc_over_cm_)**2.  # [cm^2] area
-            # [erg * s^-1 * Hz^-1]
-            L_today = S0 * area * ct._Jy_over_cgs_irrad_
+            L_today = sn_remnant.get_luminosity() # [erg * s^-1 * Hz^-1]
             lightcurve_params['L_today'] = L_today
 
         except:

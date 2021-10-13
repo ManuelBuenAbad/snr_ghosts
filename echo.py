@@ -19,10 +19,10 @@ a la Boltzmann equations. The three main structures are:
         'nu_pivot' :    pivot frequency of source's spectrum
         'gamma' :       adiabatic expansion index of source
         'size' :        solid angle size of source [sr]
-        
+
         # computable keys and values:
         'Omega_dispersion' : solid angle due to DM velocity dispersion [sr]
-        
+
         # modeling keys and values:
         'model' :       model of the time-evolution of source: 'eff'/'thy'.
             Each 'model'=='eff' ('thy') has 6 (8) parameters, and supports one of them being a dependent variable and 5 (7) required known parameters/quantities. For more information on these, see ap.pars_required.
@@ -42,10 +42,10 @@ a la Boltzmann equations. The three main structures are:
                 'gamma' :   adiabatic expansion index of source
                 't_age' :   age of source [years]
                 'L_today' : luminosity today [erg*s^-1*Hz^-1]
-        
+
         # Optional:
-            'force_Omega_disp_compute' : whether the dispersion solid angle is computed (default: True) 
-            'use_free_expansion' : set the contribution of the free expansion part to be zero, and only account the signal from the adiabatic phase. 
+            'force_Omega_disp_compute' : whether the dispersion solid angle is computed (default: True)
+            'use_free_expansion' : set the contribution of the free expansion part to be zero, and only account the signal from the adiabatic phase.
 
 2. The 'axion_input' dict includes the following keys:
         'ma' :              the axion mass [eV]
@@ -87,14 +87,18 @@ a la Boltzmann equations. The three main structures are:
 from __future__ import division
 import os
 import numpy as np
-import constants as ct
-import particle as pt
-import astro as ap
 
 from numpy import pi, sqrt, exp, power, log, log10
 from scipy.integrate import quad, trapz
 from scipy.interpolate import interp1d
 from scipy.special import erf, lambertw
+
+import constants as ct
+import particle as pt
+import astro as ap
+
+
+from tools import interp_fn
 
 
 # a default array of radio frequencies
@@ -106,26 +110,6 @@ Tbg_408_avg = ap.bg_408_temp(0., 0., size=(
 # antipodal point to galactic center
 Tbg_408_antipodal = ap.bg_408_temp(180., 0., average=False)
 
-
-#########################################
-# Interpolating functions:
-
-
-def interp_fn(array):
-    """
-    An interpolator for log-arrays spanning many orders of magnitude.
-
-    Parameters
-    ----------
-    array : An array of shape (N, 2) from which to interpolate.
-    """
-
-    array[array < 1.e-300] = 1.e-300  # regularizing small numbers
-
-    def fn(x): return 10**interp1d(log10(array[:, 0]),
-                                   log10(array[:, 1]), fill_value='extrapolate')(log10(x))
-
-    return fn
 
 
 #########################################
@@ -150,6 +134,10 @@ def check_source(source_input, custom_name='custom', verbose=False):
     if (not 'force_Omega_disp_compute' in source_input.keys()) or (not 'Omega_dispersion' in source_input.keys()):
         # DM's dispersion size hasn't been passed, and there is no explicit request on whether to compute it
         source_input['force_Omega_disp_compute'] = True
+
+    if not 'use_free_expansion' in source_input.keys():
+        # haven't passed whether the free expansion phase will be included or not; default will be yes
+        source_input['use_free_expansion'] = True
 
     has_all_source_id = set(ap.source_id).issubset(set(source_input.keys()))
     if not has_all_source_id:
@@ -259,7 +247,7 @@ def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_obse
     total_observing_time : total time of observation [hours] (default: 100.)
     average : whether the background noise brightness temperature will be averaged over the angular size of the source (default: True)
     DM_profile : the DM density profile (default: 'NFW')
-    correlation_mode: the correlation mode of the telescope, either "single dish" or "interferometry". 
+    correlation_mode: the correlation mode of the telescope, either "single dish" or "interferometry".
     verbose : verbosity (default: 0)
     """
 
@@ -329,7 +317,8 @@ def Omega_size(source_input, verbose=0):
     except KeyError:
         # catches either 'size' is not in source_input.key(), or it's there but None
         check_source(source_input)
-        v_free = ct._v_hom_  # speed of the free expansion [c]
+        # v_free = ct._v_hom_  # speed of the free expansion [c]
+        v_free = ct._v_TM99_ # speed of the free expansion, according to TM99 [c]
         t_trans = source_input['t_trans']
         t_end = source_input['t_age']
         distance = source_input['distance']
