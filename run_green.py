@@ -13,7 +13,6 @@ import constants as ct
 import particle as pt
 import astro as ap
 import echo as ec
-import routines as rt
 import data as dt
 import model as md
 
@@ -239,8 +238,8 @@ ridiculous = 1.e-100
 max_steps = 1000001
 
 # data:
-data = {'deltaE_over_E': 1.e-3,
-        'f_Delta': 0.721,
+data = {'deltaE_over_E': ct._deltaE_over_E_,
+        'f_Delta': ct._f_Delta_,
         'exper': 'SKA',
         'total_observing_time': 100.,
         'verbose': 0,

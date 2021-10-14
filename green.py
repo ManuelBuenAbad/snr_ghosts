@@ -72,32 +72,32 @@ def load_green_results(name, r=None, tex=0., nuB=1.):
     """
     Function that loads the CCV numerical results for the SNRs from Green's Catalog.
     """
-    
+
     if not name in snrs_cut.keys():
         raise ValueError("name={} not available in results.".format(name))
-    
+
     if (r == None) and (not name in snrs_age.keys()):
         raise ValueError("name={} not available in SNR results of known age.".format(name))
-    
+
     if r == None:
         r_str = "_wage"
     else:
         r_str = "_r-{}".format(int(r))
-    
+
     tex_str = "_tex-{}".format(int(tex))
     nuB_str = "_nuB-{}".format(int(nuB))
-    
+
     folder = green_path+name+"/"
     file = "{}_Lpk-tpk{}{}{}.txt".format(name, r_str, tex_str, nuB_str)
-    
+
     sn = np.loadtxt(folder+"sn_"+file, delimiter=",")
     echo = np.loadtxt(folder+"echo_"+file, delimiter=",")
-    
+
     if r != None:
         tgrid = np.loadtxt(folder+"tage_"+file, delimiter=",")
     else:
         tgrid = np.loadtxt(folder+"ttrans_"+file, delimiter=",")
-        
+
     return sn, echo, tgrid
 
 
@@ -106,18 +106,18 @@ def snr_reach(name, r=None, nuB=1., tex=0., sn_ratio_threshold=1., nu_pivot=1., 
     """
     Returns an interpolated function of the discovery reach of the axion-photon coupling ga [GeV^-1] as a function of the Bietenholz parameters (be that in terms of normalized (0, 1) variables (variables='normal'), or in terms of the raw parameters t_peak and L_peak themselves) for a certain signal-to-noise ratio and SNR name. If full_output == True, it also returns other important quantities.
     """
-    
+
     if (not name in snrs_cut.keys()):
         raise ValueError("name={} not available in results.".format(name))
-    
+
     if (r == None) and (not name in snrs_age.keys()):
         raise ValueError("name={} not available in SNR results of known age.".format(name))
-    
+
     snr = snrs_cut[name]
     # SNR results
     sn_Gr, _, tgrid = load_green_results(name, r=r, tex=tex, nuB=nuB)
     # N.B.: tgrid is t_trans if r==None, and t_age if r!= None
-    
+
     # SNR properties:
     alpha = snr.alpha
     gamma = ap.gamma_from_alpha(alpha)
@@ -134,10 +134,10 @@ def snr_reach(name, r=None, nuB=1., tex=0., sn_ratio_threshold=1., nu_pivot=1., 
     # correcting with conversion factor:
     Lpk_arr *= from_Bieten_to_pivot
     Lpk_Gr *= from_Bieten_to_pivot
-    
+
     # normal_Lpk value where the cut takes place
     normal_Lpk_cut = (log10(L0/from_Bieten_to_pivot)-ct._mu_log10_Lpk_)/ct._sig_log10_Lpk_
-    
+
     # computing the forbidden parameter space region
     nonsense_lum = (L0 >= Lpk_Gr).astype(int) # points where L0 >= Lpk
     if r == None:
@@ -147,16 +147,16 @@ def snr_reach(name, r=None, nuB=1., tex=0., sn_ratio_threshold=1., nu_pivot=1., 
         nonsense_time = np.zeros_like(tpk_Gr) # TODO: change?
 #         tt_Gr = r*(tpk_Gr/365.)
         nonsense_time = (tgrid < (tpk_Gr/365.)).astype(int) # t_age < tpk
-    
+
     nonsense_params = np.logical_or(nonsense_lum, nonsense_time).astype(int)
-    
+
     regularized_sn_Gr = np.where(sn_Gr < very_small, very_small, sn_Gr) # converting 0s to a small number
-    
+
     ga_Gr = ec.ga_reach(sn_ratio_threshold, regularized_sn_Gr, ga_ref)
     ga_Gr = np.nan_to_num(ga_Gr)
-    
+
     def ga_fn(nL, nt): return 10.**interp2d(normal_Lpk_arr, normal_tpk_arr, log10(ga_Gr))(nL, nt)
-    
+
     if full_output:
         return ga_fn, ga_Gr, normal_Lpk_arr, normal_tpk_arr, nonsense_params
     else:
