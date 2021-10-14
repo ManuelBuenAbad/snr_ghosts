@@ -4,6 +4,7 @@
 import numpy as np
 import constants as ct
 import particle as pt
+import ska as sk
 import astro as ap
 import echo as ec
 import routines as rt

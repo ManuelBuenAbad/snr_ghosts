@@ -54,11 +54,11 @@ a la Boltzmann equations. The three main structures are:
 
 3. The 'data' dict includes the following keys:
         # environment
-        'deltaE_over_E' :           the width of the line (default: 1.e-3)
+        'deltaE_over_E' :           the width of the line (default: 0.00145326)
         'DM_profile' :              the DM profile to be used (default: 'NFW')
 
         # experiment
-        'f_Delta' :                 the fraction of flux density that falls in the optimal bandwidth (default: 0.721)
+        'f_Delta' :                 the fraction of flux density that falls in the optimal bandwidth (default: 0.83848)
         'exper' :                   the experiment ('SKA low'/'SKA mid', or simply 'SKA' for either, depending on the frequency; default: 'SKA')
         'total_observing_time' :    the total time of experimental observation (default: 100.)
         'average' :                 whether the background noise brightness temperature will be averaged over the angular size of the source (default: True)
@@ -95,6 +95,7 @@ from scipy.special import erf, lambertw
 
 import constants as ct
 import particle as pt
+import ska as sk
 import astro as ap
 
 
@@ -234,15 +235,15 @@ def check_axion(axion_input):
     return
 
 
-def check_data(data, deltaE_over_E=1.e-3, f_Delta=0.721, exper='SKA', total_observing_time=100., average=True, DM_profile='NFW', correlation_mode='single dish', verbose=0):
+def check_data(data, deltaE_over_E=ct._deltaE_over_E_, f_Delta=ct._f_Delta_, exper='SKA', total_observing_time=100., average=True, DM_profile='NFW', correlation_mode='single dish', verbose=0):
     """
     Checks if the 'data' dictionary of a source is in the necessary format.
 
     Parameters
     ----------
     data : dictionary with environmental, experimental, and observational data
-    deltaE_over_E : width of the signal line (default: 1.e-3)
-    f_Delta : fraction of flux density that falls in the optimal bandwidth (default: 0.721)
+    deltaE_over_E : width of the signal line (default: 0.00145326)
+    f_Delta : fraction of flux density that falls in the optimal bandwidth (default: 0.83848)
     exper : experiment under consideration (default: 'SKA')
     total_observing_time : total time of observation [hours] (default: 100.)
     average : whether the background noise brightness temperature will be averaged over the angular size of the source (default: True)
@@ -385,7 +386,7 @@ def Omega_dispersion(source_input, data, tmin_default=None, xmax_default=100., t
         # duration of free+adiabatic phases [years]
         t_age = source_input['t_age']
         distance = source_input['distance']  # distance to SNR source [kpc]
-        sigma_v = data['deltaE_over_E']/2.17  # velocity dispersion
+        sigma_v = ct._sigma_v_  # velocity dispersion
         if verbose > 0:
             print('sigma_v: %.1e' % sigma_v)
 
@@ -451,7 +452,7 @@ def axion_pref(ma, ga):
     return prefactor
 
 
-def pref(ma, ga, deltaE_over_E=1.e-3):
+def pref(ma, ga, deltaE_over_E=ct._deltaE_over_E_):
     """
     Axion and dark matter prefactor [1/kpc] for echo.
 
@@ -459,7 +460,7 @@ def pref(ma, ga, deltaE_over_E=1.e-3):
     ----------
     ma : axion mass [eV]
     ga : axion-photon coupling [GeV^-1]
-    deltaE_over_E : the line width (default: 1.e-3)
+    deltaE_over_E : the line width (default: 0.00145326)
     """
 
     rho_at_Earth = ct._rho_local_DM_ / ct._eV_over_GeV_ / ct._cm_eV_**3
@@ -864,7 +865,7 @@ def echo_tot_fn(gamma, frac_tpk, frac_tt):
     return ad + free
 
 
-def echo_an(ma, ga, Lpk, dist, t_age, gamma, tpk, tt, deltaE_over_E=1.e-3):
+def echo_an(ma, ga, Lpk, dist, t_age, gamma, tpk, tt, deltaE_over_E=ct._deltaE_over_E_):
     """
     Analytic formula for the echo spectral irradiance [Jy], with transition time as input, and assuming constant DM density. NOTE: the frequency dependence prefactor, usually (nu/nu_pivot)^-alpha, is factorized out.
 
@@ -878,7 +879,7 @@ def echo_an(ma, ga, Lpk, dist, t_age, gamma, tpk, tt, deltaE_over_E=1.e-3):
     gamma : adiabatic index
     tpk : peak time [days]
     tt : free-adiabatic phases transition time [years]
-    deltaE_over_E : the line width (default: 1.e-3)
+    deltaE_over_E : the line width (default: 0.00145326)
     """
 
     frac_tpk = (tpk/365.)/t_age
@@ -897,7 +898,7 @@ def echo_an(ma, ga, Lpk, dist, t_age, gamma, tpk, tt, deltaE_over_E=1.e-3):
     return Se
 
 
-def echo_an_sup(ma, ga, Lpk, dist, S0, t_age, gamma, tpk, deltaE_over_E=1.e-3):
+def echo_an_sup(ma, ga, Lpk, dist, S0, t_age, gamma, tpk, deltaE_over_E=ct._deltaE_over_E_):
     """
     Analytic formula for the echo spectral irradiance [Jy], with the suppression as input, and assuming constant DM density. NOTE: the frequency dependence prefactor, usually (nu/nu_pivot)^-alpha, is factorized out.
 
@@ -911,7 +912,7 @@ def echo_an_sup(ma, ga, Lpk, dist, S0, t_age, gamma, tpk, deltaE_over_E=1.e-3):
     t_age : age of SNR [years]
     gamma : adiabatic index
     tpk : peak time [days]
-    deltaE_over_E : the line width (default: 1.e-3)
+    deltaE_over_E : the line width (default: 0.00145326)
     """
 
     area = 4.*pi*(dist*ct._kpc_over_cm_)**2.  # [cm^2]
@@ -1015,7 +1016,7 @@ def signal(source_input, axion_input, data,
     # finding the experimental range
     if exper == 'SKA':  # in case the range is frequency-dependent
         # could be either 'SKA low', 'SKA mid', or None, depending on frequency nu.
-        exper_mode = ap.SKA_exper_nu(nu)
+        exper_mode = sk.SKA_exper_nu(nu)
     elif exper in ['SKA low', 'SKA mid']:  # in case the range was fixed by hand
         exper_mode = exper
     else:
@@ -1023,9 +1024,9 @@ def signal(source_input, axion_input, data,
             "data['exper'] must be either 'SKA', 'SKA low', or 'SKA mid'. Please update accordingly.")
 
     # computing the collecting area and the frequency sensitivity window of the experiment mode
-    area, window, _, _, _, _ = ap.SKA_specs(
+    area, window, _, _, _, _ = sk.SKA_specs(
         nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_sig)
-    # area, window, _, _, Omega_max = ap.SKA_specs(
+    # area, window, _, _, Omega_max = sk.SKA_specs(
     #     nu, exper_mode, correlation_mode=correlation_mode)
 
     # # cut out extended signal, due to physical size/ dispersion/ aberration
@@ -1059,6 +1060,7 @@ def signal(source_input, axion_input, data,
 
     # compute the signal power
     # [eV^2], assuming the default SKA efficiency of eta = 0.8
+
     signal_power = ap.P_signal(
         S=signal_S_echo, A=area, eta=ct._eta_ska_, f_Delta=f_Delta)
 
@@ -1161,7 +1163,7 @@ def noise(source_input, axion_input, data,
     # finding the experimental range:
     if exper == 'SKA':  # in case the range is frequency-dependent
         # could be either 'SKA low', 'SKA mid', or None, depending on frequency nu.
-        exper_mode = ap.SKA_exper_nu(nu)
+        exper_mode = sk.SKA_exper_nu(nu)
     elif exper in ['SKA low', 'SKA mid']:
         exper_mode = exper  # in case the range was fixed by hand
     else:
@@ -1173,9 +1175,9 @@ def noise(source_input, axion_input, data,
     # dlog T_noise/dlog nu ~ -beta*deltaE_over_E ~ -0.00255)
 
     # reading out the receiver's noise brightness temperature and solid angle resolution
-    # area, window, _, _, _, _ = ap.SKA_specs(
+    # area, window, _, _, _, _ = sk.SKA_specs(
     #     nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_sig)
-    _, _, Tr, Omega_res, _, _ = ap.SKA_specs(
+    _, _, Tr, Omega_res, _, _ = sk.SKA_specs(
         nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_sig)
 
     # the observation solid angle [sr]
@@ -1252,7 +1254,7 @@ def sn_ratio(signal_power, noise_power,
     return res
 
 
-def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._eta_ska_, fDelta=0.721, tobs=100.,  correlation_mode=None, theta_sig=None):
+def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._eta_ska_, f_Delta=ct._f_Delta_, tobs=100.,  correlation_mode=None, theta_sig=None):
     """
     Simpler signal-to-noise ratio formula.
 
@@ -1264,7 +1266,7 @@ def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._et
     Omega_obs : the observation solid angle [sr]
     Tbg_408 : the MW background at 408 MHz [K] (default: full sky average)
     eta: the detector efficiency (default: 0.8)
-    fDelta : the fraction of signal falling withing the bandwidth (default: 0.721)
+    f_Delta : the fraction of signal falling withing the bandwidth (default: 0.83848)
     tobs : the total observation time [hours] (default: 100)
     correlation_mode : the correlation mode of the experiment <"single dish"|"interferometry"> (default: None)
     theta_sig: the size of the signal to be observed, relevant for the interferometry mode [radian]. (default: None)
@@ -1275,15 +1277,16 @@ def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._et
     Stot = Secho_in_eV3*delta_nu_in_eV
 
     # experiment
-    exper_mode = ap.SKA_exper_nu(nu)
-    area, window, Tr, Omega_res, _, _ = ap.SKA_specs(
-        nu, exper_mode, eta=eta, correlation_mode=correlation_mode)
+    exper_mode = sk.SKA_exper_nu(nu)
+    area, window, Tr, Omega_res, _, _ = sk.SKA_specs(
+        nu, exper_mode, eta=eta, correlation_mode=correlation_mode, theta_sig=theta_sig)
 
     # if Omega_obs > Omega_max:
     #     Psig = 0.
     # else:
-    #    Psig = ap.P_signal(Stot, area, eta=eta, f_Delta=fDelta)
-    Psig = ap.P_signal(Stot, area, eta=eta, f_Delta=fDelta)
+    #    Psig = ap.P_signal(Stot, area, eta=eta, f_Delta=f_Delta)
+    # print exper_mode
+    Psig = ap.P_signal(Stot, area, eta=eta, f_Delta=f_Delta)
 
     Tnoise = ap.T_noise(nu, Tbg_at_408=Tbg_408, beta=-2.55, Tr=Tr)
     Pnoise = ap.P_noise(Tnoise, delta_nu, tobs, Omega_obs,

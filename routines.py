@@ -6,8 +6,9 @@ from numpy import pi, sqrt, log, log10, power, exp
 from scipy.integrate import trapz
 
 import constants as ct
-import astro as ap
 import particle as pt
+import ska as sk
+import astro as ap
 import echo as ec
 
 
@@ -64,12 +65,13 @@ def ax_in(ma, ga):
 
 
 # data:
-default_data = {'deltaE_over_E': 1.e-3,
-                'f_Delta': 0.721,
+default_data = {'deltaE_over_E': ct._deltaE_over_E_,
+                'f_Delta': ct._f_Delta_,
                 'exper': 'SKA',
                 'total_observing_time': 100.,
                 'average': True,
                 'DM_profile': 'NFW',
+                'correlation_mode': 'interferometry',
                 'verbose': 0
                 }
 # I'm not setting 'correlation_mode' for now to expose and update all old code through Exceptions. After the code stabilizes we can set it to "single dish" or "interferometry".
@@ -203,8 +205,8 @@ def SKA_rescaled_specs(ma, data=default_data, theta_sig=None):
         area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = [], [], [], [], [], []
         for nn in nu_flat:
 
-            exper_mode = ap.SKA_exper_nu(nn)
-            aa, ww, tr, od, nd, nm = ap.SKA_specs(
+            exper_mode = sk.SKA_exper_nu(nn)
+            aa, ww, tr, od, nd, nm = sk.SKA_specs(
                 nn, exper_mode, eta=ct._eta_ska_, correlation_mode=correlation_mode, theta_sig=theta_sig)
 
             area.append(aa)
@@ -223,7 +225,7 @@ def SKA_rescaled_specs(ma, data=default_data, theta_sig=None):
 
     elif exper in ['SKA low', 'SKA mid']:  # in case the range was fixed by hand
         exper_mode = exper
-        area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = ap.SKA_specs(
+        area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = ak.SKA_specs(
             nu, exper_mode, eta=ct._eta_ska_, correlation_mode=correlation_mode, theta_sig=theta_sig)
 
     else:
