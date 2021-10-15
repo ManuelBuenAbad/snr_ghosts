@@ -197,7 +197,7 @@ with open(log_file, 'w') as f:
     f.write('#\n#-------Run info\n#\n')
     f.write('run_id: %d\n' % run_id)
     f.write('ga_ref: %e\n' % ga_ref)
-    f.write('scan_ma: %e\n' % scan_ma)
+    f.write('scan_ma: %s\n' % scan_ma)
     f.write('#\n#-------Detailed log\n#\n')
     for key, entry in vars(args).items():
         f.write('%s: %s\n' % (key, entry))

@@ -297,8 +297,8 @@ def get_telescope_coordinate(tel_arr, r_arr, SKA):
     r_fine_arr = np.interp(tel_fine_arr, tel_arr, r_arr)
 
     # fix see as we don't really need the randomness
-    rng = np.random.default_rng(123)
-    theta_arr = rng.random(size=len(r_fine_arr)) * np.pi * 2.
+    np.random.seed(123)
+    theta_arr = np.random.random(size=len(r_fine_arr)) * np.pi * 2.
 
     # over write the arm part
     mask = np.where(r_fine_arr > r_core, True, False)
@@ -313,7 +313,7 @@ def get_telescope_coordinate(tel_arr, r_arr, SKA):
 
 
 def get_baseline(x_arr, y_arr):
-    """Given array coordinates x, y, compute lengths of each pair. Returns the array of pair lengths. 
+    """Given array coordinates x, y, compute lengths of each pair. Returns the array of pair lengths.
 
     :param x_arr: x coordinate of all units
     :param y_arr: y coordinates of all units
