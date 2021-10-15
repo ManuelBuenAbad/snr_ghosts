@@ -123,14 +123,15 @@ def snr_reach(name, run_id=None, sn_ratio_threshold=1.):
 
     # regularizing S/N
     sn, is_scalar = tl.treat_as_arr(sn)
-    reg_sn = np.where(sn < very_small, very_small, sn) # converting 0s to a small number
+    reg_sn = np.nan_to_num(sn)
+    reg_sn = np.where(reg_sn < very_small, very_small, reg_sn) # converting 0s to a small number
 
     # looking for ga_ref in the log
     ga_idx = [('ga_ref:' in line) for line in log_lines].index(True)
     ga_ref = float(log_lines[ga_idx].split()[-1])
 
     # finding reach
-    ga_reach = ec.ga_reach(sn_ratio_threshold, sn, ga_ref)
+    ga_reach = ec.ga_reach(sn_ratio_threshold, reg_sn, ga_ref)
     ga_reach = np.nan_to_num(ga_reach)
 
     # if sn was originally a scalar, so is ga
