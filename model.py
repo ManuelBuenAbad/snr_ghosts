@@ -29,7 +29,7 @@ def snr_routine(ma, ga,
     sn_remnant: the SNR object
     gamma : SNR adiabatic index (default: None)
     nu_pivot : pivot frequency [GHz] (default: None)
-    lightcurve_params : parameters required to describe the SNR lightcurve: 4 out of the following 5: ['t_peak', 'L_peak', 't_trans', 't_age', 'L_today']. If sn_remnant.get_flux_density()/sn_remnant.snu_at_1GHz is available then passing only 3 parameters is allowed.
+    lightcurve_params : parameters required to describe the SNR lightcurve. In addition to the optional 'use_free_expansion' (default: True), it needs 4 or 5 out of the following 5: ['t_peak', 'L_peak', 't_trans', 't_age', 'L_today']. If sn_remnant.get_flux_density()/sn_remnant.snu_at_1GHz is available then passing only 3 parameters is allowed.
     snu_echo_kwargs : keyword args that go into snu_echo computation (default: None)
     data : experiment and detection data dictionary (default: None)
     output_all : False

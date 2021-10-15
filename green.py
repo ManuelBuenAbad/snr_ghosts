@@ -46,7 +46,12 @@ try:
     sigs_Gr = np.sqrt(((log10(pre_Lpk_Gr)-ct._mu_log10_Lpk_)/ct._sig_log10_Lpk_)**2 + ((log10(pre_tpk_Gr)-ct._mu_log10_tpk_)/ct._sig_log10_tpk_)**2)
 
 except:
-    pass
+    pre_Lpk_arr, pre_tpk_arr = None, None
+
+try:
+    ma_arr = np.loadtxt(green_path+"ma_arr.txt", delimiter=",")
+except:
+    ma_arr = None
 
 # -------------------------------------------------
 
@@ -95,19 +100,25 @@ def load_green_results(name, run_id=None, correlation_mode=None):
     with open(green_path+log_file, 'r') as log_info:
         log_lines = [line.rstrip('\n') for line in log_info]
 
-    # loading S/N, Snu_echo, and time (age or t_trans) results:
+    # looking in the log whether this run scanned over the axion mass
+    scan_idx = [('scan_ma:' in line) for line in log_lines].index(True)
+    scan_ma = (log_lines[scan_idx].split()[-1] == "True")
+
+    # loading S/N, Snu_echo, age, and t_trans results:
     folder = green_path+name+"/"
     file = name+"_run-"+str(run_id)+corr_str+".txt"
 
     sn = np.loadtxt(folder+"sn_"+file, delimiter=",")
     echo = np.loadtxt(folder+"echo_"+file, delimiter=",")
+    tage = np.loadtxt(folder+"tage_"+file, delimiter=",")
+    ttrans = np.loadtxt(folder+"ttrans_"+file, delimiter=",")
 
-    try:
-        tgrid = np.loadtxt(folder+"tage_"+file, delimiter=",")
-    except:
-        tgrid = np.loadtxt(folder+"ttrans_"+file, delimiter=",")
+    if scan_ma:
+        params = ma_arr
+    else:
+        params = (pre_Lpk_arr, pre_tpk_arr)
 
-    return sn, echo, tgrid, log_lines
+    return sn, echo, tage, ttrans, params, log_lines
 
 
 
@@ -116,7 +127,7 @@ def snr_reach(name, run_id=None, correlation_mode=None, sn_ratio_threshold=1.):
     Returns the discovery reach of the axion-photon coupling ga [GeV^-1] for a certain signal-to-noise ratio and SNR name.
     """
 
-    sn, _, _, log_lines = load_green_results(name, run_id=run_id, correlation_mode=correlation_mode)
+    sn, _, _, _, params, log_lines = load_green_results(name, run_id=run_id, correlation_mode=correlation_mode)
 
     # regularizing S/N
     sn, is_scalar = tl.treat_as_arr(sn)
@@ -134,7 +145,7 @@ def snr_reach(name, run_id=None, correlation_mode=None, sn_ratio_threshold=1.):
     if is_scalar:
         ga_reach = np.squeeze(ga_reach)
 
-    return ga_reach
+    return ga_reach, params
 
 
 # def snr_reach(name, r=None, nuB=1., tex=0., sn_ratio_threshold=1., nu_pivot=1., ga_ref=1.e-10, full_output=False):

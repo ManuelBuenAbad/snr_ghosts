@@ -18,7 +18,7 @@ import re
 import os
 
 import constants as ct
-from astro import model_age
+from astro import lumin, model_age
 
 # location of the data path
 data_path = os.path.dirname(os.path.abspath(__file__))+'/data/'
@@ -438,11 +438,11 @@ class SuperNovaRemnant(object):
         """
 
         if self.no_dist is False and self.no_flux is False:
-            dist = self.distance
 
+            dist = self.distance
             snu = self.snu_at_1GHz
-            lum = snu * 4.*np.pi * dist**2 * \
-                ct._Jy_over_cgs_irrad_ * (ct._kpc_over_cm_)**2
+            lum = lumin(dist, snu)
+
             self.lum = lum
         else:
             self.lum = -1  # use -1 to indicate unknown luminosity
