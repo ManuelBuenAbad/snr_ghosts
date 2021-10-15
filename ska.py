@@ -11,47 +11,47 @@ import particle as pt
 
 # Getting SKA baselines
 
-def get_baseline(r, dist_r_arr, dist_frac_arr, Ntot=None, exper_mode=None):
-    """Compute the averaged baseline distance assuming they distribute according to dist_r_arr and dist_frac_arr
+# def get_baseline(r, dist_r_arr, dist_frac_arr, Ntot=None, exper_mode=None):
+#     """Compute the averaged baseline distance assuming they distribute according to dist_r_arr and dist_frac_arr
 
-    :param r: radius from the center for telescopes whose baseline length is to be estimated
-    :param dist_r_arr: grid's radius from the center
-    :param dist_frac_arr: the distribution (of fraction of total telescopes) as a function of dist_r_arr.
-    :param Ntot: total number of telescopes
-    :param exper_mode: "SKA low" or "SKA mid"
-    :returns: the baseline length of telescopes with a distance r from the center
-    :rtype:
+#     :param r: radius from the center for telescopes whose baseline length is to be estimated
+#     :param dist_r_arr: grid's radius from the center
+#     :param dist_frac_arr: the distribution (of fraction of total telescopes) as a function of dist_r_arr.
+#     :param Ntot: total number of telescopes
+#     :param exper_mode: "SKA low" or "SKA mid"
+#     :returns: the baseline length of telescopes with a distance r from the center
+#     :rtype:
 
-    """
+#     """
 
-    fraction = np.interp(np.log10(r), np.log10(dist_r_arr), (dist_frac_arr))
-    number_of_tel = Ntot * fraction
-    B_eff = 2.*r / np.sqrt(number_of_tel)
+#     fraction = np.interp(np.log10(r), np.log10(dist_r_arr), (dist_frac_arr))
+#     number_of_tel = Ntot * fraction
+#     B_eff = 2.*r / np.sqrt(number_of_tel)
 
-    if exper_mode == "SKA mid":
-        minimal_baseline = ct._SKA1Mid_dish_diameter_
-        maximal_baseline = ct._SKA1Mid_maximal_baseline_
-    elif exper_mode == "SKA low":
-        minimal_baseline = ct._SKALow_dish_diameter_
-        maximal_baseline = ct._SKALow_maximal_baseline_
+#     if exper_mode == "SKA mid":
+#         minimal_baseline = ct._SKA1Mid_dish_diameter_
+#         maximal_baseline = ct._SKA1Mid_maximal_baseline_
+#     elif exper_mode == "SKA low":
+#         minimal_baseline = ct._SKALow_dish_diameter_
+#         maximal_baseline = ct._SKALow_maximal_baseline_
 
-    # treating the empty bins, which leads to np.inf in baseline
-    try:
-        if r < 1.e3 and number_of_tel == 0:
-            B_eff = minimal_baseline
-        if r > 1.e3 and number_of_tel == 0:
-            B_eff = maximal_baseline
-    except ValueError:
-        mask1 = np.where(number_of_tel == 0, True, False)
-        mask2 = np.where(r < 1.e3, True, False)
-        mask_small = mask1 * mask2
-        B_eff[mask_small] = minimal_baseline
+#     # treating the empty bins, which leads to np.inf in baseline
+#     try:
+#         if r < 1.e3 and number_of_tel == 0:
+#             B_eff = minimal_baseline
+#         if r > 1.e3 and number_of_tel == 0:
+#             B_eff = maximal_baseline
+#     except ValueError:
+#         mask1 = np.where(number_of_tel == 0, True, False)
+#         mask2 = np.where(r < 1.e3, True, False)
+#         mask_small = mask1 * mask2
+#         B_eff[mask_small] = minimal_baseline
 
-        mask2 = np.where(r > 1.e3, True, False)
-        mask_large = mask1 * mask2
-        B_eff[mask_large] = maximal_baseline
+#         mask2 = np.where(r > 1.e3, True, False)
+#         mask_large = mask1 * mask2
+#         B_eff[mask_large] = maximal_baseline
 
-    return B_eff
+#     return B_eff
 
 
 ##############################
@@ -60,7 +60,7 @@ def get_baseline(r, dist_r_arr, dist_frac_arr, Ntot=None, exper_mode=None):
 
 SKA_conf = {}
 
-#--------------
+# --------------
 # SKA-low
 
 path = os.path.dirname(os.path.abspath(__file__))+"/data/SKA1-low_accumu.csv"
@@ -71,25 +71,26 @@ y = SKA_conf['low'][:, 1]
 bins = np.logspace(1, 5, 20)  # bin it
 hist = np.interp(np.log10(bins), np.log10(
     x), y, left=0)  # sample at the bin edges
-dist_r_arr = bins[1:]  # get the bin edges
-dist_frac_arr = (hist[1:] - hist[:-1])  # get the distribution
-baseline_arr = get_baseline(
-    dist_r_arr, dist_r_arr=dist_r_arr, dist_frac_arr=dist_frac_arr, exper_mode="SKA low", Ntot=ct._SKALow_number_of_stations_)
-SKA_conf['low baseline distribution'] = (baseline_arr, dist_frac_arr)
-SKA_conf['low baseline cumulative'] = (baseline_arr, np.cumsum(dist_frac_arr))
+# dist_r_arr = bins[1:]  # get the bin edges
+# dist_frac_arr = (hist[1:] - hist[:-1])  # get the distribution
+# baseline_arr = get_baseline(
+#     dist_r_arr, dist_r_arr=dist_r_arr, dist_frac_arr=dist_frac_arr, exper_mode="SKA low", Ntot=ct._SKALow_number_of_stations_)
+# SKA_conf['low baseline distribution'] = (baseline_arr, dist_frac_arr)
+# SKA_conf['low baseline cumulative'] = (baseline_arr, np.cumsum(dist_frac_arr))
 
-# garbage collection to avoid errors
-SKA_conf['debug low'] = (x, y, bins, hist, dist_r_arr,
-                         dist_frac_arr, baseline_arr)
-del x
-del y
-del bins
-del hist
-del dist_r_arr
-del dist_frac_arr
-del baseline_arr
+# # garbage collection to avoid errors
+SKA_conf['debug low'] = (x, y, bins, hist)
+# SKA_conf['debug low'] = (x, y, bins, hist, dist_r_arr,
+#                          dist_frac_arr, baseline_arr)
+# del x
+# del y
+# del bins
+# del hist
+# del dist_r_arr
+# del dist_frac_arr
+# del baseline_arr
 
-#--------------
+# --------------
 # SKA-mid
 path = os.path.dirname(os.path.abspath(__file__))+"/data/SKA1-mid_accumu.csv"
 SKA_conf['mid'] = np.loadtxt(path, delimiter=',')
@@ -99,23 +100,24 @@ y = SKA_conf['mid'][:, 1]
 bins = np.logspace(1, 5, 20)  # bin it
 hist = np.interp(np.log10(bins), np.log10(
     x), y, left=0)  # sample at the bin edges
-dist_r_arr = bins[1:]  # get the bin edges
-dist_frac_arr = (hist[1:] - hist[:-1])  # get the distribution
-baseline_arr = get_baseline(
-    dist_r_arr, dist_r_arr=dist_r_arr, dist_frac_arr=dist_frac_arr, exper_mode="SKA mid", Ntot=ct._SKA1Mid_number_of_dishes_)
-SKA_conf['mid baseline distribution'] = (baseline_arr, dist_frac_arr)
-SKA_conf['mid baseline cumulative'] = (baseline_arr, np.cumsum(dist_frac_arr))
+# dist_r_arr = bins[1:]  # get the bin edges
+# dist_frac_arr = (hist[1:] - hist[:-1])  # get the distribution
+# baseline_arr = get_baseline(
+#     dist_r_arr, dist_r_arr=dist_r_arr, dist_frac_arr=dist_frac_arr, exper_mode="SKA mid", Ntot=ct._SKA1Mid_number_of_dishes_)
+# SKA_conf['mid baseline distribution'] = (baseline_arr, dist_frac_arr)
+# SKA_conf['mid baseline cumulative'] = (baseline_arr, np.cumsum(dist_frac_arr))
 
 # garbage collection to avoid errors
-SKA_conf['debug mid'] = (x, y, bins, hist, dist_r_arr,
-                         dist_frac_arr, baseline_arr)
-del x
-del y
-del bins
-del hist
-del dist_r_arr
-del dist_frac_arr
-del baseline_arr
+SKA_conf['debug mid'] = (x, y, bins, hist)
+# SKA_conf['debug mid'] = (x, y, bins, hist, dist_r_arr,
+#                          dist_frac_arr, baseline_arr)
+# del x
+# del y
+# del bins
+# del hist
+# del dist_r_arr
+# del dist_frac_arr
+# del baseline_arr
 
 
 ################
@@ -140,7 +142,6 @@ def SKA_get_active_baseline(length, exper_mode):
                     cumu_frac_arr, left=0, right=1)
     # return baseline_arr, cumu_frac_arr
     return res
-
 
 
 def SKA_exper_nu(nu):
@@ -282,3 +283,66 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
         number_of_measurements = 1e-100
 
     return area, window, Tr, Omega_res, number_of_dishes, number_of_measurements
+
+
+def get_telescope_coordinate(tel_arr, r_arr, SKA):
+    """Generate an array with coordinate of each telescope computed
+
+    :param tele_arr: the array of telescope index from 1 to (number of telescope)
+    :param radius_arr: the radius of each telescope
+    :param SKA: "low" or "mid"
+
+    """
+    if SKA == "low":
+        tel_fine_arr = np.arange(ct._SKALow_number_of_stations_)
+        r_core = ct._SKALow_r_core_
+    elif SKA == "mid":
+        tel_fine_arr = np.arange(ct._SKA1Mid_number_of_dishes_)
+        r_core = ct._SKA1Mid_r_core_
+    r_fine_arr = np.interp(tel_fine_arr, tel_arr, r_arr)
+
+    # fix see as we don't really need the randomness
+    rng = np.random.default_rng(123)
+    theta_arr = rng.random(size=len(r_fine_arr)) * np.pi * 2.
+
+    # over write the arm part
+    mask = np.where(r_fine_arr > r_core, True, False)
+    for i in tel_fine_arr:
+        # print('i=', i)
+        # print('mod i:', int(i) % 3)
+        # theta_arr[mask][int(i)] = 2. * np.pi / 3. * i % 3
+        # giving value to array[mask] won't change array
+        # if mask[int(i)] is True:
+        if r_fine_arr[int(i)] > r_core:
+            theta_arr[int(i)] = int(i) % 3 * 2. * np.pi / 3.
+            # print(theta_arr[int(i)])
+            # print(int(i) % 3 / 3)
+            # print(1./3. * int(i) % 3)
+            # print(int(i) % 3 * 2. * np.pi / 3.)
+
+    x_arr = r_fine_arr * np.cos(theta_arr)
+    y_arr = r_fine_arr * np.sin(theta_arr)
+
+    return x_arr, y_arr
+
+
+def get_baseline(x_arr, y_arr):
+    """Given array coordinates x, y, get baseline distribution
+
+    :param x_arr: x coordinate of all units
+    :param y_arr: y coordinates of all units
+
+    """
+    n_unit = len(x_arr)
+    n_baseline = int(n_unit * (n_unit - 1) / 2.)
+    baseline_arr = np.zeros((n_unit, n_unit))
+    for i in range(n_unit):
+        for j in range(n_unit):
+            # print("x[i]=%s, y[j]=%s" % (x_arr[i], y_arr[j]))
+
+            dist = np.sqrt((x_arr[i] - x_arr[j])**2 + (y_arr[i] - y_arr[j])**2)
+            baseline_arr[i, j] = dist
+            # baseline_arr[j, i] = dist
+    baseline_arr = baseline_arr.reshape(-1)
+    baseline_arr = baseline_arr[baseline_arr > 0]
+    return baseline_arr
