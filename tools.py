@@ -53,3 +53,20 @@ def zeros(fn, arr):
     cross_arr = np.array(cross_arr)
 
     return cross_arr
+
+
+
+def treat_as_arr(arg):
+    """
+    A routine to cleverly return scalars as (temporary and fake) arrays. True arrays are returned unharmed. Thanks to Chen!
+    """
+
+    arr = np.asarray(arg)
+    is_scalar = False
+
+    # making sure scalars are treated properly
+    if arr.ndim == 0: # it is really a scalar!
+        arr = arr[None] # turning scalar into temporary fake array
+        is_scalar = True # keeping track of its scalar nature
+
+    return arr, is_scalar

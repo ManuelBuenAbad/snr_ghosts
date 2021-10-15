@@ -24,7 +24,7 @@ import model as md
 
 # Making directories:
 
-folder = "./output/green_snr/"
+folder = os.path.dirname(os.path.abspath(__file__))+"/output/green_snr/"
 try:
     os.makedirs(folder)
 except:

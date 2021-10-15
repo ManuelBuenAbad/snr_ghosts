@@ -381,13 +381,13 @@ run_id = args.run
 
 # Making directories:
 try:
-    os.makedirs("./output/custom_snr/")
+    os.makedirs(os.path.dirname(os.path.abspath(__file__))+"/output/custom_snr/")
 except:
     pass
 
 
 # Creating the appropriate slice directory:
-folder = "./output/custom_snr/"+args.slice+"/"
+folder = os.path.dirname(os.path.abspath(__file__))+"/output/custom_snr/"+args.slice+"/"
 try:
     os.makedirs(folder)
 except:

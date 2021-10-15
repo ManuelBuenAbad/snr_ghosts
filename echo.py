@@ -93,13 +93,11 @@ from scipy.integrate import quad, trapz
 from scipy.interpolate import interp1d
 from scipy.special import erf, lambertw
 
+import tools as tl
 import constants as ct
 import particle as pt
 import ska as sk
 import astro as ap
-
-
-from tools import interp_fn
 
 
 # a default array of radio frequencies
@@ -496,6 +494,10 @@ def Snu_source(t, nu, source_input, output=None):
     local_source = {key: value for key, value in source_input.items()}
 
     # analyzing properties of t & nu arguments:
+    # a more sophisticated variant of the scalar --> array trick,
+    # necessary because we need to treat both t & nu as orthogonal arrays
+    # TODO: simply use a variant of tl.treat_as_arr() to turn t & nu into grids
+
     try:
         if t.ndim == 0:
             t_is_scalar = True
@@ -741,7 +743,7 @@ def Snu_echo(source_input, axion_input, data,
             "'recycle_output' is not of the form (bool, dict). Please update.")
 
     tS = np.vstack((tArr, SnuArr)).T
-    Snu_source_fn = interp_fn(tS)
+    Snu_source_fn = tl.interp_fn(tS)
     del tS
 
     # DM_profile is part of 'data' structure, or fall back to NFW

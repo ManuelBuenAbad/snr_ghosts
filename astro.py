@@ -22,11 +22,10 @@ from astropy.coordinates import SkyCoord
 from astropy.coordinates import Galactic
 # from astropy import units as u
 
+import tools as tl
 import constants as ct
 import particle as pt
 import ska as sk
-
-from tools import zeros
 
 #########################################
 # List of required parameters for the sources:
@@ -229,11 +228,16 @@ def S_cygA(nu):
     """
 
     log_res = []
-    nu_lst = np.asarray(nu) * 1.e3  # converting to MHz
-    flg_scalar = False
-    if nu_lst.ndim == 0:
-        nu_lst = nu_lst[None]
-        flg_scalar = True
+
+    nu_lst, flg_scalar = tl.treat_as_arr(nu) # scalar --> array trick
+    nu_lst *= 1.e3 # converting to MHz
+
+    # nu_lst = np.asarray(nu) * 1.e3  # converting to MHz
+    # flg_scalar = False
+    # if nu_lst.ndim == 0:
+    #     nu_lst = nu_lst[None]
+    #     flg_scalar = True
+
     for nui in nu_lst:
         if nui < 2000.:
             a = 4.695
@@ -541,7 +545,7 @@ def L_source(t, model='eff', output_pars=False, **kwargs):
                                                 t_age, gamma, 10.**Ltt)  # function to minimize
             try:
                 # NOTE: added 'np.squeeze'
-                Lt_cross = np.squeeze(zeros(fn, log10(t_arr_default)))
+                Lt_cross = np.squeeze(tl.zeros(fn, log10(t_arr_default)))
                 t_cross = 10.**Lt_cross
                 try:
                     t_trans = max(t_cross)
@@ -861,7 +865,7 @@ def model_age(R, model='estimate', M_ej=1., E_sn=1., rho0=1.):
             """
             return log10(Rb_TM99(t, t_bench, R_bench, model)) - log10(R)
 
-        age = np.squeeze(zeros(LogDelRb, t_arr_default))
+        age = np.squeeze(tl.zeros(LogDelRb, t_arr_default))
 
         return age
 
@@ -1045,13 +1049,16 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
     vec = hp.pix2vec(nside=512, ipix=pos_pix)
 
     if size is not None:
-        size = np.array(size)
+
+        size, is_scalar = tl.treat_as_arr(size) # scalar --> array trick
+
+        # size = np.array(size)
         bg_T408 = []
-        if size.ndim == 0:
-            is_scalar = True
-            size = size[None]
-        else:
-            is_scalar = False
+        # if size.ndim == 0:
+        #     is_scalar = True
+        #     size = size[None]
+        # else:
+        #     is_scalar = False
 
         if average:
             for size_val in size:
@@ -1134,12 +1141,13 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
             factor = np.array([max(x, 1) for x in sqrt(Omega_obs/Omega_res)])
         res *= factor
 
-    nu = np.array(nu)
-    if nu.ndim == 0:
-        is_scalar = True
-        # nu = nu[None]
-    else:
-        is_scalar = False
+    nu, is_scalar = tl.treat_as_arr(nu) # scalar --> array trick
+    # nu = np.array(nu)
+    # if nu.ndim == 0:
+    #     is_scalar = True
+    #     # nu = nu[None]
+    # else:
+    #     is_scalar = False
 
     if is_scalar:
         # determine what exp we are looking at
