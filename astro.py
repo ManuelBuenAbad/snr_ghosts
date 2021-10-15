@@ -155,12 +155,12 @@ def r_to_gal(x, th, r0=ct._Sun_to_gal_center_):
 
 def flux_density_to_psd(nu, Snu, Omega):
     """
-    Convert flux density S_nu to phase space density f. Returns Energy [eV] and f = S_\nu/Omega * 2*pi^2/E^3.
+    Convert flux density S_nu to phase space density f. Returns Energy [eV] and f = S_nu/Omega * 2*pi^2/E^3.
 
     Parameters
     ----------
     nu : array of the frequency [GHz]
-    Snu : array of S_\nu [Jy]
+    Snu : array of S_nu [Jy]
     Omega :  the solid angle the source subtends [sr]
     """
     Snu_in_eV3 = Snu * ct._Jy_over_eV3_
@@ -187,7 +187,7 @@ def psd_to_flux_density(E, f, Omega):
 
 def flux(nu, Snu):
     """
-    Integrate S_\nu w.r.t. nu to get S [eV^4]. Returns the flux (irradiance) [eV^4].
+    Integrate S_nu w.r.t. nu to get S [eV^4]. Returns the flux (irradiance) [eV^4].
 
     Parameters
     ----------
@@ -201,26 +201,46 @@ def flux(nu, Snu):
     return res
 
 
-def irrad(distance, Lum):
+
+def irrad(distance, lumin):
     """
     Returns the flux density (spectral irradiance) [Jy] of a source.
 
     Parameters
     ----------
     distance : distance to source [kpc]
-    Lum : spectral luminosity of source [erg * s^-1 * Hz^-1]
+    lumin : spectral luminosity of source [erg * s^-1 * Hz^-1]
     """
 
-    Area = 4.*pi * \
+    area = 4.*pi * \
         (distance*ct._kpc_over_cm_)**2.  # [cm^2] sphere covering the source
-    irrad = Lum * 1.e23 / Area  # [Jy]
+    irrad = (lumin/area) / ct._Jy_over_cgs_irrad_ # [Jy]
 
     return irrad
 
 
+
+def lumin(distance, irrad):
+    """
+    Returns the spectral luminosity [erg * s^-1 * Hz^-1] of a source.
+
+    Parameters
+    ----------
+    distance : distance to source [kpc]
+    irrad : flux density (spectral irradiance) of source [Jy]
+    """
+
+    area = 4.*pi * \
+        (distance*ct._kpc_over_cm_)**2.  # [cm^2] sphere covering the source
+    lumin = (irrad*ct._Jy_over_cgs_irrad_)*area # [erg * s^-1 * Hz^-1]
+
+    return lumin
+
+
+
 def S_cygA(nu):
     """
-    The flux density [Jy] S_\nu of Cygnus A.
+    The flux density [Jy] S_nu of Cygnus A.
 
     Parameters
     ----------
