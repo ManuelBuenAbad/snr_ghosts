@@ -79,21 +79,13 @@ snrs_age_only = dt.snrs_age_only
 very_small = 1.e-100
 
 
-def load_green_results(name, run_id=None, correlation_mode=None):
+def load_green_results(name, run_id=None):
     """
     Function that loads the numerical results for the SNRs from Green's Catalog.
     """
 
     if not name in snrs_cut.keys():
         raise ValueError("name={} not available in results.".format(name))
-
-    # correlation mode string:
-    if correlation_mode == "single dish":
-        corr_str = "_SD"
-    elif correlation_mode == "interferometry":
-        corr_str = "_IN"
-    else:
-        raise ValueError("'correlation_mode' can only be 'single dish' or 'interferometry'.")
 
     # loading lines of log file
     log_file = "run_%d_log.txt" % run_id
@@ -106,7 +98,7 @@ def load_green_results(name, run_id=None, correlation_mode=None):
 
     # loading S/N, Snu_echo, age, and t_trans results:
     folder = green_path+name+"/"
-    file = name+"_run-"+str(run_id)+corr_str+".txt"
+    file = name+"_run-"+str(run_id)+".txt"
 
     sn = np.loadtxt(folder+"sn_"+file, delimiter=",")
     echo = np.loadtxt(folder+"echo_"+file, delimiter=",")
@@ -122,12 +114,12 @@ def load_green_results(name, run_id=None, correlation_mode=None):
 
 
 
-def snr_reach(name, run_id=None, correlation_mode=None, sn_ratio_threshold=1.):
+def snr_reach(name, run_id=None, sn_ratio_threshold=1.):
     """
     Returns the discovery reach of the axion-photon coupling ga [GeV^-1] for a certain signal-to-noise ratio and SNR name.
     """
 
-    sn, _, _, _, params, log_lines = load_green_results(name, run_id=run_id, correlation_mode=correlation_mode)
+    sn, _, _, _, params, log_lines = load_green_results(name, run_id=run_id)
 
     # regularizing S/N
     sn, is_scalar = tl.treat_as_arr(sn)

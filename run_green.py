@@ -178,12 +178,7 @@ else:
 scan_ma = ((not include_free) or fixed_free)
 
 # file tail
-if correlation_mode == "single dish":
-    corr_str = "_SD"
-elif correlation_mode == "interferometry":
-    corr_str = "_IN"
-
-tail = "_run-"+str(run_id)+corr_str+".txt"
+tail = "_run-"+str(run_id)+".txt"
 
 ####################################
 # save log file for future reference
