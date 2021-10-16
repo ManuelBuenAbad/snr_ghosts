@@ -37,6 +37,11 @@ def solid_angle_to_angle(Omega):
 # TODO: remember to harden the numbers to speed up the code
 
 #
+# to avoid division by zero
+#
+_zero_ = 1e-100
+
+#
 # Unit conversion
 #
 _light_speed_ = 299792458.  # [m/s]
@@ -65,7 +70,7 @@ _m_eV_ = NaturalUnit('m*eV').val
 #
 _Sun_to_gal_center_ = 8.1  # [kpc]
 _rho_local_DM_ = 0.4  # [GeV/cm**3]
-_sigma_v_ = 0.000519026 # [c] 155.6 km/s # DM velocity dispersion
+_sigma_v_ = 0.000519026  # [c] 155.6 km/s # DM velocity dispersion
 # NFW profile
 _rs_of_MW_ = 20.  # [kpc]
 # Burkert profile 1304.5127
@@ -104,15 +109,18 @@ _mu_log10_tpk_IIb_, _sig_log10_tpk_IIb_ = 1.5, 0.6  # type IIb
 #
 _time_of_phase_two_ = 1.e4  # [year]
 _v_hom_ = 2.e7 / _light_speed_  # = 0.0667128 [c] speed of homologous expansion
-_v_TM99_ = ((0.7*3.07*_kpc_over_m_/1000.)/(0.4*423.*_year_over_s_) / _light_speed_) # = 0.0414252 [c] approximate speed during free expansion, according to TM99 (for M_ej = 1 Msun, E_sn = 1.e51 erg, and rho0 = proton_mass/cm^3)
+# = 0.0414252 [c] approximate speed during free expansion, according to TM99 (for M_ej = 1 Msun, E_sn = 1.e51 erg, and rho0 = proton_mass/cm^3)
+_v_TM99_ = ((0.7*3.07*_kpc_over_m_/1000.) /
+            (0.4*423.*_year_over_s_) / _light_speed_)
 
 
 #
 # Optimal bandwidth. N.B.: disagreement with Ghosh et al.
 #
-_tophat_width_ = 2.79997 # bandwidth of top-hat profile, in units of standard deviations, which yields optimal S/N ratio (if S is Gaussian distributed over frequency and N scales like the square root of the frequency bandwidth)
-_f_Delta_ = 0.83848 # fraction of Gaussian area contained within that tophat width
-_deltaE_over_E_ = 0.00145326 # _tophat_width_ * _sigma_v_
+# bandwidth of top-hat profile, in units of standard deviations, which yields optimal S/N ratio (if S is Gaussian distributed over frequency and N scales like the square root of the frequency bandwidth)
+_tophat_width_ = 2.79997
+_f_Delta_ = 0.83848  # fraction of Gaussian area contained within that tophat width
+_deltaE_over_E_ = 0.00145326  # _tophat_width_ * _sigma_v_
 #
 # Experiment specs
 #
@@ -161,15 +169,14 @@ _SKA1Mid_maximal_baseline_ = 150000.  # [m]
 _SKA1Mid_number_of_dishes_ = 133. + 64.
 _SKA1Mid_total_baselines_ = _SKA1Mid_number_of_dishes_ * \
     (_SKA1Mid_number_of_dishes_-1.) / 2.
-_SKA1Mid_r_core_ = 1000 # [m]
+_SKA1Mid_r_core_ = 1000  # [m]
 
 _SKALow_maximal_baseline_ = 80000.  # [m]
 _SKALow_number_of_stations_ = 512.
 _SKALow_total_baselines_ = _SKALow_number_of_stations_ * \
     (_SKALow_number_of_stations_ - 1.) / 2.
-_SKALow_r_core_ = 300 # [m]
+_SKALow_r_core_ = 300  # [m]
 
 # the value of theta_sig/theta_b at which the given baseline loses the signal
 # fudge factor */ 2
 _SKA_factor_lose_signal_ = 1.
-

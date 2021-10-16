@@ -42,7 +42,7 @@ default_source_input = {'longitude': def_l,  # [deg]
                         'gamma': ap.gamma_from_alpha(def_alpha),
                         'model': 'eff',
                         'L_today': def_L0,  # [erg * s^-1 * Hz^-1]
-                        'use_free_expansion': True, # include free expansion
+                        'use_free_expansion': True,  # include free expansion
                         't_trans': def_tt,  # [years]
                         't_peak': def_tpk  # [days]
                         }
@@ -71,7 +71,7 @@ default_data = {'deltaE_over_E': ct._deltaE_over_E_,
                 'total_observing_time': 100.,
                 'average': True,
                 'DM_profile': 'NFW',
-                'correlation_mode': 'interferometry',
+                # 'correlation_mode': 'interferometry',
                 'verbose': 0
                 }
 # I'm not setting 'correlation_mode' for now to expose and update all old code through Exceptions. After the code stabilizes we can set it to "single dish" or "interferometry".

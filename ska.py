@@ -10,51 +10,6 @@ import particle as pt
 import tools as tl
 
 
-# Getting SKA baselines
-
-# def get_baseline(r, dist_r_arr, dist_frac_arr, Ntot=None, exper_mode=None):
-#     """Compute the averaged baseline distance assuming they distribute according to dist_r_arr and dist_frac_arr
-
-#     :param r: radius from the center for telescopes whose baseline length is to be estimated
-#     :param dist_r_arr: grid's radius from the center
-#     :param dist_frac_arr: the distribution (of fraction of total telescopes) as a function of dist_r_arr.
-#     :param Ntot: total number of telescopes
-#     :param exper_mode: "SKA low" or "SKA mid"
-#     :returns: the baseline length of telescopes with a distance r from the center
-#     :rtype:
-
-#     """
-
-#     fraction = np.interp(np.log10(r), np.log10(dist_r_arr), (dist_frac_arr))
-#     number_of_tel = Ntot * fraction
-#     B_eff = 2.*r / np.sqrt(number_of_tel)
-
-#     if exper_mode == "SKA mid":
-#         minimal_baseline = ct._SKA1Mid_dish_diameter_
-#         maximal_baseline = ct._SKA1Mid_maximal_baseline_
-#     elif exper_mode == "SKA low":
-#         minimal_baseline = ct._SKALow_dish_diameter_
-#         maximal_baseline = ct._SKALow_maximal_baseline_
-
-#     # treating the empty bins, which leads to np.inf in baseline
-#     try:
-#         if r < 1.e3 and number_of_tel == 0:
-#             B_eff = minimal_baseline
-#         if r > 1.e3 and number_of_tel == 0:
-#             B_eff = maximal_baseline
-#     except ValueError:
-#         mask1 = np.where(number_of_tel == 0, True, False)
-#         mask2 = np.where(r < 1.e3, True, False)
-#         mask_small = mask1 * mask2
-#         B_eff[mask_small] = minimal_baseline
-
-#         mask2 = np.where(r > 1.e3, True, False)
-#         mask_large = mask1 * mask2
-#         B_eff[mask_large] = maximal_baseline
-
-#     return B_eff
-
-
 ##############################
 # Preparing SKA configurations
 ##############################
@@ -128,12 +83,12 @@ def SKA_get_active_baseline(length, exper_mode):
          hist_baseline_cumsum) = SKA_conf['mid baseline']
 
     res = np.interp(np.log(length_arr), np.log(bins_baseline[:-1]),
-                    hist_baseline_cumsum, left=0)
+                    hist_baseline_cumsum, left=ct._zero_)
 
     if exper_mode == "SKA low":
-        res[length_arr < ct._SKALow_station_diameter_] = 0.
+        res[length_arr < ct._SKALow_station_diameter_] = ct._zero_
     if exper_mode == "SKA mid":
-        res[length_arr < ct._SKA1Mid_dish_diameter_] = 0.
+        res[length_arr < ct._SKA1Mid_dish_diameter_] = ct._zero_
 
     if is_scalar:
         res = np.squeeze(res)
@@ -207,20 +162,20 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
             1.02*wavelength) / (theta_sig)\
             * ct._SKA_factor_lose_signal_  # fudge factor could be ~ 2 or 3 to deem the signal cannot be observed
         # get the active number of baselines
-        active_fraction_of_baselines = SKA_get_active_baseline(
+        active_number_of_baselines = SKA_get_active_baseline(
             critical_baseline_length, exper_mode='SKA low')
         # taking the resolution to be exactly the signal size
-        # penalty is taken care of through active_fraction_of_baselines
+        # penalty is taken care of through active_number_of_baselines
         theta_res = theta_sig
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
         # for interferometry mode noise has 1/sqrt(number of active baselines) factor
-        number_of_measurements = active_fraction_of_baselines
-        # assuming the fraction of baseline is the same for the fraction of stations
-        area = ct._area_ska_low_ * active_fraction_of_baselines
-        number_of_dishes = ct._area_ska_low_ / \
-            (np.pi * ct._SKALow_station_diameter_**2 / 4.) * \
-            active_fraction_of_baselines
+        number_of_measurements = active_number_of_baselines
+        # assuming all dishes/stations contribute
+        # since S and N scale the same with reception area, S/N cancels out
+        # in the end only the number of measurements (baselines) matter
+        area = ct._area_ska_low_
+        number_of_dishes = ct._SKALow_number_of_stations_
         # print("SKA-low, nu=%.1e GHz, critical_baseline=%.1em" %
         #       (nu, critical_baseline_length))
 
@@ -258,7 +213,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
         # print("SKA1-mid, nu=%.1e GHz, critical_baseline=%.1em" %
         #       (nu, critical_baseline_length))
         # get the active number of baselines
-        active_fraction_of_baselines = SKA_get_active_baseline(
+        active_number_of_baselines = SKA_get_active_baseline(
             critical_baseline_length, exper_mode='SKA mid')
         # taking the resolution to be exactly the signal size
         # penalty is taken care of through active_num_of_baselines
@@ -266,12 +221,12 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
         # for interferometry mode noise has 1/sqrt(number of active baselines) factor
-        number_of_measurements = active_fraction_of_baselines
-        # assuming the fraction of baseline is the same for the fraction of dishes
-        area = ct._area_ska_mid_ * active_fraction_of_baselines
-        number_of_dishes = ct._area_ska_mid_ / \
-            (np.pi * ct._SKA1Mid_dish_diameter_**2 / 4.) * \
-            active_fraction_of_baselines
+        number_of_measurements = active_number_of_baselines
+        # assuming all dishes/stations contribute
+        # since S and N scale the same with reception area, S/N cancels out
+        # in the end only the number of measurements (baselines) matter
+        area = ct._area_ska_mid_
+        number_of_dishes = ct._SKA1Mid_number_of_dishes_
 
     # in case the number of baselines is zero
     if number_of_measurements == 0:

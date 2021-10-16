@@ -311,6 +311,12 @@ class SuperNovaRemnant(object):
         self.is_flux_certain = False
         self.is_type_certain = False
 
+    def __repr__(self):
+        return "<SNR intance '%s'>" % self.name
+
+    def __str__(self):
+        return "<SNR intance '%s'>" % self.name
+
     def set_coord(self, l, sign, b):
         """set the snr coordinate
 
@@ -468,7 +474,8 @@ class SuperNovaRemnant(object):
         """
         if self.no_dist is False:
             dist = self.distance
-            radius = (dist * self.ang_size / 60. * np.pi/180. * ct._kpc_over_pc_)/2.
+            radius = (dist * self.ang_size / 60. *
+                      np.pi/180. * ct._kpc_over_pc_)/2.
             self.radius = radius
         else:
             self.radius = -1  # use -1 to indicate unknown diameter
@@ -698,14 +705,14 @@ def load_Green_catalogue(snr_name_arr, pathroot=data_path+'snr_website/www.mrao.
                 if m is not None:
                     if verbose > 0:
                         print('%s is suggested to be related to SN explosion at AD:%s' % (
-                        snr_name, m.group(1)))
+                            snr_name, m.group(1)))
                     snr_obj.set_age(2021 - float(m.group(1)))
                 else:
                     m = re.search('AD</SPAN>(\d\d\d).*$', line)
                     if m is not None:
                         if verbose > 0:
                             print('%s is suggested to be related to SN explosion at AD:%s' % (
-                            snr_name, m.group(1)))
+                                snr_name, m.group(1)))
                         snr_obj.set_age(2021 - float(m.group(1)))
                     # the following doesn't yield anything so skip it for now.
                     # else:
@@ -723,7 +730,7 @@ def load_Green_catalogue(snr_name_arr, pathroot=data_path+'snr_website/www.mrao.
                         if m is not None:
                             if verbose > 0:
                                 print('%s could be related to %s' %
-                                  (snr_name, m.group(1)))
+                                      (snr_name, m.group(1)))
                 # the special one, Cas A, not in standard format
                 if snr_obj.name == 'G111.7-2.1':
                     snr_obj.set_age(2021 - 1700)
@@ -739,13 +746,11 @@ def load_Green_catalogue(snr_name_arr, pathroot=data_path+'snr_website/www.mrao.
     return snrs_dct
 
 
-
 # -------------------------------------------------
 
 #######################
 # SNR GREEN'S CATALOG #
 #######################
-
 # Loading Green's catalog:
 # First let's parse snrs.list.html
 # Names:
@@ -797,10 +802,9 @@ for name, snr in snrs_dct.items():
     snrs_age[name] = snr
 
 
-
-#----------------------------------------------
+# ----------------------------------------------
 # AGE COMPUTATION
-#-----------------
+# -----------------
 
 TR_arr = []
 
@@ -815,10 +819,11 @@ for name, snr in snrs_age_only.items():
 
 TR_arr = np.array(TR_arr)
 TR_arr = np.sort(TR_arr, axis=0)
-TR_arr = TR_arr[:-1] # dropping the last one, which happens to be degenerate
+TR_arr = TR_arr[:-1]  # dropping the last one, which happens to be degenerate
 
-X = TR_arr[:,1].reshape((-1, 1)) # training sample, of shape (n_samples, n_features)
-y = TR_arr[:,0] # target values, of shape (, n_samples)
+# training sample, of shape (n_samples, n_features)
+X = TR_arr[:, 1].reshape((-1, 1))
+y = TR_arr[:, 0]  # target values, of shape (, n_samples)
 
 # fitting linear regression:
 reg_lin = LR().fit(X, y)
@@ -838,7 +843,8 @@ def lin_reg_pred(R, method='lin'):
     elif method == 'log':
         return np.squeeze(10.**reg_log.predict(log10(R_arr)))
     else:
-        raise ValueError("method={} cannot be used. Use 'lin' or 'log'".format(method))
+        raise ValueError(
+            "method={} cannot be used. Use 'lin' or 'log'".format(method))
 
 
 def age_from_radius(R, method=None, **kwargs):
