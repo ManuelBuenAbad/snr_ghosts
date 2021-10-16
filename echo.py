@@ -1028,18 +1028,6 @@ def signal(source_input, axion_input, data,
     # computing the collecting area and the frequency sensitivity window of the experiment mode
     area, window, _, _, _, _ = sk.SKA_specs(
         nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_sig)
-    # area, window, _, _, Omega_max = sk.SKA_specs(
-    #     nu, exper_mode, correlation_mode=correlation_mode)
-
-    # # cut out extended signal, due to physical size/ dispersion/ aberration
-    # if signal_Omega > Omega_max:
-    #     # print('hit')
-    #     # print('signal_Omega:%s' % signal_Omega)
-    #     # print('Omega_max:%s' % Omega_max)
-    #     is_visible = 0.
-    # else:
-    #     is_visible = 1.
-    #     # moving is_visible to routine as this method is only called once for a collection of ma
 
     # checking for recycle:
     recycle, output = recycle_output
@@ -1069,9 +1057,6 @@ def signal(source_input, axion_input, data,
     # truncate the power according to the SKA freq range window
     signal_power *= window
 
-    # # truncate the power from source of large size
-    # signal_power *= is_visible
-
     if recycle and (type(output) == dict):
 
         output['signal_nu'] = nu
@@ -1080,8 +1065,6 @@ def signal(source_input, axion_input, data,
         output['signal_Snu'] = signal_Snu
         output['signal_S_echo'] = signal_S_echo
         output['signal_power'] = signal_power
-        # output['signal_Omega_max'] = Omega_max
-        # output['signal_visible'] = is_visible
 
         # output
         if data['verbose'] > 0:
@@ -1156,12 +1139,6 @@ def noise(source_input, axion_input, data,
     average = data['average']
     correlation_mode = data['correlation_mode']
 
-    # # test
-    # print("echo.py: source_input['Omega_aberration']=%.1e" %
-    #       source_input['Omega_aberration'])
-    # print("echo.py: source_input['Omega_dispersion']=%.1e" %
-    #       source_input['Omega_dispersion'])
-
     # finding the experimental range:
     if exper == 'SKA':  # in case the range is frequency-dependent
         # could be either 'SKA low', 'SKA mid', or None, depending on frequency nu.
@@ -1177,8 +1154,6 @@ def noise(source_input, axion_input, data,
     # dlog T_noise/dlog nu ~ -beta*deltaE_over_E ~ -0.00255)
 
     # reading out the receiver's noise brightness temperature and solid angle resolution
-    # area, window, _, _, _, _ = sk.SKA_specs(
-    #     nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_sig)
     _, _, Tr, Omega_res, _, _ = sk.SKA_specs(
         nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_sig)
 

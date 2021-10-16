@@ -38,19 +38,32 @@ def zeros(fn, arr):
 
     fn_arr = fn(arr)
 
-    where_arr = np.where(np.logical_or((fn_arr[:-1] < 0.) * (fn_arr[1:] > 0.),
-                                       (fn_arr[:-1] > 0.) * (fn_arr[1:] < 0.))
-                         )[0]
-
+    # looking where the function changes sign...
+    sign_change_arr = np.where(np.logical_or((fn_arr[:-1] < 0.) * (fn_arr[1:] > 0.),
+                                             (fn_arr[:-1] > 0.) * (fn_arr[1:] < 0.))
+                              )[0]
+    
+    # or, just in case, where it is exactly 0!
+    exact_zeros_arr = np.where(fn_arr == 0.)[0]
+    
+    # defining the array of 0-crossings:
     cross_arr = []
-    if len(where_arr) > 0:
-        for i in range(len(where_arr)):
+    
+    # first, interpolating between the sign changes
+    if len(sign_change_arr) > 0:
+        for i in range(len(sign_change_arr)):
             cross_arr.append(
-                brentq(fn, arr[where_arr[i]],
-                       arr[where_arr[i] + 1])
+                brentq(fn, arr[sign_change_arr[i]],
+                       arr[sign_change_arr[i] + 1])
             )
+    
+    # and then adding those places where it is exactly 0
+    if len(exact_zeros_arr) > 0:
+        for i in range(len(exact_zeros_arr)):
+            cross_arr.append(arr[exact_zeros_arr[i]])
 
-    cross_arr = np.array(cross_arr)
+    # sorting the crossings in increasing order:
+    cross_arr = np.sort(np.array(cross_arr))
 
     return cross_arr
 
