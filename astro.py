@@ -8,7 +8,6 @@ import numpy as np
 
 from numpy import pi, sqrt, exp, power, log, log10
 from scipy.integrate import trapz
-from scipy.optimize import fsolve
 from scipy.special import erf, lambertw
 from inspect import getargspec
 
@@ -56,6 +55,7 @@ source_input = {key: source_id+pars_always+value +
 
 # default time array [years]
 t_arr_default = np.logspace(-4, 11, 50001)
+L_arr_default = np.logspace(-40, 60, 50001)
 
 # initialize the haslem map
 try:
@@ -251,12 +251,6 @@ def S_cygA(nu):
 
     nu_lst, flg_scalar = tl.treat_as_arr(nu)  # scalar --> array trick
     nu_lst *= 1.e3  # converting to MHz
-
-    # nu_lst = np.asarray(nu) * 1.e3  # converting to MHz
-    # flg_scalar = False
-    # if nu_lst.ndim == 0:
-    #     nu_lst = nu_lst[None]
-    #     flg_scalar = True
 
     for nui in nu_lst:
         if nui < 2000.:
@@ -550,8 +544,11 @@ def L_source(t, model='eff', output_pars=False, **kwargs):
 
             def LogLeff_fn(LogLpk): return log10(
                 L_eff(t_trans, L_peak=10**LogLpk, **eff_kwargs)) - log10(L_trans)
-            L_peak = 10.**fsolve(LogLeff_fn, log10(L_trans)+1.)
-            known.update({'L_peak': np.squeeze(L_peak)})
+            
+            L_peak = tl.zeros(LogLeff_fn, log10(L_arr_default))
+            L_peak = np.squeeze(10.**L_peak)
+            
+            known.update({'L_peak': L_peak})
 
         elif to_deduce == 't_trans':  # based on t_age and both today's and peak info, deduce t_trans
 
@@ -567,6 +564,7 @@ def L_source(t, model='eff', output_pars=False, **kwargs):
                 # NOTE: added 'np.squeeze'
                 Lt_cross = np.squeeze(tl.zeros(fn, log10(t_arr_default)))
                 t_cross = 10.**Lt_cross
+                
                 try:
                     t_trans = max(t_cross)
                 except:
@@ -621,10 +619,14 @@ def L_source(t, model='eff', output_pars=False, **kwargs):
                     thy_kwargs[par] = val
             # computing transition luminosity
             L_trans = L_adiab(t_trans, **adiab_kwargs)
+            
             def LogLthy_fn(LogLnorm): return log10(
                 L_thy(t_trans, L_norm=10**LogLnorm, **thy_kwargs)) - log10(L_trans)
-            L_norm = 10.**fsolve(LogLthy_fn, log10(L_trans)+1.)
-            known.update({'L_norm': np.squeeze(L_norm)})
+            
+            L_norm = tl.zeros(LogLthy_fn, log(L_arr_default))
+            L_norm = np.squeeze(10.**L_norm)
+            
+            known.update({'L_norm': L_norm})
 
     if output_pars:
         return_pars = {}
@@ -884,8 +886,13 @@ def model_age(R, model='estimate', M_ej=1., E_sn=1., rho0=1.):
             Function whose zeros we need to find in order to solve for the time [years] as a function of the radius [pc].
             """
             return log10(Rb_TM99(t, t_bench, R_bench, model)) - log10(R)
-
-        age = np.squeeze(tl.zeros(LogDelRb, t_arr_default))
+        
+        age = tl.zeros(LogDelRb, t_arr_default)
+        
+        _, is_scalar = tl.treat_as_arr(R)
+        
+        if is_scalar:
+            age = np.squeeze(age)
 
         return age
 
@@ -929,14 +936,8 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
     if size is not None:
 
         size, is_scalar = tl.treat_as_arr(size)  # scalar --> array trick
-
-        # size = np.array(size)
+        
         bg_T408 = []
-        # if size.ndim == 0:
-        #     is_scalar = True
-        #     size = size[None]
-        # else:
-        #     is_scalar = False
 
         if average:
             for size_val in size:
@@ -1020,12 +1021,6 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
         res *= factor
 
     nu, is_scalar = tl.treat_as_arr(nu)  # scalar --> array trick
-    # nu = np.array(nu)
-    # if nu.ndim == 0:
-    #     is_scalar = True
-    #     # nu = nu[None]
-    # else:
-    #     is_scalar = False
 
     if is_scalar:
         # determine what exp we are looking at
@@ -1034,6 +1029,9 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
             nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_obs)
         # convert to the noise of all dishes combined
         res *= number_of_dishes/np.sqrt(number_of_measurements)
+        
+        res = np.squeeze(res)
+        
     else:
         for i, nu_i in enumerate(nu):
             # determine what exp we are looking at

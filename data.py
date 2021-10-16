@@ -10,6 +10,7 @@ import numpy as np
 from numpy import pi, sqrt, log, log10, power, exp
 
 from sklearn.linear_model import LinearRegression as LR
+from scipy.optimize import curve_fit
 
 from astroquery.simbad import Simbad
 from astropy.coordinates import SkyCoord
