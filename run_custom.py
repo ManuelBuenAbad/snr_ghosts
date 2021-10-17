@@ -252,7 +252,10 @@ class ParamSpaceSlice2D(object):
         self.y_mesh = mesh1
         self.sig_noi_mesh = np.array(sig_noi_flat).reshape(mesh0.shape)
         self.signal_Snu_mesh = np.array(signal_Snu_flat).reshape(mesh0.shape)
-        self.blob_mesh = np.array(blob_flat).reshape(mesh0.shape)
+        try:
+            self.blob_mesh = np.array(blob_flat).reshape(mesh0.shape)
+        except ValueError:
+            self.blob_mesh = np.array([-1])
 
     def construct(self, point_dct):
         """Construct lightcurve dict and assemble the snr object. Some quantities depend on the rest. We treat the two groups separately. 
