@@ -19,6 +19,7 @@ import re
 import os
 
 import constants as ct
+import astro as ap
 from astro import lumin, model_age
 
 # location of the data path
@@ -502,6 +503,12 @@ class SuperNovaRemnant(object):
         """
         try:
             return self.alpha
+        except AttributeError:
+            return None
+
+    def get_gamma(self):
+        try:
+            return ap.gamma_from_alpha(self.alpha)
         except AttributeError:
             return None
 

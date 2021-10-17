@@ -8,6 +8,7 @@ from scipy.optimize import brentq
 
 #########################################
 
+
 def interp_fn(array):
     """
     An interpolator for log-arrays spanning many orders of magnitude.
@@ -25,7 +26,6 @@ def interp_fn(array):
     return fn
 
 
-
 def zeros(fn, arr):
     """
     Find where a function crosses 0. Returns the zeroes of the function.
@@ -41,14 +41,14 @@ def zeros(fn, arr):
     # looking where the function changes sign...
     sign_change_arr = np.where(np.logical_or((fn_arr[:-1] < 0.) * (fn_arr[1:] > 0.),
                                              (fn_arr[:-1] > 0.) * (fn_arr[1:] < 0.))
-                              )[0]
-    
+                               )[0]
+
     # or, just in case, where it is exactly 0!
     exact_zeros_arr = np.where(fn_arr == 0.)[0]
-    
+
     # defining the array of 0-crossings:
     cross_arr = []
-    
+
     # first, interpolating between the sign changes
     if len(sign_change_arr) > 0:
         for i in range(len(sign_change_arr)):
@@ -56,7 +56,7 @@ def zeros(fn, arr):
                 brentq(fn, arr[sign_change_arr[i]],
                        arr[sign_change_arr[i] + 1])
             )
-    
+
     # and then adding those places where it is exactly 0
     if len(exact_zeros_arr) > 0:
         for i in range(len(exact_zeros_arr)):
@@ -68,7 +68,6 @@ def zeros(fn, arr):
     return cross_arr
 
 
-
 def treat_as_arr(arg):
     """
     A routine to cleverly return scalars as (temporary and fake) arrays. True arrays are returned unharmed. Thanks to Chen!
@@ -78,8 +77,25 @@ def treat_as_arr(arg):
     is_scalar = False
 
     # making sure scalars are treated properly
-    if arr.ndim == 0: # it is really a scalar!
-        arr = arr[None] # turning scalar into temporary fake array
-        is_scalar = True # keeping track of its scalar nature
+    if arr.ndim == 0:  # it is really a scalar!
+        arr = arr[None]  # turning scalar into temporary fake array
+        is_scalar = True  # keeping track of its scalar nature
 
     return arr, is_scalar
+
+
+def load_dct(dct, key):
+    """Used to load and determine if dict has a key
+
+    :param dct: the dictionary to be interogated 
+    :param key: the key to be tried
+
+    """
+
+    try:
+        res = dct[key]
+        is_success = True
+    except KeyError:
+        res = None
+        is_success = False
+    return res, is_success

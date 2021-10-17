@@ -6,11 +6,13 @@ import echo as ec
 import astro as ap
 import particle as pt
 import constants as ct
+import tools as tl
 import numpy as np
 from numpy import pi, sqrt, log, log10, power, exp
 from scipy.interpolate import interp1d
 from tqdm import tqdm
 import os
+import sys
 import argparse
 
 # current directory
@@ -73,6 +75,25 @@ class ParamAxis(object):
                 'The axis you try to get point is not a scalar axis.')
         return self.points[0]
 
+    def get_min(self):
+        """Used to return the minimal point
+
+        """
+        return min(self.points)
+
+    def get_max(self):
+        """Used to return the maximal point
+
+        """
+        return max(self.points)
+
+    def get_length(self):
+        """Get the length of the axis
+
+        """
+
+        return len(self.points)
+
 
 class ParamSpaceSlice2D(object):
     """The parameter space to be scanned over
@@ -96,6 +117,17 @@ class ParamSpaceSlice2D(object):
         self.axes = axes
         self.axes_scan = axes_scan
 
+        # the following should be initizalied every time a new slice
+        # is constructed therefore it is not safe to re-use
+        # ParamSpaceSlice2D instances for different slices
+
+        # some go into the lightcurve dict
+        self.lightcurve_params = {}
+        self.snu_echo_kwargs = {}
+        # some go into the snr object
+        self.snr = dt.SuperNovaRemnant()
+        self.snr.set_name('custom')
+
     def get_dimension(self):
         return len(self.axes)
 
@@ -111,17 +143,9 @@ class ParamSpaceSlice2D(object):
         """
 
         # ref
-        ga_ref = 1.e-10  # [GeV^-1]
+        self.ga_ref = 1.e-10  # [GeV^-1]
         # Maximum number of steps:
         max_steps = 1000001
-        # (rough) number of steps in arrays:
-        Nsteps = args.Nsteps
-
-        # some go into the lightcurve dict
-        self.lightcurve_params = {}
-        # some go into the snr object
-        self.snr = dt.SuperNovaRemnant()
-        self.snr.set_name('custom')
 
         # then scan over the two axes
         axis0 = self.axes_scan[0]
@@ -130,6 +154,7 @@ class ParamSpaceSlice2D(object):
         flat0, flat1 = (mesh0.reshape(-1), mesh1.reshape(-1))
         sig_noi_flat = []
         signal_Snu_flat = []
+        blob_flat = []
 
         for i, _ in enumerate(tqdm(flat0)):
             value0 = flat0[i]
@@ -163,18 +188,21 @@ class ParamSpaceSlice2D(object):
             # print(self.lightcurve_params['t_peak'])
             age_steps = abs(
                 int(1000*(log10(self.snr.get_age()) - log10(self.lightcurve_params['t_peak']/365.)) + 1))
-            snu_echo_kwargs = {'tmin_default': None,
-                               'Nt': min(age_steps, max_steps),
-                               'xmin': ct._au_over_kpc_,
-                               'xmax_default': 100.,
-                               'use_quad': False,
-                               'lin_space': False,
-                               'Nint': min(age_steps, max_steps),
-                               't_extra_old': args.t_extra}
+            # already has t extra in it
+            self.snu_echo_kwargs.update({'tmin_default': None,
+                                         'Nt': min(age_steps, max_steps),
+                                         'xmin': ct._au_over_kpc_,
+                                         'xmax_default': 100.,
+                                         'use_quad': False,
+                                         'lin_space': False,
+                                         'Nint': min(age_steps, max_steps)
+                                         # 't_extra_old': None
+                                         })
 
             # data:
             z_arr = []
             signal_Snu_arr = []
+
             for SKA_mode in ['interferometry', 'single dish']:
                 # for SKA_mode in ['interferometry']:
                 data = {'deltaE_over_E': ct._deltaE_over_E_,
@@ -186,10 +214,10 @@ class ParamSpaceSlice2D(object):
                         'correlation_mode': SKA_mode}
 
                 # computing routine
-                z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
+                z, new_output = md.snr_routine(pt.ma_from_nu(1.), self.ga_ref,
                                                self.snr,
                                                lightcurve_params=self.lightcurve_params,
-                                               snu_echo_kwargs=snu_echo_kwargs,
+                                               snu_echo_kwargs=self.snu_echo_kwargs,
                                                data=data,
                                                output_all=True)
 
@@ -206,14 +234,28 @@ class ParamSpaceSlice2D(object):
             sig_noi_flat.append(max(z_arr))  # signal-to-noise ratio
             signal_Snu_flat.append(max(signal_Snu_arr))  # signal S_nu
 
+            try:
+                Lpk = ap.L_source(t=self.lightcurve_params['t_peak']/365.,
+                                  L_today=self.lightcurve_params['L_today'],
+                                  t_age=self.lightcurve_params['t_age'],
+                                  t_peak=self.lightcurve_params['t_peak'],
+                                  t_trans=self.lightcurve_params['t_trans'],
+                                  gamma=self.snr.get_gamma()
+                                  )
+
+                blob_flat.append(Lpk / self.from_Bieten_to_pivot)
+            except KeyError:
+                pass
+
         # save it
         self.x_mesh = mesh0
         self.y_mesh = mesh1
         self.sig_noi_mesh = np.array(sig_noi_flat).reshape(mesh0.shape)
         self.signal_Snu_mesh = np.array(signal_Snu_flat).reshape(mesh0.shape)
+        self.blob_mesh = np.array(blob_flat).reshape(mesh0.shape)
 
     def construct(self, point_dct):
-        """Construct lightcurve dict and assemble the snr object. Some quantities depend on the rest, so the order of the axes (from gen_slice) is assumed to take care of this already. 
+        """Construct lightcurve dict and assemble the snr object. Some quantities depend on the rest. We treat the two groups separately. 
 
         :param point_dct: the dictionary that contains names and values of a given single data point
 
@@ -224,21 +266,48 @@ class ParamSpaceSlice2D(object):
             args.verbose = 0
         if args.verbose > 1:
             string = ""
-            for i in enumerate(name_arr):
-                string += "%s: %.1e" % (name_arr[i], value_arr[i])
+            for name, val in point_dct.items():
+                string += "%s: %s" % (name, val)
             print(string)
 
+        #
+        # quantities that do not depend on others
+        # we only do simple ambiguity check here, as check_data() and
+        # check_input() does a much more thorough check
+        #
         # light curve
         self.lightcurve_params['t_peak'] = point_dct['t peak']
         self.nuB = point_dct['nu Bietenholz']
 
         # SNR
-        try:
-            self.snr.set_age(point_dct['t age'])
-            self.lightcurve_params['t_age'] = point_dct['t age']
-        except KeyError:
-            pass
-        # TODO: add "t extra" to save into snr
+        # t age and t extra separately
+        t_total, flag1 = tl.load_dct(point_dct, 't age total')
+        t_age, flag2 = tl.load_dct(point_dct, 't age')
+        t_extra, flag3 = tl.load_dct(point_dct, 't extra')
+
+        if flag1 and flag2 and flag3:
+            raise Exception("Ambiguity encounterred. ")
+
+        if flag1:
+            t_extra = t_total - ct._time_of_phase_two_
+            if t_extra > 0:
+                self.snr.set_age(ct._time_of_phase_two_)
+                self.lightcurve_params['t_age'] = ct._time_of_phase_two_
+                self.snu_echo_kwargs['t_extra_old'] = t_extra
+            else:
+                self.snr.set_age(t_total)
+                self.lightcurve_params['t_age'] = t_total
+                self.snu_echo_kwargs['t_extra_old'] = 0.
+        else:
+            if flag2:
+                self.snr.set_age(t_age)
+                self.lightcurve_params['t_age'] = t_age
+
+            if flag3:
+                self.snu_echo_kwargs['t_extra_old'] = t_extra
+            else:
+                self.snu_echo_kwargs['t_extra_old'] = 0.
+
         self.snr.set_coord(l=point_dct['galaxy l'], b=None, sign=None)
         self.snr.set_coord(l=None, b=point_dct['galaxy b'], sign=None)
         self.snr.set_distance(point_dct['distance'])
@@ -247,25 +316,37 @@ class ParamSpaceSlice2D(object):
         self.from_Bieten_to_pivot = (
             1./args.nuB)**(-1.*point_dct['spectral index'])
 
+        #
         # things that depends on others
+        #
         # light curve
-        self.lightcurve_params['L_peak'] = point_dct['L peak Bietenholz'] * \
-            self.from_Bieten_to_pivot
-        self.lightcurve_params['t_trans'] = point_dct['t trans over t peak'] * \
-            self.lightcurve_params['t_peak']/365.
+        value, flag = tl.load_dct(point_dct, 'L peak Bietenholz')
+        if flag:
+            self.lightcurve_params['L_peak'] = value * \
+                self.from_Bieten_to_pivot
+
+        value, flag = tl.load_dct(point_dct, 't trans over t peak')
+        if flag:
+            self.lightcurve_params['t_trans'] = value * \
+                self.lightcurve_params['t_peak']/365.
 
         # SNR
-        try:
+        S0, flg1 = tl.load_dct(point_dct, "S0")
+        L0, flg2 = tl.load_dct(point_dct, "L0")
+        if flg1 and flg2:
+            raise Exception("Ambiguity found: you specified S0 and L0.")
+
+        if flg1:
             self.snr.set_flux_density(
-                point_dct['S0'], is_flux_certain='let us assume it is certain')
-            L0 = snr.get_luminosity()  # [cgs] depends on distance
+                S0, is_flux_certain='let us assume it is certain')
+            L0 = self.snr.get_luminosity()  # [cgs] depends on distance
             self.lightcurve_params.update({'L_today': L0})
-        except KeyError:
-            pass
+        if flg2:
+            self.lightcurve_params.update({'L_today': L0})
 
 
 class Run(object):
-    """Class for a complete run. Mostly deals with I/O stuff. 
+    """Class for a complete run. Mostly deals with I/O stuff.
 
     """
 
@@ -278,11 +359,12 @@ class Run(object):
         # run id:
         if run_id is not None:
             self.run_id = run_id
-        else:
+
+        if self.run_id is None:
             import uuid
             self.run_id = str(uuid.uuid4())
 
-        print('run id:\n%s\n' % self.run_id)
+        print('%s:%s\n' % (mode, self.run_id))
         # specify mode, i.e. name of slice say 'Lpk-tpk':
         self.mode = mode
         # takes care of paths
@@ -293,15 +375,17 @@ class Run(object):
         self.param_space.scan()
         # save it
         self.export()
+        # log it
+        self.log()
 
-        return self.run_id
+        return {mode: self.run_id}
 
     def init_dir(self):
         # directory initialize
         try:
             os.makedirs(os.path.dirname(os.path.abspath(__file__)) +
                         "/output/custom_snr/")
-        except:
+        except Exception:
             pass
 
         # Creating the appropriate slice directory:
@@ -309,7 +393,7 @@ class Run(object):
             "/output/custom_snr/"+self.mode+"/"
         try:
             os.makedirs(self.folder)
-        except:
+        except Exception:
             pass
 
         # # Defining the filename
@@ -322,17 +406,68 @@ class Run(object):
         param_space = self.param_space
 
         # save grid
-        np.savetxt(self.folder+"run_%s_x.txt" %
-                   (self.run_id), param_space.x_mesh, delimiter=",")
-        np.savetxt(self.folder+"run_%s_y.txt" %
-                   (self.run_id), param_space.y_mesh, delimiter=",")
+        path = os.path.join(self.folder, "run_%s_x.txt" % (self.run_id))
+        np.savetxt(path, param_space.x_mesh, delimiter=",")
+        path = os.path.join(self.folder, "run_%s_y.txt" % (self.run_id))
+        np.savetxt(path, param_space.y_mesh, delimiter=",")
 
         # save result
         # print('shape:%s' % (param_space.sig_noi_mesh.shape,))
-        np.savetxt(self.folder+"/run_%s_sn" % self.run_id+".txt", param_space.sig_noi_mesh,
+        path = os.path.join(self.folder, "run_%s_sn.txt" % self.run_id)
+        np.savetxt(path, param_space.sig_noi_mesh,
                    delimiter=",")  # signal/noise
-        np.savetxt(self.folder+"/run_%s_echo" % self.run_id+".txt",
-                   param_space.signal_Snu_mesh, delimiter=",")  # Snu of echo signal
+        path = os.path.join(self.folder, "run_%s_echo.txt" % self.run_id)
+        np.savetxt(path, param_space.signal_Snu_mesh,
+                   delimiter=",")  # Snu of echo signal
+        path = os.path.join(self.folder, "run_%s_blob.txt" % self.run_id)
+        np.savetxt(path, param_space.blob_mesh,
+                   delimiter=",")  # Snu of echo signal
+
+    def log(self):
+        """Log the info of the run
+
+        """
+
+        path = os.path.join(self.folder, "run_%s_log.txt" % self.run_id)
+        with open(path, 'w') as f:
+            f.write('#\n#----------------------------------------BASIC LOG\n#\n')
+            f.write('#\n#-------Meta info\n#\n')
+            f.write('run_id: %s\n' % self.run_id)
+            f.write('running_mode: %s\n' % self.mode)
+            f.write('ga_ref: %e\n' % self.param_space.ga_ref)
+            # f.write('current_dir: %s\n' % current_dir)
+
+            f.write('#\n#-------SNe Remnant info\n#\n')
+            for key, entry in self.param_space.snr.__dict__.items():
+                f.write('%s: %s\n' % (key, entry))
+
+            f.write('#\n#-------lightcurve info\n#\n')
+            for key, entry in self.param_space.lightcurve_params.items():
+                f.write('%s: %s\n' % (key, entry))
+
+            f.write('#\n#-------snu_echo_kwargs info\n#\n')
+            for key, entry in self.param_space.snu_echo_kwargs.items():
+                f.write('%s: %s\n' % (key, entry))
+
+            f.write('#\n#----------------------------------------VERBOSE LOG\n#\n')
+            for i, axis in enumerate(self.param_space.axes):
+                if axis.is_scan() is False:
+                    name = axis.get_name()
+                    value = axis.get_point()
+                    f.write('axis %d; %s: %s\n' % (i, name, value))
+            for axis in self.param_space.axes_scan:
+                name = axis.get_name()
+                value_min = axis.get_min()
+                value_max = axis.get_max()
+                length = axis.get_length()
+                f.write('long axis; %s: from %e to %e, with %d sample points\n' % (
+                    name, value_min, value_max, length))
+
+            f.write(
+                '#\n#----------------------------------------VERY VERBOSE LOG\n#\n')
+            f.write('#\n#-------detailed log of all inputs\n#\n')
+            for key, entry in vars(args).items():
+                f.write('%s: %s\n' % (key, entry))
 
 
 def gen_slice(slice_mode):
@@ -343,6 +478,7 @@ def gen_slice(slice_mode):
     """
 
     axes = []
+    # CASE 1:
     if slice_mode == "Lpk-tpk":
         # Defining the arrays
         Nsigs = 3.  # number of standard deviations from the Bietenholz's mean to scan
@@ -384,16 +520,331 @@ def gen_slice(slice_mode):
         axis = ParamAxis("t trans over t peak", args.tt_ratio)
         axes.append(axis)
 
-        param_space = ParamSpaceSlice2D(axes)
+    # CASE 2:
+    elif slice_mode == "tsig-r":
+        axis = ParamAxis("t age",
+                         x0=10.*(args.tpk/365.),
+                         x1=1.e4,
+                         steps=args.Nsteps+1,
+                         is_log=True)
+        axes.append(axis)
+        axis = ParamAxis("t trans over t peak",
+                         x0=10,
+                         x1=100,
+                         steps=args.Nsteps+2,
+                         is_log=False)
+        axes.append(axis)
+        axis = ParamAxis("square radians", args.sr)
+        axes.append(axis)
+        axis = ParamAxis("spectral index", args.alpha)
+        axes.append(axis)
+        axis = ParamAxis("galaxy l", args.coords[0])
+        axes.append(axis)
+        axis = ParamAxis("galaxy b", args.coords[1])
+        axes.append(axis)
+        axis = ParamAxis("distance", args.distance)
+        axes.append(axis)
 
-        return param_space
+        # light curve params
+        # i'm making nuB also a param here, in case we also want to slice it later
+        axis = ParamAxis("nu Bietenholz", args.nuB)
+        axes.append(axis)
+        # axis = ParamAxis("t trans over t peak", args.tt_ratio)
+        # axes.append(axis)
+        axis = ParamAxis("L peak Bietenholz", args.Lpk)
+        axes.append(axis)
+        axis = ParamAxis("t peak", args.tpk)
+        axes.append(axis)
+        # axis = ParamAxis("t age", args.t_signal)
+        # axes.append(axis)
 
+    # CASE 3:
+    elif slice_mode == "tex-r":
+        axis = ParamAxis("t extra",
+                         x0=1.e3,
+                         x1=1.e5,
+                         steps=args.Nsteps+1,
+                         is_log=True)
+        axes.append(axis)
+        axis = ParamAxis("t trans over t peak",
+                         x0=10,
+                         x1=100,
+                         steps=args.Nsteps+2,
+                         is_log=False)
+        axes.append(axis)
+        axis = ParamAxis("square radians", args.sr)
+        axes.append(axis)
+        axis = ParamAxis("spectral index", args.alpha)
+        axes.append(axis)
+        axis = ParamAxis("galaxy l", args.coords[0])
+        axes.append(axis)
+        axis = ParamAxis("galaxy b", args.coords[1])
+        axes.append(axis)
+        axis = ParamAxis("distance", args.distance)
+        axes.append(axis)
 
-# def scan(param_space):
-#     # do the scan
-#     param_space.scan()
+        # light curve params
+        # i'm making nuB also a param here, in case we also want to slice it later
+        axis = ParamAxis("nu Bietenholz", args.nuB)
+        axes.append(axis)
+        # axis = ParamAxis("t trans over t peak", args.tt_ratio)
+        # axes.append(axis)
+        axis = ParamAxis("L peak Bietenholz", args.Lpk)
+        axes.append(axis)
+        axis = ParamAxis("t peak", args.tpk)
+        axes.append(axis)
+        axis = ParamAxis("t age", args.t_signal)
+        axes.append(axis)
 
-#     # save it
+    # CASE 4:
+    elif slice_mode == "l-D":
+        axis = ParamAxis("galaxy l",
+                         x0=0.,
+                         x1=360.,
+                         steps=args.Nsteps+1,
+                         is_log=False)
+        axes.append(axis)
+        axis = ParamAxis("distance",
+                         x0=0.1,
+                         x1=3.,
+                         steps=args.Nsteps+2,
+                         is_log=True)
+        axes.append(axis)
+        axis = ParamAxis("square radians", args.sr)
+        axes.append(axis)
+        axis = ParamAxis("spectral index", args.alpha)
+        axes.append(axis)
+        # axis = ParamAxis("galaxy l", args.coords[0])
+        # axes.append(axis)
+        axis = ParamAxis("galaxy b", args.coords[1])
+        axes.append(axis)
+        # axis = ParamAxis("distance", args.distance)
+        # axes.append(axis)
+
+        # light curve params
+        # i'm making nuB also a param here, in case we also want to slice it later
+        axis = ParamAxis("nu Bietenholz", args.nuB)
+        axes.append(axis)
+        axis = ParamAxis("t extra", args.t_extra)
+        axes.append(axis)
+        axis = ParamAxis("t trans over t peak", args.tt_ratio)
+        axes.append(axis)
+        axis = ParamAxis("L peak Bietenholz", args.Lpk)
+        axes.append(axis)
+        axis = ParamAxis("t peak", args.tpk)
+        axes.append(axis)
+        axis = ParamAxis("t age", args.t_signal)
+        axes.append(axis)
+
+    # CASE 5:
+    elif slice_mode == "l-b":
+        axis = ParamAxis("galaxy l",
+                         x0=0.,
+                         x1=360.,
+                         steps=args.Nsteps+1,
+                         is_log=False)
+        axes.append(axis)
+        axis = ParamAxis("galaxy b",
+                         x0=-90.,
+                         x1=90.,
+                         steps=args.Nsteps+2,
+                         is_log=False)
+        axes.append(axis)
+        axis = ParamAxis("square radians", args.sr)
+        axes.append(axis)
+        axis = ParamAxis("spectral index", args.alpha)
+        axes.append(axis)
+        # axis = ParamAxis("galaxy l", args.coords[0])
+        # axes.append(axis)
+        # axis = ParamAxis("galaxy b", args.coords[1])
+        # axes.append(axis)
+        axis = ParamAxis("distance", args.distance)
+        axes.append(axis)
+
+        # light curve params
+        # i'm making nuB also a param here, in case we also want to slice it later
+        axis = ParamAxis("nu Bietenholz", args.nuB)
+        axes.append(axis)
+        axis = ParamAxis("t extra", args.t_extra)
+        axes.append(axis)
+        axis = ParamAxis("t trans over t peak", args.tt_ratio)
+        axes.append(axis)
+        axis = ParamAxis("L peak Bietenholz", args.Lpk)
+        axes.append(axis)
+        axis = ParamAxis("t peak", args.tpk)
+        axes.append(axis)
+        axis = ParamAxis("t age", args.t_signal)
+        axes.append(axis)
+
+    # CASE 6:
+    # this total age case will be caught automatically by constructor
+    # DONE: add 't total age' to the constructor
+    elif slice_mode == "t-D":
+        axis = ParamAxis("t age total",
+                         x0=10.*(args.tpk/365.),
+                         x1=1.e5,
+                         steps=args.Nsteps+1,
+                         is_log=True)
+        axes.append(axis)
+        axis = ParamAxis("distance",
+                         x0=0.1,
+                         x1=3.,
+                         steps=args.Nsteps+2,
+                         is_log=True)
+        axes.append(axis)
+        axis = ParamAxis("square radians", args.sr)
+        axes.append(axis)
+        axis = ParamAxis("spectral index", args.alpha)
+        axes.append(axis)
+        axis = ParamAxis("galaxy l", args.coords[0])
+        axes.append(axis)
+        axis = ParamAxis("galaxy b", args.coords[1])
+        axes.append(axis)
+        # axis = ParamAxis("distance", args.distance)
+        # axes.append(axis)
+
+        # light curve params
+        axis = ParamAxis("nu Bietenholz", args.nuB)
+        axes.append(axis)
+        # axis = ParamAxis("t extra", args.t_extra)
+        # axes.append(axis)
+        axis = ParamAxis("t trans over t peak", args.tt_ratio)
+        axes.append(axis)
+        axis = ParamAxis("L peak Bietenholz", args.Lpk)
+        axes.append(axis)
+        axis = ParamAxis("t peak", args.tpk)
+        axes.append(axis)
+        # axis = ParamAxis("t age", args.t_signal)
+        # axes.append(axis)
+
+    # CASE 7:
+    # this total age case will be caught automatically by constructor
+    elif slice_mode == "l-t":
+        axis = ParamAxis("galaxy l",
+                         x0=0.,
+                         x1=360.,
+                         steps=args.Nsteps+1,
+                         is_log=False)
+        axes.append(axis)
+        axis = ParamAxis("t age total",
+                         x0=10.*(args.tpk/365.),
+                         x1=1.e5,
+                         steps=args.Nsteps+2,
+                         is_log=True)
+        axes.append(axis)
+        axis = ParamAxis("square radians", args.sr)
+        axes.append(axis)
+        axis = ParamAxis("spectral index", args.alpha)
+        axes.append(axis)
+        # axis = ParamAxis("galaxy l", args.coords[0])
+        # axes.append(axis)
+        axis = ParamAxis("galaxy b", args.coords[1])
+        axes.append(axis)
+        axis = ParamAxis("distance", args.distance)
+        axes.append(axis)
+
+        # light curve params
+        axis = ParamAxis("nu Bietenholz", args.nuB)
+        axes.append(axis)
+        # axis = ParamAxis("t extra", args.t_extra)
+        # axes.append(axis)
+        axis = ParamAxis("t trans over t peak", args.tt_ratio)
+        axes.append(axis)
+        axis = ParamAxis("L peak Bietenholz", args.Lpk)
+        axes.append(axis)
+        axis = ParamAxis("t peak", args.tpk)
+        axes.append(axis)
+        # axis = ParamAxis("t age", args.t_signal)
+        # axes.append(axis)
+
+    # CASE 8:
+    # this total age case will be caught automatically by constructor
+    elif slice_mode == "t-b":
+        axis = ParamAxis("t age total",
+                         x0=10.*(args.tpk/365.),
+                         x1=1.e5,
+                         steps=args.Nsteps+1,
+                         is_log=True)
+
+        axes.append(axis)
+        axis = ParamAxis("galaxy b",
+                         x0=-90.,
+                         x1=90.,
+                         steps=args.Nsteps+2,
+                         is_log=False)
+        axes.append(axis)
+
+        axis = ParamAxis("square radians", args.sr)
+        axes.append(axis)
+        axis = ParamAxis("spectral index", args.alpha)
+        axes.append(axis)
+        axis = ParamAxis("galaxy l", args.coords[0])
+        axes.append(axis)
+        # axis = ParamAxis("galaxy b", args.coords[1])
+        # axes.append(axis)
+        axis = ParamAxis("distance", args.distance)
+        axes.append(axis)
+
+        # light curve params
+        axis = ParamAxis("nu Bietenholz", args.nuB)
+        axes.append(axis)
+        # axis = ParamAxis("t extra", args.t_extra)
+        # axes.append(axis)
+        axis = ParamAxis("t trans over t peak", args.tt_ratio)
+        axes.append(axis)
+        axis = ParamAxis("L peak Bietenholz", args.Lpk)
+        axes.append(axis)
+        axis = ParamAxis("t peak", args.tpk)
+        axes.append(axis)
+        # axis = ParamAxis("t age", args.t_signal)
+        # axes.append(axis)
+
+    # CASE 9:
+    # this total age case will be caught automatically by constructor
+    elif slice_mode == "t-S0":
+        axis = ParamAxis("t age total",
+                         x0=10.*(args.tpk/365.),
+                         x1=1.e5,
+                         steps=args.Nsteps+1,
+                         is_log=True)
+
+        axes.append(axis)
+        axis = ParamAxis("S0",
+                         x0=1.e-5,
+                         x1=1.e5,
+                         steps=args.Nsteps+2,
+                         is_log=True)
+        axes.append(axis)
+
+        axis = ParamAxis("square radians", args.sr)
+        axes.append(axis)
+        axis = ParamAxis("spectral index", args.alpha)
+        axes.append(axis)
+        axis = ParamAxis("galaxy l", args.coords[0])
+        axes.append(axis)
+        axis = ParamAxis("galaxy b", args.coords[1])
+        axes.append(axis)
+        axis = ParamAxis("distance", args.distance)
+        axes.append(axis)
+
+        # light curve params
+        axis = ParamAxis("nu Bietenholz", args.nuB)
+        axes.append(axis)
+        # axis = ParamAxis("t extra", args.t_extra)
+        # axes.append(axis)
+        axis = ParamAxis("t trans over t peak", args.tt_ratio)
+        axes.append(axis)
+        # axis = ParamAxis("L peak Bietenholz", args.Lpk)
+        # axes.append(axis)
+        axis = ParamAxis("t peak", args.tpk)
+        axes.append(axis)
+        # axis = ParamAxis("t age", args.t_signal)
+        # axes.append(axis)
+
+    # generate 2D parameter space
+    param_space = ParamSpaceSlice2D(axes)
+
+    return param_space
 
 
 # -------------------------------------------------
@@ -720,1394 +1171,11 @@ if __name__ == "__main__":
         print("Parameter slice: ", args.slice)
         print("Arguments: ", args._get_kwargs())
 
-    # Need nuB!
-    if args.nuB == None:
-        raise Exception(
-            "Please pass a float value for the Bietenholz frequency --nuB [GHz].")
-    if args.Nsteps == None:
-        raise Exception(
-            "Please pass an int value for the number of steps --Nsteps.")
-
-    if args.slice in ["Lpk-tpk", "tex-r", "l-D", "l-b"]:
-        if args.S0 != None and args.t_signal != None:
-            raise Exception(
-                "Cannot pass both --S0 and --t_signal. One is solved in terms of the other. Pick one.")
-        if args.S0 == None and args.t_signal == None:
-            raise Exception(
-                "Need to pass either --S0 and --t_signal. Pick one.")
-        if args.S0 != None and args.t_signal == None:
-            flg_s, flg_t = True, False
-        elif args.S0 == None and args.t_signal != None:
-            flg_s, flg_t = False, True
-
     # Defining the Run ID variable
     run_id = args.run
 
     # -------------------------------------------------
 
-    ###########################
-    # DIRECTORIES & FILE NAME #
-    ###########################
-
-    # Making directories:
-    try:
-        os.makedirs(os.path.dirname(os.path.abspath(__file__)) +
-                    "/output/custom_snr/")
-    except:
-        pass
-
-    # Creating the appropriate slice directory:
-    folder = os.path.dirname(os.path.abspath(__file__)) + \
-        "/output/custom_snr/"+args.slice+"/"
-    try:
-        os.makedirs(folder)
-    except:
-        pass
-
-    # Defining the filename
-    filename = "custom_"+args.slice
-
-    if args.verbose:
-        print(filename)
-
-    # -------------------------------------------------
-
-    ############
-    # ROUTINES #
-    ############
-
-    # Defining a custom SNR
-    snr = dt.SuperNovaRemnant()
-
-    snr.set_name('custom')
-    snr.set_spectral(args.alpha, is_certain='yes')
-    snr.set_sr(args.sz)
-
-    # Defining some useful quantities:
-    # Sedov-Taylor analytic formula for adiabatic expansion index:
-    gamma = ap.gamma_from_alpha(args.alpha)
-    # Correction from the fact that the Bietenholz frequency is not the pivot frequency [1 GHz]:
-    from_Bieten_to_pivot = (1./args.nuB)**-args.alpha
-    # Axion fixed params:
-    ga_ref = 1.e-10  # [GeV^-1]
-    # A small number:
-    ridiculous = 1.e-100
-    # Maximum number of steps:
-    max_steps = 1000001
-
-    # (rough) number of steps in arrays:
-    Nsteps = args.Nsteps
-
-    # TODO: for each slice perform the parameter scan routine
-
-    # A slice parA-parB denotes the x-y axis; x-array will have Nsteps+1 points, while y-array will have Nsteps+2 points.
-    # Obviously, we need to start with the y-array (rows) and then proceed to the x-array (columns) for easier plotting
-
-    # CASE 1:
-    if args.slice == "Lpk-tpk":
-        # Defining the arrays
-        Nsigs = 3.  # number of standard deviations from the Bietenholz's mean to scan
-        # x-array:
-        Lpk_arr = np.logspace(ct._mu_log10_Lpk_-Nsigs*ct._sig_log10_Lpk_,
-                              ct._mu_log10_Lpk_+Nsigs*ct._sig_log10_Lpk_, Nsteps+1)
-        # y-array:
-        tpk_arr = np.logspace(ct._mu_log10_tpk_-Nsigs*ct._sig_log10_tpk_,
-                              ct._mu_log10_tpk_+Nsigs*ct._sig_log10_tpk_, Nsteps+2)
-        new_Lpk_arr = np.copy(Lpk_arr)  # copying peak luminosity array
-        # correcting L_peak by switching from the Bietenholz to the pivot frequencies
-        new_Lpk_arr *= from_Bieten_to_pivot
-
-        # Saving arrays
-        np.savetxt(folder+"run_%d_Lpk_arr_x.txt" % run_id, Lpk_arr)
-        np.savetxt(folder+"run_%d_tpk_arr_y.txt" % run_id, tpk_arr)
-
-####################
-        # Updating SNR parameters:
-        snr.set_coord(l=args.coords[0], b=args.coords[1], sign=None)
-        snr.set_distance(args.distance)  # no_dist will be off automatically
-
-        area = 4.*pi*(snr.distance*ct._kpc_over_cm_)**2.  # [cm^2]
-
-        if flg_t:
-            snr.set_age(args.t_signal)
-
-        elif flg_s:
-            snr.set_flux_density(
-                args.S0, is_flux_certain='let us assume it is certain')
-            L0 = snr.get_luminosity()  # [cgs]
-
-        # Result grids:
-        sn_Gr = []
-        snu_Gr = []
-        if flg_s:
-            tsig_Gr = []
-        elif flg_t:
-            s0_Gr = []
-
-        # Commence the routine:
-        # y-array:
-        for tpk in tqdm(tpk_arr):
-
-            t_trans = args.tt_ratio*(tpk/365.)
-
-            row_a, row_b, row_c = [], [], []
-
-            # x-array:
-            for new_Lpk in new_Lpk_arr:
-
-                try:
-
-                    lightcurve_params = {'t_peak': tpk,
-                                         'L_peak': new_Lpk,
-                                         't_trans': t_trans}
-
-                    if flg_t:
-                        # Updating lightcurve parameters
-                        t_signal = args.t_signal
-                        lightcurve_params.update({'t_age': t_signal})
-                        # Computing L0 and S0
-                        local_source = {'gamma': gamma, 't_age': t_signal,
-                                        'L_peak': new_Lpk, 't_peak': tpk, 't_trans': t_trans}
-                        L0 = ap.L_source(t_signal, **local_source)  # [cgs]
-                        S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
-
-                    elif flg_s:
-                        # Computing t_age
-                        t_signal = ap.tage_compute(
-                            new_Lpk, tpk, t_trans, L0, gamma)
-                        # Updating lightcurve parameters
-                        lightcurve_params.update({'L_today': L0})
-
-    #                 # Skipping non-sensical parameters:
-    #                 if L0 > new_Lpk:  # non-sensical luminosities
-    #                     continue
-    #                 if t_signal < t_trans:  # non-sensical t_trans (i.e. tpk)
-    #                     continue
-
-                    # Snu kwargs
-                    age_steps = abs(
-                        int(1000*(log10(t_signal) - log10(tpk/365.)) + 1))
-                    snu_echo_kwargs = {'tmin_default': None,
-                                       'Nt': min(age_steps, max_steps),
-                                       'xmin': ct._au_over_kpc_,
-                                       'xmax_default': 100.,
-                                       'use_quad': False,
-                                       'lin_space': False,
-                                       'Nint': min(age_steps, max_steps),
-                                       't_extra_old': args.t_extra}
-
-                    # data:
-                    z_arr = []
-                    signal_Snu_arr = []
-                    for SKA_mode in ['interferometry', 'single dish']:
-                        data = {'deltaE_over_E': ct._deltaE_over_E_,
-                                'f_Delta': ct._f_Delta_,
-                                'exper': 'SKA',
-                                'total_observing_time': 100.,
-                                'verbose': 0,
-                                'average': True,
-                                'correlation_mode': SKA_mode}
-
-                        # computing routine
-                        z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
-                                                       snr,
-                                                       lightcurve_params=lightcurve_params,
-                                                       snu_echo_kwargs=snu_echo_kwargs,
-                                                       data=data,
-                                                       output_all=True)
-
-                        signal_Snu = new_output['signal_Snu']
-                        if args.verbose:
-                            print("S/N=%.1e, S=%.1e, N=%.1e (%s)" %
-                                  (z, new_output['signal_power'], new_output['noise_power'], SKA_mode))
-                        del new_output
-
-                        z_arr.append(np.squeeze(z))
-                        signal_Snu_arr.append(np.squeeze(signal_Snu))
-
-                    # building rows
-                    row_a.append(max(z_arr))  # signal-to-noise ratio
-                    row_b.append(max(signal_Snu_arr))  # signal S_nu
-                    if flg_t:
-                        row_c.append(S0)  # S0
-                    elif flg_s:
-                        row_c.append(t_signal)  # t_signal
-
-                except:
-                    # first raise to check what was the exception
-                    raise
-                    # if it's benign, go ahead and get ridiculous
-                    # nonsense results; append some ridiculous value
-                    # row_a.append(ridiculous)
-                    # row_b.append(ridiculous)
-                    # row_c.append(ridiculous)
-
-                # end of routine for fixed Lpk
-
-            # appending finished Lpk rows
-            sn_Gr.append(row_a)
-            snu_Gr.append(row_b)
-            if flg_t:
-                s0_Gr.append(row_c)
-            elif flg_s:
-                tsig_Gr.append(row_c)
-
-            # end of routine for fixed tpk
-
-        # converting grids to arrays
-        sn_Gr = np.array(sn_Gr)
-        snu_Gr = np.array(snu_Gr)
-        if flg_t:
-            s0_Gr = np.array(s0_Gr)
-        if flg_s:
-            tsig_Gr = np.array(tsig_Gr)
-
-        # saving grids
-        np.savetxt(folder+"/run_%d_sn_" % run_id + filename+".txt", sn_Gr,
-                   delimiter=",", fmt="%s")  # signal/noise
-        np.savetxt(folder+"/run_%d_echo_" % run_id+filename+".txt",
-                   snu_Gr, delimiter=",", fmt="%s")  # Snu of echo signal
-        if flg_t:
-            np.savetxt(folder+"/run_%d_s0_" % run_id + filename+".txt", s0_Gr,
-                       delimiter=",", fmt="%s")  # S0
-        if flg_s:
-            np.savetxt(folder+"/run_%d_tsig_" % run_id+filename+".txt", tsig_Gr,
-                       delimiter=",", fmt="%s")  # t signal
-
-        # end of Lpk-tpk routine
-
-    # CASE 2:
-    elif args.slice == "tsig-r":
-        # Defining the arrays
-        # x-array:
-        tsig_arr = np.logspace(log10(10.*(args.tpk/365.)), 4., Nsteps+1)
-        # y-array:
-        ratio_arr = np.linspace(10., 100., Nsteps+2)
-
-        # Saving arrays
-        np.savetxt(folder+"run_%d_tsig_arr_x.txt" % run_id, tsig_arr)
-        np.savetxt(folder+"run_%d_ratio_arr_y.txt" % run_id, ratio_arr)
-
-        # New L_peak (corrected from Bietenholz frequency to to 1 GHz):
-        new_Lpk = args.Lpk*from_Bieten_to_pivot
-
-#########################
-        # Updating SNR parameters:
-        snr.set_coord(l=args.coords[0], b=args.coords[1], sign=None)
-        snr.set_distance(args.distance)  # no_dist will be off automatically
-
-        area = 4.*pi*(snr.distance*ct._kpc_over_cm_)**2.  # [cm^2]
-
-        # Result grids:
-        sn_Gr = []
-        snu_Gr = []
-        s0_Gr = []
-
-        # Commence the routine:
-        # y-array:
-        for tt_ratio in tqdm(ratio_arr):
-
-            t_trans = tt_ratio*(args.tpk/365.)
-
-            row_a, row_b, row_c = [], [], []
-
-            # x-array:
-            for t_signal in tsig_arr:
-
-                try:
-                    # defining lightcurve parameters:
-                    lightcurve_params = {'t_peak': args.tpk,
-                                         'L_peak': new_Lpk,
-                                         't_trans': t_trans,
-                                         't_age': t_signal}
-
-                    # computing L0 and S0
-                    local_source = {'gamma': gamma, 't_age': t_signal,
-                                    'L_peak': new_Lpk, 't_peak': args.tpk, 't_trans': t_trans}
-                    L0 = ap.L_source(t_signal, **local_source)  # [cgs]
-                    S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
-                    snr.set_age(t_signal)
-                    snr.set_flux_density(S0)
-
-                    # Snu kwargs
-                    age_steps = abs(
-                        int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
-                    snu_echo_kwargs = {'tmin_default': None,
-                                       'Nt': min(age_steps, max_steps),
-                                       'xmin': ct._au_over_kpc_,
-                                       'xmax_default': 100.,
-                                       'use_quad': False,
-                                       'lin_space': False,
-                                       'Nint': min(age_steps, max_steps),
-                                       't_extra_old': args.t_extra}
-
-                    # data:
-                    z_arr = []
-                    signal_Snu_arr = []
-                    for SKA_mode in ['interferometry', 'single dish']:
-                        data = {'deltaE_over_E': ct._deltaE_over_E_,
-                                'f_Delta': ct._f_Delta_,
-                                'exper': 'SKA',
-                                'total_observing_time': 100.,
-                                'verbose': 0,
-                                'average': True,
-                                'correlation_mode': SKA_mode}
-
-                        # computing routine
-                        z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
-                                                       snr,
-                                                       lightcurve_params=lightcurve_params,
-                                                       snu_echo_kwargs=snu_echo_kwargs,
-                                                       data=data,
-                                                       output_all=True)
-
-                        signal_Snu = new_output['signal_Snu']
-                        if args.verbose:
-                            print("S/N=%.1e, S=%.1e, N=%.1e (%s)" %
-                                  (z, new_output['signal_power'], new_output['noise_power'], SKA_mode))
-                        del new_output
-
-                        z_arr.append(np.squeeze(z))
-                        signal_Snu_arr.append(np.squeeze(signal_Snu))
-
-                    # building rows
-                    row_a.append(max(z_arr))  # signal-to-noise ratio
-                    row_b.append(max(signal_Snu_arr))  # signal S_nu
-                    row_b.append(signal_Snu)  # signal S_nu
-                    row_c.append(S0)  # S0
-
-                except:
-                    # nonsense results; append some ridiculous value
-                    row_a.append(ridiculous)
-                    row_b.append(ridiculous)
-                    row_c.append(ridiculous)
-
-                # end of routine for fixed t_signal
-
-            # appending finished t_signal rows
-            sn_Gr.append(row_a)
-            snu_Gr.append(row_b)
-            s0_Gr.append(row_c)
-
-            # end of routine for fixed tt_ratio
-
-        # converting grids to arrays
-        sn_Gr = np.array(sn_Gr)
-        snu_Gr = np.array(snu_Gr)
-        s0_Gr = np.array(s0_Gr)
-
-        # saving grids
-        np.savetxt(folder+"/run_%d_sn_" %
-                   run_id + filename+".txt", sn_Gr, delimiter=",")
-        np.savetxt(folder+"/run_%d_echo_" %
-                   run_id+filename+".txt", snu_Gr, delimiter=",")
-        np.savetxt(folder+"/run_%d_s0_" %
-                   run_id+filename+".txt", s0_Gr, delimiter=",")
-
-        print(len(sn_Gr))
-
-        # end of tsig-r routine
-
-    # CASE 3:
-    elif args.slice == "tex-r":
-        # Defining the arrays
-        # x-array:
-        tex_arr = np.logspace(3, 5., Nsteps+1)
-        # y-array:
-        ratio_arr = np.logspace(1., 2., Nsteps+2)
-
-        # Saving arrays
-        np.savetxt(folder+"run_%d_tex_arr_x.txt" % run_id, tex_arr)
-        np.savetxt(folder+"run_%d_ratio_arr_y.txt" % run_id, ratio_arr)
-
-        # New L_peak (corrected from Bietenholz frequency to to 1 GHz):
-        new_Lpk = args.Lpk*from_Bieten_to_pivot
-
-        # Updating SNR parameters:
-        snr.set_coord(l=args.coords[0], b=args.coords[1], sign=None)
-        snr.set_distance(args.distance)  # no_dist will be off automatically
-
-        area = 4.*pi*(snr.distance*ct._kpc_over_cm_)**2.  # [cm^2]
-
-        if flg_t:
-            snr.set_age(args.t_signal)
-
-        elif flg_s:
-            snr.set_flux_density(args.S0)
-            L0 = snr.get_luminosity()  # [cgs]
-
-        # Result grids:
-        sn_Gr = []
-        snu_Gr = []
-        if flg_s:
-            tsig_Gr = []
-        elif flg_t:
-            s0_Gr = []
-
-        # y-array:
-        for tt_ratio in tqdm(ratio_arr):
-
-            t_trans = tt_ratio*(args.tpk/365.)
-
-            # defining lightcurve parameters:
-            lightcurve_params = {'t_peak': args.tpk,
-                                 'L_peak': new_Lpk,
-                                 't_trans': t_trans}
-
-            if flg_t:
-                # Updating lightcurve parameters
-                t_signal = args.t_signal
-                lightcurve_params.update({'t_age': t_signal})
-                # Computing L0 and S0
-                local_source = {'gamma': gamma, 't_age': t_signal,
-                                'L_peak': new_Lpk, 't_peak': args.tpk, 't_trans': t_trans}
-                L0 = ap.L_source(t_signal, **local_source)  # [cgs]
-                S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
-                # Appending rows
-                s0_Gr.append(S0*np.ones_like(tex_arr))  # S0
-
-            elif flg_s:
-                # Computing t_age
-                t_signal = ap.tage_compute(
-                    new_Lpk, args.tpk, t_trans, L0, gamma)
-                # Updating lightcurve parameters
-                lightcurve_params.update({'L_today': L0})
-                # Appending rows
-                tsig_Gr.append(t_signal*np.ones_like(tex_arr))  # t_signal
-
-    #         # Skipping non-sensical parameters:
-    #         if L0 > new_Lpk:  # non-sensical luminosities
-    #             continue
-    #         if t_signal < t_trans:  # non-sensical t_trans (i.e. tpk)
-    #             continue
-
-            # Snu kwargs
-            age_steps = abs(
-                int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
-            snu_echo_kwargs = {'tmin_default': None,
-                               'Nt': min(age_steps, max_steps),
-                               'xmin': ct._au_over_kpc_,
-                               'xmax_default': 100.,
-                               'use_quad': False,
-                               'lin_space': False,
-                               'Nint': min(age_steps, max_steps)}
-
-            # data:
-            data = {'deltaE_over_E': ct._deltaE_over_E_,
-                    'f_Delta': ct._f_Delta_,
-                    'exper': 'SKA',
-                    'total_observing_time': 100.,
-                    'verbose': 0,
-                    'average': True}
-
-            row_a, row_b = [], []
-
-            # x-array:
-            for t_extra in tex_arr:
-
-                try:
-
-                    snu_echo_kwargs.update({'t_extra_old': t_extra})
-
-                    # computing routine
-                    z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
-                                                   snr,
-                                                   lightcurve_params=lightcurve_params,
-                                                   snu_echo_kwargs=snu_echo_kwargs,
-                                                   data=data,
-                                                   output_all=True)
-
-                    signal_Snu = new_output['signal_Snu']
-                    del new_output
-
-                    if args.verbose:
-                        print("S/N=", z)
-
-                    # building rows
-                    row_a.append(np.squeeze(z))  # signal-to-noise ratio
-                    row_b.append(signal_Snu)  # signal S_nu
-
-                except:
-                    # nonsense results; append some ridiculous value
-                    row_a.append(ridiculous)
-                    row_b.append(ridiculous)
-
-                # end of routine for fixed t_extra
-
-            # appending finished t_extra rows
-            sn_Gr.append(row_a)
-            snu_Gr.append(row_b)
-
-            # end of routine for fixed tt_ratio
-
-        # converting grids to arrays
-        sn_Gr = np.array(sn_Gr)
-        snu_Gr = np.array(snu_Gr)
-
-        # saving grids
-        np.savetxt(folder+"/run_%d_sn_" %
-                   run_id+filename+".txt", sn_Gr, delimiter=",")
-        np.savetxt(folder+"/run_%d_echo_" %
-                   run_id+filename+".txt", snu_Gr, delimiter=",")
-        if flg_t:
-            np.savetxt(folder+"/run_%d_s0_" %
-                       run_id+filename, s0_Gr, delimiter=",")
-        if flg_s:
-            np.savetxt(folder+"/run_%d_tsig_" %
-                       run_id+filename, tsig_Gr, delimiter=",")
-
-        # end of tex-r routine
-
-    # CASE 4:
-    elif args.slice == "l-D":
-        # Defining the arrays
-        # x-array:
-        long_arr = np.linspace(0., 360., Nsteps+1)
-        # y-array:
-        dist_arr = np.logspace(-1, 0.5, Nsteps+2)
-
-        # Saving arrays
-        np.savetxt(folder+"run_%d_long_arr_x.txt" % run_id, long_arr)
-        np.savetxt(folder+"run_%d_dist_arr_y.txt" % run_id, dist_arr)
-
-        # New L_peak (corrected from Bietenholz frequency to to 1 GHz):
-        new_Lpk = args.Lpk*from_Bieten_to_pivot
-
-        # Updating SNR parameters:
-        snr.set_coord(b=args.lat, l=None, sign=None)
-        # the following is to turn off no_dist but still able to cause an exception if not updated again
-        snr.set_distance(0)
-
-        if flg_t:
-            snr.set_age(args.t_signal)
-        elif flg_s:
-            snr.set_flux_density(args.S0)
-
-        # defining lightcurve parameters:
-        t_trans = (args.tt_ratio)*(args.tpk/365.)
-        lightcurve_params = {'t_peak': args.tpk,
-                             'L_peak': new_Lpk,
-                             't_trans': t_trans}
-
-        # Result grids:
-        sn_Gr = []
-        snu_Gr = []
-        if flg_s:
-            tsig_Gr = []
-        elif flg_t:
-            s0_Gr = []
-
-        # y-array:
-        for D in tqdm(dist_arr):
-
-            snr.set_distance(D)
-            area = 4.*pi*(snr.distance*ct._kpc_over_cm_)**2.  # [cm^2]
-
-            row_a, row_b, row_c = [], [], []
-
-            # x-array:
-            for l in long_arr:
-
-                try:
-
-                    snr.set_coord(l=l, b=None, sign=None)
-
-                    if flg_t:
-                        # Updating lightcurve parameters
-                        t_signal = args.t_signal
-                        lightcurve_params.update({'t_age': t_signal})
-                        # Computing L0 and S0
-                        local_source = {'gamma': gamma, 't_age': t_signal,
-                                        'L_peak': new_Lpk, 't_peak': args.tpk, 't_trans': t_trans}
-                        L0 = ap.L_source(t_signal, **local_source)  # [cgs]
-                        S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
-
-                    elif flg_s:
-                        # Computing L0
-                        L0 = (snr.snu_at_1GHz*ct._Jy_over_cgs_irrad_) * \
-                            area  # [cgs]
-                        # Computing t_age
-                        t_signal = ap.tage_compute(
-                            new_Lpk, args.tpk, t_trans, L0, gamma)
-                        # Updating lightcurve parameters
-                        lightcurve_params.update({'L_today': L0})
-
-    #                 # Skipping non-sensical parameters:
-    #                 if L0 > new_Lpk:  # non-sensical luminosities
-    #                     continue
-    #                 if t_signal < t_trans:  # non-sensical t_trans (i.e. tpk)
-    #                     continue
-
-                    # Snu kwargs
-                    age_steps = abs(
-                        int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
-                    snu_echo_kwargs = {'tmin_default': None,
-                                       'Nt': min(age_steps, max_steps),
-                                       'xmin': ct._au_over_kpc_,
-                                       'xmax_default': 100.,
-                                       'use_quad': False,
-                                       'lin_space': False,
-                                       'Nint': min(age_steps, max_steps),
-                                       't_extra_old': args.t_extra}
-
-                    # data:
-                    data = {'deltaE_over_E': ct._deltaE_over_E_,
-                            'f_Delta': ct._f_Delta_,
-                            'exper': 'SKA',
-                            'total_observing_time': 100.,
-                            'verbose': 0,
-                            'average': True}
-
-                    # computing routine
-                    z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
-                                                   snr,
-                                                   lightcurve_params=lightcurve_params,
-                                                   snu_echo_kwargs=snu_echo_kwargs,
-                                                   data=data,
-                                                   output_all=True)
-
-                    signal_Snu = new_output['signal_Snu']
-                    del new_output
-
-                    if args.verbose:
-                        print("S/N=", z)
-
-                    # building rows
-                    row_a.append(np.squeeze(z))  # signal-to-noise ratio
-                    row_b.append(signal_Snu)  # signal S_nu
-                    if flg_t:
-                        row_c.append(S0)  # S0
-                    elif flg_s:
-                        row_c.append(t_signal)  # t_signal
-
-                except:
-                    # nonsense results; append some ridiculous value
-                    row_a.append(ridiculous)
-                    row_b.append(ridiculous)
-                    row_c.append(ridiculous)
-
-                # end of routine for fixed l
-
-            # appending finished l rows
-            sn_Gr.append(row_a)
-            snu_Gr.append(row_b)
-            if flg_t:
-                s0_Gr.append(row_c)
-            elif flg_s:
-                tsig_Gr.append(row_c)
-
-            # end of routine for fixed D
-
-        # converting grids to arrays
-        sn_Gr = np.array(sn_Gr)
-        snu_Gr = np.array(snu_Gr)
-        if flg_t:
-            s0_Gr = np.array(s0_Gr)
-        if flg_s:
-            tsig_Gr = np.array(tsig_Gr)
-
-        # saving grids
-        np.savetxt(folder+"/run_%d_sn_" %
-                   run_id+filename+".txt", sn_Gr, delimiter=",")
-        np.savetxt(folder+"/run_%d_echo_" %
-                   run_id+filename+".txt", snu_Gr, delimiter=",")
-        if flg_t:
-            np.savetxt(folder+"/run_%d_s0_" %
-                       run_id+filename, s0_Gr, delimiter=",")
-        if flg_s:
-            np.savetxt(folder+"/run_%d_tsig_" %
-                       run_id+filename, tsig_Gr, delimiter=",")
-
-        # end of l-D routine
-
-    # CASE 5:
-    elif args.slice == "l-b":
-        # Defining the arrays
-        # x-array:
-        long_arr = np.linspace(0., 360., Nsteps+1)
-        # y-array:
-        lat_arr = np.linspace(-90., 90., Nsteps+2)
-
-        # Saving arrays
-        np.savetxt(folder+"run_%d_long_arr_x.txt" % run_id, long_arr)
-        np.savetxt(folder+"run_%d_lat_arr_y.txt" % run_id, lat_arr)
-
-        # New L_peak (corrected from Bietenholz frequency to to 1 GHz):
-        new_Lpk = args.Lpk*from_Bieten_to_pivot
-
-        # Updating SNR parameters:
-        snr.set_distance(args.distance)
-
-        if flg_t:
-            snr.set_age(args.t_signal)
-        elif flg_s:
-            snr.set_flux_density(args.S0)
-
-        area = 4.*pi*(snr.distance*ct._kpc_over_cm_)**2.  # [cm^2]
-        # defining lightcurve parameters:
-        t_trans = (args.tt_ratio)*(args.tpk/365.)
-        lightcurve_params = {'t_peak': args.tpk,
-                             'L_peak': new_Lpk,
-                             't_trans': t_trans}
-
-        if flg_t:
-            # Updating lightcurve parameters
-            t_signal = args.t_signal
-            lightcurve_params.update({'t_age': t_signal})
-            # Computing L0 and S0
-            local_source = {'gamma': gamma, 't_age': t_signal,
-                            'L_peak': new_Lpk, 't_peak': args.tpk, 't_trans': t_trans}
-            L0 = ap.L_source(t_signal, **local_source)  # [cgs]
-            S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
-
-        elif flg_s:
-            # Computing L0
-            L0 = (snr.snu_at_1GHz*ct._Jy_over_cgs_irrad_)*area  # [cgs]
-            # Computing t_age
-            t_signal = ap.tage_compute(new_Lpk, args.tpk, t_trans, L0, gamma)
-            # Updating lightcurve parameters
-            lightcurve_params.update({'L_today': L0})
-
-        # Skipping non-sensical parameters:
-        if L0 > new_Lpk:  # non-sensical luminosities
-            sys.exit("EXITING: L0 = {} > Lpk = {}".format(L0, new_Lpk))
-        if t_signal < t_trans:  # non-sensical t_trans (i.e. tpk)
-            sys.exit("EXITING: t_signal = {} < t_trans = {}".format(
-                t_signal, t_trans))
-
-        # Snu kwargs
-        age_steps = abs(int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
-        snu_echo_kwargs = {'tmin_default': None,
-                           'Nt': min(age_steps, max_steps),
-                           'xmin': ct._au_over_kpc_,
-                           'xmax_default': 100.,
-                           'use_quad': False,
-                           'lin_space': False,
-                           'Nint': min(age_steps, max_steps),
-                           't_extra_old': args.t_extra}
-
-        # data:
-        data = {'deltaE_over_E': ct._deltaE_over_E_,
-                'f_Delta': ct._f_Delta_,
-                'exper': 'SKA',
-                'total_observing_time': 100.,
-                'verbose': 0,
-                'average': True}
-
-        # Result grids:
-        sn_Gr = []
-        snu_Gr = []
-
-        # y-array:
-        for b in tqdm(lat_arr):
-
-            snr.set_coord(b=b, l=None, sign=None)
-
-            row_a, row_b = [], []
-
-            # x-array
-            for l in long_arr:
-
-                try:
-
-                    snr.set_coord(l=l, b=None, sign=None)
-
-                    # computing routine
-                    z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
-                                                   snr,
-                                                   lightcurve_params=lightcurve_params,
-                                                   snu_echo_kwargs=snu_echo_kwargs,
-                                                   data=data,
-                                                   output_all=True)
-
-                    signal_Snu = new_output['signal_Snu']
-                    del new_output
-
-                    if args.verbose:
-                        print("S/N=", z)
-
-                    # building rows
-                    row_a.append(np.squeeze(z))  # signal-to-noise ratio
-                    row_b.append(signal_Snu)  # signal S_nu
-
-                except:
-                    # nonsense results; append some ridiculous value
-                    row_a.append(ridiculous)
-                    row_b.append(ridiculous)
-
-                # end of routine for fixed l
-
-            # appending finished l rows
-            sn_Gr.append(row_a)
-            snu_Gr.append(row_b)
-
-            # end of routine for fixed b
-
-        # converting grids to arrays
-        sn_Gr = np.array(sn_Gr)
-        snu_Gr = np.array(snu_Gr)
-
-        # saving grids
-        np.savetxt(folder+"/run_%d_sn_" %
-                   run_id+filename+".txt", sn_Gr, delimiter=",")
-        np.savetxt(folder+"/run_%d_echo_" %
-                   run_id+filename+".txt", snu_Gr, delimiter=",")
-
-        # end of l-b routine
-
-    # CASE 6:
-    elif args.slice == "t-D":
-        # Defining the arrays
-        # x-array:
-        t_arr = np.logspace(log10(10.*(args.tpk/365.)), 5., Nsteps+1)
-        # y-array:
-        dist_arr = np.logspace(-1, 0.5, Nsteps+2)
-
-        # Saving arrays:
-        np.savetxt(folder+"run_%d_t_arr_x.txt" % run_id, t_arr)
-        np.savetxt(folder+"run_%d_dist_arr_y.txt" % run_id, dist_arr)
-
-        # New L_peak (corrected from Bietenholz frequency to to 1 GHz):
-        new_Lpk = args.Lpk*from_Bieten_to_pivot
-
-        snr.set_coord(l=args.coords[0], b=args.coords[1], sign=None)
-
-        # set the light curve params
-        t_trans = (args.tt_ratio)*(args.tpk/365.)
-        lightcurve_params = {'t_peak': args.tpk,
-                             'L_peak': new_Lpk,
-                             't_trans': t_trans}
-
-        # Result grids:
-        sn_Gr = []
-        snu_Gr = []
-        s0_Gr = []
-
-        # Commence the routine:
-        # y-array:
-        for D in tqdm(dist_arr):
-
-            # set distance to SNR, which will be used to construct input_param through model.snr_routine()
-            snr.set_distance(D)
-            area = 4.*pi*(snr.distance*ct._kpc_over_cm_)**2.  # [cm^2]
-
-            row_a, row_b, row_c = [], [], []
-
-            # x-array:
-            for t in t_arr:
-
-                try:
-
-                    if t < ct._time_of_phase_two_:
-                        t_signal = t
-                        t_extra = 0.
-
-                    else:
-                        t_signal = ct._time_of_phase_two_
-                        t_extra = t - ct._time_of_phase_two_
-
-                    lightcurve_params['t_age'] = t_signal
-
-                    # computing L0 and S0
-                    local_source = {'gamma': gamma, 't_age': t_signal,
-                                    'L_peak': new_Lpk, 't_peak': args.tpk, 't_trans': t_trans}
-                    L0 = ap.L_source(t_signal, **local_source)  # [cgs]
-                    S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
-
-                    snr.set_age(t_signal)
-                    snr.set_flux_density(S0)
-
-                    # Snu kwargs
-                    age_steps = abs(
-                        int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
-                    snu_echo_kwargs = {'tmin_default': None,
-                                       'Nt': min(age_steps, max_steps),
-                                       'xmin': ct._au_over_kpc_,
-                                       'xmax_default': 100.,
-                                       'use_quad': False,
-                                       'lin_space': False,
-                                       'Nint': min(age_steps, max_steps),
-                                       't_extra_old': t_extra}
-
-                    # data:
-                    data = {'deltaE_over_E': ct._deltaE_over_E_,
-                            'f_Delta': ct._f_Delta_,
-                            'exper': 'SKA',
-                            'total_observing_time': 100.,
-                            'verbose': 0,
-                            'average': True}
-
-                    # computing routine
-                    z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
-                                                   snr,
-                                                   lightcurve_params=lightcurve_params,
-                                                   snu_echo_kwargs=snu_echo_kwargs,
-                                                   data=data,
-                                                   output_all=True)
-
-                    signal_Snu = new_output['signal_Snu']
-                    del new_output
-
-                    if args.verbose:
-                        print("S/N=", z)
-
-                    # building rows
-                    row_a.append(np.squeeze(z))  # signal-to-noise ratio
-                    row_b.append(signal_Snu)  # signal S_nu
-                    row_c.append(S0)  # S0
-
-                except:
-                    # nonsense results; append some ridiculous value
-                    row_a.append(ridiculous)
-                    row_b.append(ridiculous)
-                    row_c.append(ridiculous)
-
-                # end of routine for fixed t
-
-            # appending finished t rows
-            sn_Gr.append(row_a)
-            snu_Gr.append(row_b)
-            s0_Gr.append(row_c)
-
-            # end of routine for fixed D
-
-        # converting grids to arrays
-        sn_Gr = np.array(sn_Gr)
-        snu_Gr = np.array(snu_Gr)
-        s0_Gr = np.array(s0_Gr)
-
-        # saving grids
-        np.savetxt(folder+"/run_%d_sn_" %
-                   run_id + filename+".txt", sn_Gr, delimiter=",")
-        np.savetxt(folder+"/run_%d_echo_" %
-                   run_id+filename+".txt", snu_Gr, delimiter=",")
-        np.savetxt(folder+"/run_%d_s0_" %
-                   run_id+filename+".txt", s0_Gr, delimiter=",")
-
-        # end of t-D routine
-
-    # CASE 7:
-    elif args.slice == "l-t":
-        # Defining the arrays
-        # x-array:
-        long_arr = np.linspace(0., 360., Nsteps+1)
-        # y-array:
-        t_arr = np.logspace(log10(10.*(args.tpk/365.)), 5., Nsteps+2)
-
-        np.savetxt(folder+"run_%d_long_arr_x.txt" % run_id, long_arr)
-        np.savetxt(folder+"run_%d_t_arr_y.txt" % run_id, t_arr)
-
-        # New L_peak (corrected from Bietenholz frequency to to 1 GHz):
-        new_Lpk = args.Lpk*from_Bieten_to_pivot
-
-        # geometry
-        snr.set_distance(args.distance)
-        area = 4.*pi*(snr.distance*ct._kpc_over_cm_)**2.  # [cm^2]
-
-        # set the light curve params
-        t_trans = (args.tt_ratio)*(args.tpk/365.)
-        lightcurve_params = {'t_peak': args.tpk,
-                             'L_peak': new_Lpk,
-                             't_trans': t_trans}
-
-        # Result grids:
-        sn_Gr = []
-        snu_Gr = []
-        s0_Gr = []
-
-        # Commence the routine:
-        # y-array:
-        for t in tqdm(t_arr):
-
-            if t < ct._time_of_phase_two_:
-                t_signal = t
-                t_extra = 0.
-
-            else:
-                t_signal = ct._time_of_phase_two_
-                t_extra = t - ct._time_of_phase_two_
-
-            # Updating lightcurve parameters:
-            lightcurve_params['t_age'] = t_signal
-
-            # computing L0 and S0
-            local_source = {'gamma': gamma, 't_age': t_signal,
-                            'L_peak': new_Lpk, 't_peak': args.tpk, 't_trans': t_trans}
-            L0 = ap.L_source(t_signal, **local_source)  # [cgs]
-            S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
-            snr.set_age(t_signal)
-            snr.set_flux_density(S0)
-
-            # Snu kwargs
-            age_steps = abs(
-                int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
-            snu_echo_kwargs = {'tmin_default': None,
-                               'Nt': min(age_steps, max_steps),
-                               'xmin': ct._au_over_kpc_,
-                               'xmax_default': 100.,
-                               'use_quad': False,
-                               'lin_space': False,
-                               'Nint': min(age_steps, max_steps),
-                               't_extra_old': t_extra}
-
-            # data:
-            data = {'deltaE_over_E': ct._deltaE_over_E_,
-                    'f_Delta': ct._f_Delta_,
-                    'exper': 'SKA',
-                    'total_observing_time': 100.,
-                    'verbose': 0,
-                    'average': True}
-
-            row_a, row_b, row_c = [], [], []
-
-            # x-array:
-            for longitude in (long_arr):
-
-                try:
-
-                    snr.set_coord(l=longitude, b=args.lat, sign=None)
-
-                    # computing routine
-                    z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
-                                                   snr,
-                                                   lightcurve_params=lightcurve_params,
-                                                   snu_echo_kwargs=snu_echo_kwargs,
-                                                   data=data,
-                                                   output_all=True)
-
-                    signal_Snu = new_output['signal_Snu']
-                    del new_output
-
-                    if args.verbose:
-                        print("S/N=", z)
-
-                    # building rows
-                    row_a.append(np.squeeze(z))  # signal-to-noise ratio
-                    row_b.append(signal_Snu)  # signal S_nu
-                    row_c.append(S0)  # S0
-
-                except:
-                    # nonsense results; append some ridiculous value
-                    row_a.append(ridiculous)
-                    row_b.append(ridiculous)
-                    row_c.append(ridiculous)
-
-                # end of routine for fixed l
-
-            # appending finished l rows
-            sn_Gr.append(row_a)
-            snu_Gr.append(row_b)
-            s0_Gr.append(row_c)
-
-            # end of routine for fixed t
-
-        # converting grids to arrays
-        sn_Gr = np.array(sn_Gr)
-        snu_Gr = np.array(snu_Gr)
-        s0_Gr = np.array(s0_Gr)
-
-        # saving grids
-        np.savetxt(folder+"/run_%d_sn_" %
-                   run_id + filename+".txt", sn_Gr, delimiter=",")
-        np.savetxt(folder+"/run_%d_echo_" %
-                   run_id+filename+".txt", snu_Gr, delimiter=",")
-        np.savetxt(folder+"/run_%d_s0_" %
-                   run_id+filename+".txt", s0_Gr, delimiter=",")
-
-        # end of l-t routine
-
-    # CASE 8:
-    elif args.slice == "t-b":
-        # Defining the arrays
-        # x-array:
-        t_arr = np.logspace(log10(10.*(args.tpk/365.)), 5., Nsteps+1)
-        # y-array:
-        lat_arr = np.linspace(-90., 90., Nsteps+2)
-
-        np.savetxt(folder+"run_%d_t_arr_x.txt" % run_id, t_arr)
-        np.savetxt(folder+"run_%d_lat_arr_y.txt" % run_id, lat_arr)
-
-        # New L_peak (corrected from Bietenholz frequency to to 1 GHz):
-        new_Lpk = args.Lpk*from_Bieten_to_pivot
-
-        # geometry
-        snr.set_distance(args.distance)
-        area = 4.*pi*(snr.distance*ct._kpc_over_cm_)**2.  # [cm^2]
-
-        # set the light curve params
-        t_trans = (args.tt_ratio)*(args.tpk/365.)
-        lightcurve_params = {'t_peak': args.tpk,
-                             'L_peak': new_Lpk,
-                             't_trans': t_trans}
-
-        # Result grids:
-        sn_Gr = []
-        snu_Gr = []
-        s0_Gr = []
-
-        # Commence the routine:
-        # y-array:
-        for latitude in tqdm(lat_arr):
-
-            # set distance to SNR, which will be used to construct input_param through model.snr_routine()
-            row_a, row_b, row_c = [], [], []
-            snr.set_coord(l=args.longitude, b=latitude, sign=None)
-
-            # x-array:
-            for t in t_arr:
-
-                try:
-
-                    if t < ct._time_of_phase_two_:
-                        t_signal = t
-                        t_extra = 0.
-
-                    else:
-                        t_signal = ct._time_of_phase_two_
-                        t_extra = t - ct._time_of_phase_two_
-
-                    lightcurve_params['t_age'] = t_signal
-
-                    # computing L0 and S0
-                    local_source = {'gamma': gamma, 't_age': t_signal,
-                                    'L_peak': new_Lpk, 't_peak': args.tpk, 't_trans': t_trans}
-                    L0 = ap.L_source(t_signal, **local_source)  # [cgs]
-                    S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
-                    snr.set_age(t_signal)
-                    snr.set_flux_density(S0)
-
-                    # Snu kwargs
-                    age_steps = abs(
-                        int(1000*(log10(t_signal) - log10(args.tpk/365.)) + 1))
-                    snu_echo_kwargs = {'tmin_default': None,
-                                       'Nt': min(age_steps, max_steps),
-                                       'xmin': ct._au_over_kpc_,
-                                       'xmax_default': 100.,
-                                       'use_quad': False,
-                                       'lin_space': False,
-                                       'Nint': min(age_steps, max_steps),
-                                       't_extra_old': t_extra}
-
-                    # data:
-                    data = {'deltaE_over_E': ct._deltaE_over_E_,
-                            'f_Delta': ct._f_Delta_,
-                            'exper': 'SKA',
-                            'total_observing_time': 100.,
-                            'verbose': 0,
-                            'average': True}
-
-                    # computing routine
-                    z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
-                                                   snr,
-                                                   lightcurve_params=lightcurve_params,
-                                                   snu_echo_kwargs=snu_echo_kwargs,
-                                                   data=data,
-                                                   output_all=True)
-
-                    signal_Snu = new_output['signal_Snu']
-                    del new_output
-
-                    if args.verbose:
-                        print("S/N=", z)
-
-                    # building rows
-                    row_a.append(np.squeeze(z))  # signal-to-noise ratio
-                    row_b.append(signal_Snu)  # signal S_nu
-                    row_c.append(S0)  # S0
-
-                except:
-                    # nonsense results; append some ridiculous value
-                    row_a.append(ridiculous)
-                    row_b.append(ridiculous)
-                    row_c.append(ridiculous)
-
-                # end of routine for fixed t
-
-            # appending finished t rows
-            sn_Gr.append(row_a)
-            snu_Gr.append(row_b)
-            s0_Gr.append(row_c)
-
-            # end of routine for fixed b
-
-        # converting grids to arrays
-        sn_Gr = np.array(sn_Gr)
-        snu_Gr = np.array(snu_Gr)
-        s0_Gr = np.array(s0_Gr)
-
-        # saving grids
-        np.savetxt(folder+"/run_%d_sn_" %
-                   run_id + filename+".txt", sn_Gr, delimiter=",")
-        np.savetxt(folder+"/run_%d_echo_" %
-                   run_id+filename+".txt", snu_Gr, delimiter=",")
-        np.savetxt(folder+"/run_%d_s0_" %
-                   run_id+filename+".txt", s0_Gr, delimiter=",")
-
-        # end of t-b routine
-
-    # CASE 9:
-    if args.slice == "t-S0":
-        # Defining the arrays
-        Nsigs = 3.  # number of standard deviations from the Bietenholz's mean to scan
-        # x-array:
-        t_arr = np.logspace(1, 4, Nsteps+1)
-        # y-array:
-        # Lpk_arr = np.logspace(ct._mu_log10_Lpk_-Nsigs*ct._sig_log10_Lpk_,
-        #                       ct._mu_log10_Lpk_+Nsigs*ct._sig_log10_Lpk_, Nsteps+2)
-        S0_arr = np.logspace(-5, 5, Nsteps+2)
-
-        # new_Lpk_arr = np.copy(Lpk_arr)  # copying peak luminosity array
-        # correcting L_peak by switching from the Bietenholz to the pivot frequencies
-        # new_Lpk_arr *= from_Bieten_to_pivot
-
-        # Saving arrays
-        np.savetxt(folder+"run_%d_t_arr_x.txt" % run_id, t_arr)
-        np.savetxt(folder+"run_%d_S0_arr_y.txt" % run_id, S0_arr)
-
-        # Updating SNR parameters:
-        snr.set_coord(l=args.coords[0], b=args.coords[1], sign=None)
-        snr.set_distance(args.distance)  # no_dist will be off automatically
-
-        area = 4.*pi*(snr.distance*ct._kpc_over_cm_)**2.  # [cm^2]
-        t_trans = args.tt_ratio*(args.tpk/365.)
-
-        # Result grids:
-        sn_Gr = []
-        snu_Gr = []
-        # tsig_Gr = []
-        # s0_Gr = []
-        Lpk_Biet_Gr = []
-
-        # Commence the routine:
-        # y-array:
-        for S0 in tqdm(S0_arr):
-
-            # S0 = L0/ct._Jy_over_cgs_irrad_/area  # [Jy]
-            L0 = S0 * ct._Jy_over_cgs_irrad_ * area  # [cgs]
-
-            row_a, row_b, row_c = [], [], []
-
-            # x-array:
-            # for new_Lpk in new_Lpk_arr:
-            for t in t_arr:
-
-                try:
-
-                    snr.set_age(t)
-                    # Computing Lpk from S0/L0
-                    local_source = {'L_today': L0, 'gamma': gamma, 't_age': t,
-                                    't_peak': args.tpk, 't_trans': t_trans}
-                    # this is Lpeak at Pivot
-                    Lpk = ap.L_source(args.tpk/365., **local_source)  # [cgs]
-                    # get the Lpeak at Bietenholz freq
-                    Lpk_Biet = Lpk / from_Bieten_to_pivot
-
-                    # Updating lightcurve parameters
-                    lightcurve_params = {'t_peak': args.tpk,
-                                         'L_peak': Lpk,
-                                         't_trans': t_trans,
-                                         't_age': t}
-                    # # directly passing L_today is also possible
-                    # # for cross check
-                    # lightcurve_params = {'t_peak': args.tpk,
-                    #                      'L_today': L0,
-                    #                      't_trans': t_trans,
-                    #                      't_age': t}
-
-                    # Snu kwargs
-                    age_steps = abs(
-                        int(1000*(log10(t) - log10(args.tpk/365.)) + 1))
-                    snu_echo_kwargs = {'tmin_default': None,
-                                       'Nt': min(age_steps, max_steps),
-                                       'xmin': ct._au_over_kpc_,
-                                       'xmax_default': 100.,
-                                       'use_quad': False,
-                                       'lin_space': False,
-                                       'Nint': min(age_steps, max_steps),
-                                       't_extra_old': 0.}
-
-                    # data:
-                    data = {'deltaE_over_E': ct._deltaE_over_E_,
-                            'f_Delta': ct._f_Delta_,
-                            'exper': 'SKA',
-                            'total_observing_time': 100.,
-                            'verbose': 0,
-                            'average': True}
-
-                    # computing routine
-                    z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
-                                                   snr,
-                                                   lightcurve_params=lightcurve_params,
-                                                   snu_echo_kwargs=snu_echo_kwargs,
-                                                   data=data,
-                                                   output_all=True)
-
-                    signal_Snu = new_output['signal_Snu']
-                    del new_output
-
-                    if args.verbose:
-                        print("S/N=", z)
-
-                    # building rows
-                    row_a.append(np.squeeze(z))  # signal-to-noise ratio
-                    row_b.append(signal_Snu)  # signal S_nu
-                    row_c.append(Lpk_Biet)  # Lpk at Bietenholz frequency
-
-                except:
-                    # for debugging
-                    raise Exception
-                    # nonsense results; append some ridiculous value
-                    row_a.append(ridiculous)
-                    row_b.append(ridiculous)
-                    row_c.append(ridiculous)
-
-                # end of routine for fixed Lpk
-
-            # appending finished Lpk rows
-            sn_Gr.append(row_a)
-            snu_Gr.append(row_b)
-            # s0_Gr.append(row_c)
-            Lpk_Biet_Gr.append(row_c)
-
-            # end of routine for fixed tpk
-
-        # converting grids to arrays
-        sn_Gr = np.array(sn_Gr)
-        snu_Gr = np.array(snu_Gr)
-        # s0_Gr = np.array(s0_Gr)
-        Lpk_Biet_Gr = np.array(Lpk_Biet_Gr)
-
-        # saving grids
-        np.savetxt(folder+"/run_%d_sn_" % run_id + filename+".txt", sn_Gr,
-                   delimiter=",", fmt="%s")  # signal/noise
-        np.savetxt(folder+"/run_%d_echo_" % run_id+filename+".txt",
-                   snu_Gr, delimiter=",", fmt="%s")  # Snu of echo signal
-        np.savetxt(folder+"/run_%d_LpkBiet_" % run_id + filename+".txt", Lpk_Biet_Gr,
-                   delimiter=",", fmt="%s")  # S0
-        # np.savetxt(folder+"/run_%d_s0_" % run_id + filename+".txt", s0_Gr,
-        #                delimiter=",", fmt="%s")  # S0
-
-        # end of t-S0 routine
-
-    ####################################
-    # save log file for future reference
-    ####################################
-    log_file = os.path.join(folder, "run_%d_log.txt" % run_id)
-    with open(log_file, 'w') as f:
-        f.write('#\n#-------Run info\n#\n')
-        f.write('run_id: %d\n' % run_id)
-        f.write('running_mode: %s\n' % args.slice)
-        f.write('ga_ref: %e\n' % ga_ref)
-        # f.write('current_dir: %s\n' % current_dir)
-
-        f.write('#\n#-------SNe Remnant info\n#\n')
-        f.write('# Note that for the SNR properties being scanned over only the last value of the scan will also be recorded.')
-        for key, entry in snr.__dict__.items():
-            f.write('%s: %s\n' % (key, entry))
-
-        f.write('#\n#-------detailed log\n#\n')
-        for key, entry in vars(args).items():
-            f.write('%s: %s\n' % (key, entry))
 
 #
 # examples of the use cases
