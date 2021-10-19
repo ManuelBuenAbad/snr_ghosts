@@ -740,7 +740,58 @@ def dimless_lum(gamma, frac_tpk, sup, tau):
     return free*np.heaviside(frac_tt-tau, 0.) + adiab*np.heaviside(tau-frac_tt, 1.)
 
 
+###############################
 # SNR evolution analytic models
+###############################
+
+#---------------------------------
+# Phenomenological evolution model
+
+def R_pheno(t, Rst=3.8, tst=360., eta1=1., eta2=0.4):
+    """
+    SNR radius [pc] as a simple phenomenological broken power law. The default values are taken from Tables 2 & 3 of the Truelove-McKee '99 paper for n=0 ejecta, with M_ej = 1 M_sun, E_sn = 1.e51 erg, and n0 = 0.2 cm^-3.
+    
+    Parameters
+    ----------
+    t : SNR age [years]
+    Rst : radius [pc] at the start of the Sedov-Taylor (adiabatic) expansion phase (default: 3.8)
+    tst : age [years] at the start of the Sedov-Taylor (adiabatic) expansion phase (default 360.)
+    eta1 : the power scaling R~t^eta1 during the Ejecta-Dominated phase (default: 1.)
+    eta2 : the power scaling R`t^eta2 during the Sedov-Taylor expansion phase (default: 2/5 = 0.4)
+    """
+    
+    ed = Rst * (t/tst)**eta1 * np.heaviside(tst-t, 0.)
+    ad = Rst * (t/tst)**eta2 * np.heaviside(t-tst, 1.)
+    
+    return ed+ad
+
+
+
+def pheno_age(R, Rst=3.8, tst=360., eta1=1., eta2=0.4):
+    """
+    SNR age [years] as deduced from a phenomenological broken power-law function of the SNR blast radius [pc]. The default values are taken from Tables 2 & 3 of the Truelove-McKee '99 paper for n=0 ejecta, with M_ej = 1 M_sun, E_sn = 1.e51 erg, and n0 = 0.2 cm^-3.
+    
+    Parameters
+    ----------
+    R : SNR radius [pc]
+    Rst : radius [pc] at the start of the Sedov-Taylor (adiabatic) expansion phase (default: 3.8)
+    tst : age [years] at the start of the Sedov-Taylor (adiabatic) expansion phase (default 360.)
+    eta1 : the power scaling R~t^eta1 during the Ejecta-Dominated phase (default: 1.)
+    eta2 : the power scaling R`t^eta2 during the Sedov-Taylor expansion phase (default: 2/5 = 0.4)
+    """
+    
+    def logDelRt(t, r): return log10(R_pheno(t, Rst, tst, eta1=eta1, eta2=eta2)) - log10(r)
+    
+    R_arr, _ = tl.treat_as_arr(R)
+    age = np.array([tl.zeros(logDelRt, t_arr_default, r) for r in R_arr])
+    age = np.squeeze(age)
+
+    return age
+
+
+#-------------------------
+# Physical evolution model
+
 
 def ED_fn(t, t_bench, R_bench, model):
     """
@@ -816,9 +867,9 @@ def Rb_TM99(t, t_bench, R_bench, model):
     return two_phase
 
 
-def model_age(R, model='estimate', M_ej=1., E_sn=1., rho0=1.):
+def physics_age(R, model='estimate', M_ej=1., E_sn=1., rho0=1.):
     """
-    Age [years] as a function of the SNR blast radius [pc]. Using either a simple model, or formulas by Truelove & McKee 1999 (TM99).
+    SNR age [years] as deduced from a physically-motivated a function of the SNR blast radius [pc]. Using either a simple model, or formulas by Truelove & McKee 1999 (TM99).
 
     Parameters
     ----------
@@ -881,20 +932,19 @@ def model_age(R, model='estimate', M_ej=1., E_sn=1., rho0=1.):
             R_bench = R_ch
 
         # defining the evolution in the two phases
-        def LogDelRb(t):
+        def LogDelRb(t, r):
             """
             Function whose zeros we need to find in order to solve for the time [years] as a function of the radius [pc].
             """
-            return log10(Rb_TM99(t, t_bench, R_bench, model)) - log10(R)
+            
+            return log10(Rb_TM99(t, t_bench, R_bench, model)) - log10(r)
         
-        age = tl.zeros(LogDelRb, t_arr_default)
-        
-        _, is_scalar = tl.treat_as_arr(R)
-        
-        if is_scalar:
-            age = np.squeeze(age)
+        R_arr, _ = tl.treat_as_arr(R)
+        age = np.array([tl.zeros(LogDelRb, t_arr_default, r) for r in R_arr])
+        age = np.squeeze(age)
 
         return age
+
 
 
 #########################################

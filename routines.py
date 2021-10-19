@@ -71,10 +71,11 @@ default_data = {'deltaE_over_E': ct._deltaE_over_E_,
                 'total_observing_time': 100.,
                 'average': True,
                 'DM_profile': 'NFW',
-                # 'correlation_mode': 'interferometry',
+#                 'correlation_mode': 'interferometry',
                 'verbose': 0
                 }
-# I'm not setting 'correlation_mode' for now to expose and update all old code through Exceptions. After the code stabilizes we can set it to "single dish" or "interferometry".
+# I'm not setting 'correlation_mode' for now to expose and update all old code through Exceptions.
+# TODO: After the code stabilizes we can set it to "single dish" or "interferometry".
 
 
 # Snu_echo_kwargs:

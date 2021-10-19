@@ -143,7 +143,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
         wavelength = pt.lambda_from_nu(nu)/100.  # wavelength [m]
         # angular size of pixel resolution [rad]
         # assuming this is the aperture angle and not the radial angle
-        theta_res = (1.02*wavelength)/ct._SKALow_station_diameter_/sqrt(eta)
+        theta_res = (1.22*wavelength)/ct._SKALow_station_diameter_/sqrt(eta)
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
         number_of_dishes = ct._area_ska_low_ / \
@@ -159,7 +159,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
         # get the required baseline length for nu
         wavelength = pt.lambda_from_nu(nu) / 100.  # wavelength [m]
         critical_baseline_length = (
-            1.02*wavelength) / (theta_sig)\
+            1.22*wavelength) / (theta_sig)\
             * ct._SKA_factor_lose_signal_  # fudge factor could be ~ 2 or 3 to deem the signal cannot be observed
         # get the active number of baselines
         active_number_of_baselines = SKA_get_active_baseline(
@@ -189,8 +189,8 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
         wavelength = pt.lambda_from_nu(nu)/100.  # wavelength [m]
         # angular size of pixel resolution [rad]
         # assuming this is the aperture angle and not the radial angle
-        # theta_res = (1.02*wavelength)/sqrt(eta*4.*area/pi)
-        theta_res = (1.02*wavelength)/ct._SKA1Mid_dish_diameter_/sqrt(eta)
+        # theta_res = (1.22*wavelength)/sqrt(eta*4.*area/pi)
+        theta_res = (1.22*wavelength)/ct._SKA1Mid_dish_diameter_/sqrt(eta)
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
         number_of_dishes = ct._area_ska_mid_ / \
@@ -208,7 +208,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
         # get the required baseline length for nu
         wavelength = pt.lambda_from_nu(nu) / 100.  # wavelength [m]
         critical_baseline_length = (
-            1.02*wavelength) / (theta_sig)\
+            1.22*wavelength) / (theta_sig)\
             * ct._SKA_factor_lose_signal_  # fudge factor 2 to deem the signal cannot be observed
         # print("SKA1-mid, nu=%.1e GHz, critical_baseline=%.1em" %
         #       (nu, critical_baseline_length))

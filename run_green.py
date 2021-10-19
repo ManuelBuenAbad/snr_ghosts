@@ -51,14 +51,31 @@ parser.add_argument("-a", "--age_mode", default=None,
                     type=str, choices=["known_age", "size_age", "ratio_age"], help="The way in which the age of the SNR will be treated.")
 # arguments for args.age_mode == "size_age":
 parser.add_argument('-m', '--method', default=None,
-                    choices=['TM99-0', 'TM99-simple', 'estimate', 'lin', 'log'],
-                    type=str, help="The method to compute the age. Based on either Truelove-McKee '99 (TM99; for n=0 ejecta or a simplified version), a quick-and-dirty estimate, or a linear regression performed on the (linear/log) data of SNR with known age (default: None).")
+                    choices=['TM99-0', 'TM99-simple', 'estimate', 'lin', 'log', 'pheno', 'phenomenological'],
+                    type=str, help="The method to compute the age. Based on either Truelove-McKee '99 (TM99; for n=0 ejecta or a simplified version), a quick-and-dirty estimate, a linear regression performed on the (linear/log) data of SNR with known age (default: None), or a phenomenological model with a broken power law.")
+
+# arguments for 'TM99-0' & 'TM99-simple'
 parser.add_argument('--M_ej', default=1.,
                     type=float, help="The mass [Msun] of the SNR ejecta (default: 1). Only relevant if method=='TM99-0'/'TM99-simple'.")
+
+# arguments for 'TM99-0', 'TM99-simple', and 'estimate'
 parser.add_argument('--E_sn', default=1.,
                     type=float, help="The energy output [1.e51 ergs] of the SNR (default: 1). Only relevant if method=='TM99-0'/'TM99-simple'.")
 parser.add_argument('--rho0', default=1.,
                     type=float, help="The density [proton mass/cm^3] of the interstellar medium surrounding the SNR (default: 1). Only relevant if method=='TM99-0'/'TM99-simple'.")
+
+# arguments for 'phenomenological'
+parser.add_argument('--Rst', default=3.8,
+                    type=float, help="Radius [pc] at the start of the Sedov-Taylor (adiabatic) expansion phase (default: 3.8).")
+parser.add_argument('--tst', default=360.,
+                    type=float, help="Age [years] at the start of the Sedov-Taylor (adiabatic) expansion phase (default 360.).")
+parser.add_argument('--eta1', default=1.,
+                    type=float, help="Power scaling R~t^eta1 during the Ejecta-Dominated phase (default: 1.).")
+parser.add_argument('--eta2', default=0.4,
+                    type=float, help="Power scaling R`t^eta2 during the Sedov-Taylor expansion phase (default: 2/5 = 0.4).")
+
+
+
 # arguments for args.age_mode == "ratio_age":
 parser.add_argument("-r", "--tt_ratio", "--ratio", default=None,
                     type=float, help="The ratio of t_trans/t_pk (default: None)")
@@ -121,7 +138,7 @@ age_is_known = False # will need to compute age: either from R or from size
 if args.age_mode == "known_age":
     age_is_known = True # since age is known, no need to compute it
 elif args.age_mode == "size_age":
-    if not args.method in ['TM99-0', 'TM99-simple', 'estimate', 'lin', 'log']:
+    if not args.method in ['TM99-0', 'TM99-simple', 'estimate', 'lin', 'log', 'pheno', 'phenomenological']:
         raise ValueError("Please make sure the argument --method is one of the allowed options.")
 elif args.age_mode == "ratio_age":
     if args.tt_ratio == None:
@@ -129,6 +146,19 @@ elif args.age_mode == "ratio_age":
     tt_ratio = args.tt_ratio
 else:
     pass
+
+# defining age_kwargs
+age_kwargs = {}
+if args.age_mode == "size_age":
+    if (args.method in ['TM99-0', 'TM99-simple', 'estimate']):
+        age_kwargs.update({'M_ej':args.M_ej,
+                           'E_sn':args.E_sn,
+                           'rho0':args.rho0})
+    elif (args.method in ['pheno', 'phenomenological']):
+        age_kwargs.update({'Rst':args.Rst,
+                           'tst':args.tst,
+                           'eta1':args.eta1,
+                           'eta2':args.eta2})
 
 # inconsistent choice:
 if args.age_mode == "ratio_age" and args.lightcurve == "adiabatic_only":
@@ -343,9 +373,7 @@ for i, name in tqdm(enumerate(sorted_names)):
             if args.age_mode == "size_age":
                 t_age = dt.age_from_radius(R,
                                            method=args.method,
-                                           M_ej=args.M_ej,
-                                           E_sn=args.E_sn,
-                                           rho0=args.rho0)
+                                           **age_kwargs)
             elif args.age_mode == "ratio_age":
                 raise Error("args.lightcurve=='adiabatic_only' and yet args.age_mode=='ratio_age'. This should not have happened.")
 
@@ -417,9 +445,7 @@ for i, name in tqdm(enumerate(sorted_names)):
             if args.age_mode == "size_age":
                 t_age = dt.age_from_radius(R,
                                            method=args.method,
-                                           M_ej=args.M_ej,
-                                           E_sn=args.E_sn,
-                                           rho0=args.rho0)
+                                           **age_kwargs)
                 lightcurve_params.update({'t_age':t_age})
 
                 # finding t_trans
@@ -509,10 +535,8 @@ for i, name in tqdm(enumerate(sorted_names)):
                         # computed from the SNR radius
                         if args.age_mode == "size_age":
                             t_age = dt.age_from_radius(R,
-                                                    method=args.method,
-                                                    M_ej=args.M_ej,
-                                                    E_sn=args.E_sn,
-                                                    rho0=args.rho0)
+                                                       method=args.method,
+                                                       **age_kwargs)
                             lightcurve_params.update({'t_age':t_age})
 
                             # finding t_trans

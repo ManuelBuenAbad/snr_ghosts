@@ -251,7 +251,7 @@ def check_data(data, deltaE_over_E=ct._deltaE_over_E_, f_Delta=ct._f_Delta_, exp
     """
 
     # I'm not setting default to expose all old calls through Exceptions.
-    # We can enable the following after all ws/scripts are updated
+    # TODO: We can enable the following after all ws/scripts are updated
 
     # if not 'correlation_mode' in data.keys():
     #     # running mode, "single dish" or "interferometry"

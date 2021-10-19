@@ -26,7 +26,7 @@ def interp_fn(array):
     return fn
 
 
-def zeros(fn, arr):
+def zeros(fn, arr, *args):
     """
     Find where a function crosses 0. Returns the zeroes of the function.
 
@@ -34,9 +34,14 @@ def zeros(fn, arr):
     ----------
     fn : function
     arr : array of arguments for function
+    *args : any other arguments the function may have
     """
-
-    fn_arr = fn(arr)
+    
+    # the reduced function, with only the argument to be solved for (all other arguments fixed):
+    def fn_reduced(array): return fn(array, *args)
+    
+    # the array of values of the function:
+    fn_arr = fn_reduced(arr)
 
     # looking where the function changes sign...
     sign_change_arr = np.where(np.logical_or((fn_arr[:-1] < 0.) * (fn_arr[1:] > 0.),
@@ -53,7 +58,7 @@ def zeros(fn, arr):
     if len(sign_change_arr) > 0:
         for i in range(len(sign_change_arr)):
             cross_arr.append(
-                brentq(fn, arr[sign_change_arr[i]],
+                brentq(fn_reduced, arr[sign_change_arr[i]],
                        arr[sign_change_arr[i] + 1])
             )
 

@@ -109,7 +109,7 @@ _mu_log10_tpk_IIb_, _sig_log10_tpk_IIb_ = 1.5, 0.6  # type IIb
 #
 _time_of_phase_two_ = 1.e4  # [year]
 _v_hom_ = 2.e7 / _light_speed_  # = 0.0667128 [c] speed of homologous expansion
-# = 0.0414252 [c] approximate speed during free expansion, according to TM99 (for M_ej = 1 Msun, E_sn = 1.e51 erg, and rho0 = proton_mass/cm^3)
+# approximate speed during free expansion, according to TM99 (for M_ej = 1 Msun, E_sn = 1.e51 erg, and rho0 = proton_mass/cm^3) 0.0414252 [c] 
 _v_TM99_ = ((0.7*3.07*_kpc_over_m_/1000.) /
             (0.4*423.*_year_over_s_) / _light_speed_)
 

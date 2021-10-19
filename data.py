@@ -15,12 +15,14 @@ from scipy.optimize import curve_fit
 from astroquery.simbad import Simbad
 from astropy.coordinates import SkyCoord
 from datetime import datetime
+
+import pandas as pd
 import re
 import os
 
 import constants as ct
 import astro as ap
-from astro import lumin, model_age
+from astro import lumin, physics_age, pheno_age
 
 # location of the data path
 data_path = os.path.dirname(os.path.abspath(__file__))+'/data/'
@@ -754,6 +756,46 @@ def load_Green_catalogue(snr_name_arr, pathroot=data_path+'snr_website/www.mrao.
     return snrs_dct
 
 
+
+def name_expand(name):
+    """
+    A simple function that expands the names of the Green's Catalog by adding 0's, in order to put it in the form 'GLLL.L[+-]BB.B'.
+    """
+    
+    m = re.search('G(\d\d\d\.\d|\d\d\.\d|\d\.\d)([+-])(\d\d\.\d|\d\.\d)',
+              name)
+    
+    lon = m.group(1)
+    sig = m.group(2)
+    lat = m.group(3)
+    
+    new_lon = (5-len(lon))*'0'+lon
+    new_lat = (4-len(lat))*'0'+lat
+    
+    new_name = 'G'+new_lon+sig+new_lat
+    
+    return new_name
+
+
+# -------------------------------------------------
+
+##########
+# SNR Ages
+##########
+# http://snrcat.physics.umanitoba.ca/SNRtable.php
+# Table downloaded from: http://snrcat.physics.umanitoba.ca/SNRdownload.php?
+
+# The SNR catalog found there:
+snr_cat = pd.read_csv(data_path+"SNRcat/SNRcat20211019-SNR.csv", sep=";", skiprows=2, index_col='G')
+
+# Keeping only those entries with known ages:
+snr_ages = snr_cat[['age_min (yr)', 'age_max (yr)']].dropna()
+
+# Adding a new age value that is the geometric mean (conservative value; plus less order-of-magnitude dependendent):
+snr_ages = snr_ages.assign(geom_mean=sqrt(snr_ages['age_min (yr)']*snr_ages['age_max (yr)']))
+# Adding the mean, for bookkeeping purposes
+snr_ages = snr_ages.assign(arith_mean=(snr_ages['age_min (yr)']+snr_ages['age_max (yr)'])/2.)
+
 # -------------------------------------------------
 
 #######################
@@ -776,7 +818,15 @@ for name, snr in snrs_dct.items():
         snr.age
         snrs_age_only[name] = snr
     except:
-        pass
+        new_name = name_expand(name)
+        try:
+            # finding the age in the SNRcat catalog:
+            found_age = snr_ages.loc[new_name]['geom_mean']
+#             found_age = snr_ages.loc[new_name]['age_min (yr)']
+            snr.set_age(found_age)
+            snrs_age_only[name] = snr
+        except:
+            pass
 
     try:
         snr.distance
@@ -804,7 +854,14 @@ for name, snr in snrs_dct.items():
     try:
         snr.age
     except:
-        continue
+        new_name = name_expand(name)
+        try:
+            # finding the age in the SNRcat catalog:
+            found_age = snr_ages.loc[new_name]['geom_mean']
+#             found_age = snr_ages.loc[new_name]['age_min (yr)']
+            snr.set_age(found_age)
+        except:
+            continue
 
     # Add the SNR to the dictionary of those with known age
     snrs_age[name] = snr
@@ -826,8 +883,10 @@ for name, snr in snrs_age_only.items():
         continue
 
 TR_arr = np.array(TR_arr)
-TR_arr = np.sort(TR_arr, axis=0)
-TR_arr = TR_arr[:-1]  # dropping the last one, which happens to be degenerate
+
+# sorting array according to age:
+sorted_age_idx = TR_arr[:,0].argsort()
+TR_arr = TR_arr[sorted_age_idx]
 
 # training sample, of shape (n_samples, n_features)
 X = TR_arr[:, 1].reshape((-1, 1))
@@ -836,7 +895,7 @@ y = TR_arr[:, 0]  # target values, of shape (, n_samples)
 # fitting linear regression:
 reg_lin = LR().fit(X, y)
 reg_log = LR().fit(log10(X), log10(y))
-del X, y, TR_arr
+del X, y
 
 
 def lin_reg_pred(R, method='lin'):
@@ -864,7 +923,10 @@ def age_from_radius(R, method=None, **kwargs):
         age = lin_reg_pred(R, method=method)
 
     elif method in ['estimate', 'TM99-0', 'TM99-simple']:
-        age = model_age(R, model=method, **kwargs)
+        age = physics_age(R, model=method, **kwargs)
+    
+    elif method in ['pheno', 'phenomenological']:
+        age = pheno_age(R, **kwargs)
 
     else:
         raise ValueError("method={} not currently supported.".format(method))
