@@ -34,14 +34,16 @@ def main():
         hist_radius = np.interp(np.log10(bins_radius), np.log10(
             radius), fraction, left=0)  # sample at the bin edges
 
-        # compute the x-y coordinates of all units
-        x_arr, y_arr = get_telescope_coordinate(
-            fraction*ct._SKALow_number_of_stations_, radius, SKA='low')
-        # save it
         if exp == "low":
+            # compute the x-y coordinates of all units
+            x_arr, y_arr = get_telescope_coordinate(
+                fraction*ct._SKALow_number_of_stations_, radius, SKA=exp)
+            # save it
             SKA_conf['low radius'] = (data_raw, x_arr, y_arr, bins_radius,
                                       hist_radius)
         elif exp == "mid":
+            x_arr, y_arr = get_telescope_coordinate(
+                fraction*ct._SKA1Mid_number_of_dishes_, radius, SKA=exp)
             SKA_conf['mid radius'] = (data_raw, x_arr, y_arr, bins_radius,
                                       hist_radius)
 
@@ -291,4 +293,5 @@ def get_baseline(x_arr, y_arr):
 ##################################
 
 
+# The global variable to be saved
 SKA_conf = main()
