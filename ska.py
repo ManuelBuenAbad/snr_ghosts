@@ -18,12 +18,12 @@ def main():
 
     # --------------
     # SKA-low
-    for exp in ['low', 'mid']:
-        if exp == "low":
+    for exper in ['low', 'mid']:
+        if exper == "low":
             path = os.path.dirname(os.path.abspath(__file__)) + \
                 "/data/SKA1-low_accumu.csv"
 
-        elif exp == "mid":
+        elif exper == "mid":
             path = os.path.dirname(os.path.abspath(__file__)) + \
                 "/data/SKA1-mid_accumu.csv"
 
@@ -34,16 +34,16 @@ def main():
         hist_radius = np.interp(np.log10(bins_radius), np.log10(
             radius), fraction, left=0)  # sample at the bin edges
 
-        if exp == "low":
+        if exper == "low":
             # compute the x-y coordinates of all units
             x_arr, y_arr = get_telescope_coordinate(
-                fraction*ct._SKALow_number_of_stations_, radius, SKA=exp)
+                fraction*ct._SKALow_number_of_stations_, radius, SKA=exper)
             # save it
             SKA_conf['low radius'] = (data_raw, x_arr, y_arr, bins_radius,
                                       hist_radius)
-        elif exp == "mid":
+        elif exper == "mid":
             x_arr, y_arr = get_telescope_coordinate(
-                fraction*ct._SKA1Mid_number_of_dishes_, radius, SKA=exp)
+                fraction*ct._SKA1Mid_number_of_dishes_, radius, SKA=exper)
             SKA_conf['mid radius'] = (data_raw, x_arr, y_arr, bins_radius,
                                       hist_radius)
 
@@ -53,10 +53,10 @@ def main():
             baseline_arr, bins=np.logspace(1, 5, 20))
         hist_baseline_cumsum = np.cumsum(hist_baseline)
         # save it
-        if exp == "low":
+        if exper == "low":
             SKA_conf['low baseline'] = (
                 baseline_arr, hist_baseline, bins_baseline, hist_baseline_cumsum)
-        elif exp == "mid":
+        elif exper == "mid":
             SKA_conf['mid baseline'] = (
                 baseline_arr, hist_baseline, bins_baseline, hist_baseline_cumsum)
 
@@ -162,7 +162,8 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
         wavelength = pt.lambda_from_nu(nu) / 100.  # wavelength [m]
         critical_baseline_length = (
             1.02*wavelength) / (theta_sig)\
-            * ct._SKA_factor_lose_signal_  # fudge factor could be ~ 2 or 3 to deem the signal cannot be observed
+            * ct._SKA_factor_lose_signal_  # fudge factor for when invisible
+
         # get the active number of baselines
         active_number_of_baselines = SKA_get_active_baseline(
             critical_baseline_length, exper_mode='SKA low')
@@ -171,15 +172,15 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
         theta_res = theta_sig
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
-        # for interferometry mode noise has 1/sqrt(number of active baselines) factor
+
+        # for interferometry mode noise has 1/sqrt(number of active baselines)
         number_of_measurements = active_number_of_baselines
+
         # assuming all dishes/stations contribute
         # since S and N scale the same with reception area, S/N cancels out
         # in the end only the number of measurements (baselines) matter
         area = ct._area_ska_low_
         number_of_dishes = ct._SKALow_number_of_stations_
-        # print("SKA-low, nu=%.1e GHz, critical_baseline=%.1em" %
-        #       (nu, critical_baseline_length))
 
     elif exper_mode == 'SKA mid' and correlation_mode == "single dish":
         area = ct._area_ska_mid_
@@ -189,12 +190,14 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
 
         # finding resolution:
         wavelength = pt.lambda_from_nu(nu)/100.  # wavelength [m]
+
         # angular size of pixel resolution [rad]
         # assuming this is the aperture angle and not the radial angle
         # theta_res = (1.02*wavelength)/sqrt(eta*4.*area/pi)
         theta_res = (1.02*wavelength)/ct._SKA1Mid_dish_diameter_/sqrt(eta)
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
+
         number_of_dishes = ct._area_ska_mid_ / \
             (np.pi * ct._SKA1Mid_dish_diameter_**2 / 4.)
         number_of_measurements = number_of_dishes
@@ -211,9 +214,8 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
         wavelength = pt.lambda_from_nu(nu) / 100.  # wavelength [m]
         critical_baseline_length = (
             1.02*wavelength) / (theta_sig)\
-            * ct._SKA_factor_lose_signal_  # fudge factor 2 to deem the signal cannot be observed
-        # print("SKA1-mid, nu=%.1e GHz, critical_baseline=%.1em" %
-        #       (nu, critical_baseline_length))
+            * ct._SKA_factor_lose_signal_  # fudge factor
+
         # get the active number of baselines
         active_number_of_baselines = SKA_get_active_baseline(
             critical_baseline_length, exper_mode='SKA mid')
@@ -222,8 +224,10 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
         theta_res = theta_sig
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
-        # for interferometry mode noise has 1/sqrt(number of active baselines) factor
+
+        # for interferometry mode noise has 1/sqrt(number of active baselines)
         number_of_measurements = active_number_of_baselines
+
         # assuming all dishes/stations contribute
         # since S and N scale the same with reception area, S/N cancels out
         # in the end only the number of measurements (baselines) matter

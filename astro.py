@@ -201,7 +201,6 @@ def flux(nu, Snu):
     return res
 
 
-
 def irrad(distance, lumin):
     """
     Returns the flux density (spectral irradiance) [Jy] of a source.
@@ -214,10 +213,9 @@ def irrad(distance, lumin):
 
     area = 4.*pi * \
         (distance*ct._kpc_over_cm_)**2.  # [cm^2] sphere covering the source
-    irrad = (lumin/area) / ct._Jy_over_cgs_irrad_ # [Jy]
+    irrad = (lumin/area) / ct._Jy_over_cgs_irrad_  # [Jy]
 
     return irrad
-
 
 
 def lumin(distance, irrad):
@@ -232,10 +230,9 @@ def lumin(distance, irrad):
 
     area = 4.*pi * \
         (distance*ct._kpc_over_cm_)**2.  # [cm^2] sphere covering the source
-    lumin = (irrad*ct._Jy_over_cgs_irrad_)*area # [erg * s^-1 * Hz^-1]
+    lumin = (irrad*ct._Jy_over_cgs_irrad_)*area  # [erg * s^-1 * Hz^-1]
 
     return lumin
-
 
 
 def S_cygA(nu):
@@ -544,10 +541,10 @@ def L_source(t, model='eff', output_pars=False, **kwargs):
 
             def LogLeff_fn(LogLpk): return log10(
                 L_eff(t_trans, L_peak=10**LogLpk, **eff_kwargs)) - log10(L_trans)
-            
+
             L_peak = tl.zeros(LogLeff_fn, log10(L_arr_default))
             L_peak = np.squeeze(10.**L_peak)
-            
+
             known.update({'L_peak': L_peak})
 
         elif to_deduce == 't_trans':  # based on t_age and both today's and peak info, deduce t_trans
@@ -564,7 +561,7 @@ def L_source(t, model='eff', output_pars=False, **kwargs):
                 # NOTE: added 'np.squeeze'
                 Lt_cross = np.squeeze(tl.zeros(fn, log10(t_arr_default)))
                 t_cross = 10.**Lt_cross
-                
+
                 try:
                     t_trans = max(t_cross)
                 except:
@@ -619,13 +616,13 @@ def L_source(t, model='eff', output_pars=False, **kwargs):
                     thy_kwargs[par] = val
             # computing transition luminosity
             L_trans = L_adiab(t_trans, **adiab_kwargs)
-            
+
             def LogLthy_fn(LogLnorm): return log10(
                 L_thy(t_trans, L_norm=10**LogLnorm, **thy_kwargs)) - log10(L_trans)
-            
+
             L_norm = tl.zeros(LogLthy_fn, log(L_arr_default))
             L_norm = np.squeeze(10.**L_norm)
-            
+
             known.update({'L_norm': L_norm})
 
     if output_pars:
@@ -886,11 +883,11 @@ def model_age(R, model='estimate', M_ej=1., E_sn=1., rho0=1.):
             Function whose zeros we need to find in order to solve for the time [years] as a function of the radius [pc].
             """
             return log10(Rb_TM99(t, t_bench, R_bench, model)) - log10(R)
-        
+
         age = tl.zeros(LogDelRb, t_arr_default)
-        
+
         _, is_scalar = tl.treat_as_arr(R)
-        
+
         if is_scalar:
             age = np.squeeze(age)
 
@@ -936,7 +933,7 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
     if size is not None:
 
         size, is_scalar = tl.treat_as_arr(size)  # scalar --> array trick
-        
+
         bg_T408 = []
 
         if average:
@@ -1004,13 +1001,16 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     Omega_res: the resolution solid angle [sr]
     correlation_mode: the correlation mode, "single dish" or "interferometry".
     """
-    # this is the noise of a single dish
-    res = 2. * T_noise * ct._K_over_eV_ * \
-        sqrt(delnu * ct._GHz_over_eV_/(tobs * ct._hour_eV_))
 
+    # house keeping
     theta_obs = ct.solid_angle_to_angle(Omega_obs)
 
+    # First, we compute the noise of a single unit
     if correlation_mode == "single dish":
+        # this is the noise of a single dish
+        res = 2. * T_noise * ct._K_over_eV_ * \
+            sqrt(delnu * ct._GHz_over_eV_/(tobs * ct._hour_eV_))
+
         # Even though we always feed P_noise() with Omega_obs >= Omega_res
         # I'm adding an extra check here just in case I get sloppy in the
         # future
@@ -1019,25 +1019,41 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
         except ValueError:
             factor = np.array([max(x, 1) for x in sqrt(Omega_obs/Omega_res)])
         res *= factor
+    elif correlation_mode == "interferometry":
+        # this is the noise of a single baseline. c.f. 7-33 of Napier and Crane 1982
+        res = np.sqrt(2.) * T_noise * ct._K_over_eV_ * \
+            sqrt(delnu * ct._GHz_over_eV_/(tobs * ct._hour_eV_))
+    else:
+        raise Exception(
+            "Correlation mode can only be 'single dish' or 'interferometry'.\
+ You assigned %s" % correlation_mode)
+
+    # Second, we compute the noise of the array
 
     nu, is_scalar = tl.treat_as_arr(nu)  # scalar --> array trick
 
     if is_scalar:
         # determine what exp we are looking at
         exper_mode = sk.SKA_exper_nu(nu)
-        _, _, _, _, number_of_dishes, number_of_measurements = sk.SKA_specs(
-            nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_obs)
+        _, _, _, _, number_of_dishes, number_of_measurements = \
+            sk.SKA_specs(nu,
+                         exper_mode,
+                         correlation_mode=correlation_mode,
+                         theta_sig=theta_obs)
         # convert to the noise of all dishes combined
         res *= number_of_dishes/np.sqrt(number_of_measurements)
-        
+
         res = np.squeeze(res)
-        
+
     else:
         for i, nu_i in enumerate(nu):
             # determine what exp we are looking at
             exper_mode = sk.SKA_exper_nu(nu_i)
-            _, _, _, _, number_of_dishes, number_of_measurements = sk.SKA_specs(
-                nu_i, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_obs[i])
+            _, _, _, _, number_of_dishes, number_of_measurements = \
+                sk.SKA_specs(nu_i,
+                             exper_mode,
+                             correlation_mode=correlation_mode,
+                             theta_sig=theta_obs[i])
             res[i] *= number_of_dishes / np.sqrt(number_of_measurements)
 
     return res
