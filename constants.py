@@ -109,7 +109,7 @@ _mu_log10_tpk_IIb_, _sig_log10_tpk_IIb_ = 1.5, 0.6  # type IIb
 #
 _time_of_phase_two_ = 1.e4  # [year]
 _v_hom_ = 2.e7 / _light_speed_  # = 0.0667128 [c] speed of homologous expansion
-# approximate speed during free expansion, according to TM99 (for M_ej = 1 Msun, E_sn = 1.e51 erg, and rho0 = proton_mass/cm^3) 0.0414252 [c] 
+# approximate speed during free expansion, according to TM99 (for M_ej = 1 Msun, E_sn = 1.e51 erg, and rho0 = proton_mass/cm^3) 0.0414252 [c]
 _v_TM99_ = ((0.7*3.07*_kpc_over_m_/1000.) /
             (0.4*423.*_year_over_s_) / _light_speed_)
 
@@ -136,12 +136,12 @@ _deltaE_over_E_ = 0.00145326  # _tophat_width_ * _sigma_v_
 # num_of_stations * pi * D**2 / 4
 # num_of_stations: 512
 # station effective size: D = 38 m (summary v4, instead of 35 m)
-_area_ska_low_ = 580372.  # [m^2]
+_area_ska_low_ = 580667.  # [m^2]
 
 # the effective  area of SKA1-low:
 # pi/4 * (133 * 15**2 + 64 * 13.5**2)
 # 133 SKA 15m-dishes, 64 MeerKAT 13.5-dishes
-_area_ska_mid_ = 32647  # [m^2]
+_area_ska_mid_ = 32663.9  # [m^2]
 
 #
 # SKA freq

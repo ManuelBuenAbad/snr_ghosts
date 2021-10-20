@@ -156,7 +156,17 @@ class ParamSpaceSlice2D(object):
         signal_Snu_flat = []
         blob_flat = []
 
-        for i, _ in enumerate(tqdm(flat0)):
+        # verbosity
+        try:
+            verbose = self.verbose
+        except AttributeError:
+            verbose = 0
+        if verbose > 0:
+            tqdm_disable = False
+        else:
+            tqdm_disable = True
+
+        for i, _ in enumerate(tqdm(flat0, disable=tqdm_disable)):
             value0 = flat0[i]
             value1 = flat1[i]
 
@@ -358,7 +368,7 @@ class Run(object):
         self.run_id = None
         self.mode = None
 
-    def __call__(self, mode, run_id=None):
+    def __call__(self, mode, run_id=None, verbose=1):
         # run id:
         if run_id is not None:
             self.run_id = run_id
@@ -374,6 +384,8 @@ class Run(object):
         self.init_dir()
         # get a slice
         self.param_space = gen_slice(mode)
+        # verbosity
+        self.param_space.verbose = verbose
         # scan the slice
         self.param_space.scan()
         # save it
@@ -481,6 +493,20 @@ def gen_slice(slice_mode):
     """
 
     axes = []
+    total_axes_name_arr = ["L peak Bietenholz",
+                           "t peak",
+                           "t trans over t peak",
+                           "t age total",
+                           "galaxy l",
+                           "galaxy b",
+                           "distance",
+                           "square radians",
+                           "spectral index",
+                           "nu Bietenholz"
+                           ]
+    #
+    # if one specifies one of the special slices
+    #
     # CASE 1:
     if slice_mode == "Lpk-tpk":
         # Defining the arrays
@@ -512,7 +538,7 @@ def gen_slice(slice_mode):
         try:
             axis = ParamAxis("t age", args.t_signal)
             axes.append(axis)
-        except:
+        except Exception:
             axis = ParamAxis("S0", args.S0)
             axes.append(axis)
 
@@ -843,6 +869,125 @@ def gen_slice(slice_mode):
         axes.append(axis)
         # axis = ParamAxis("t age", args.t_signal)
         # axes.append(axis)
+
+    else:
+        # now we start the "generic slicing"
+        # one can assign any pair of axes to slice in the format
+        # say "t peak, galaxy b"
+
+        # error message
+        err_msg = "The slice mode you provide is %s. It\
+ is not one of the special slice cases, nor can it be\
+ parsed as a generic slice. " % slice_mode
+
+        # catch generic modes in the format of say "galaxy l, galaxy b"
+        try:
+            slice_mode_arr = slice_mode.split(",")
+            for i, x in enumerate(slice_mode_arr):
+                slice_mode_arr[i] = x.strip()
+        except AttributeError:
+            raise Exception(err_msg)
+
+        # catch the two long axes
+        for ax_name in slice_mode_arr:
+            # remove it from total axes
+            total_axes_name_arr.remove(ax_name)
+
+            # check what axis is this
+            if ax_name == "L peak Bietenholz":
+                Nsigs = 3.  # number of standard deviations from the Bietenholz's mean to scan
+                # x-array:
+                axis = ParamAxis("L peak Bietenholz",
+                                 x0=10**(ct._mu_log10_Lpk_ -
+                                         Nsigs*ct._sig_log10_Lpk_),
+                                 x1=10**(ct._mu_log10_Lpk_ +
+                                         Nsigs*ct._sig_log10_Lpk_),
+                                 steps=args.Nsteps+1,
+                                 is_log=True)
+                axes.append(axis)
+            elif ax_name == "t peak":
+                Nsigs = 3.  # number of standard deviations from the Bietenholz's mean to scan
+                axis = ParamAxis("t peak",
+                                 x0=10**(ct._mu_log10_tpk_ -
+                                         Nsigs*ct._sig_log10_tpk_),
+                                 x1=10**(ct._mu_log10_tpk_ +
+                                         Nsigs*ct._sig_log10_tpk_),
+                                 steps=args.Nsteps+2,
+                                 is_log=True)
+                axes.append(axis)
+
+            elif ax_name == "t trans over t peak":
+                axis = ParamAxis("t trans over t peak",
+                                 x0=10,
+                                 x1=100,
+                                 steps=args.Nsteps+2,
+                                 is_log=False)
+                axes.append(axis)
+
+            elif ax_name == "t age total":
+                axis = ParamAxis("t age total",
+                                 x0=10.*(args.tpk/365.),
+                                 x1=1.e5,
+                                 steps=args.Nsteps+1,
+                                 is_log=True)
+                axes.append(axis)
+
+            elif ax_name == "galaxy l":
+                axis = ParamAxis("galaxy l",
+                                 x0=0.,
+                                 x1=360.,
+                                 steps=args.Nsteps+1,
+                                 is_log=False)
+                axes.append(axis)
+
+            elif ax_name == "galaxy b":
+                axis = ParamAxis("galaxy b",
+                                 x0=-90.,
+                                 x1=90.,
+                                 steps=args.Nsteps+2,
+                                 is_log=False)
+                axes.append(axis)
+
+            elif ax_name == "distance":
+                axis = ParamAxis("distance",
+                                 x0=0.1,
+                                 x1=3.,
+                                 steps=args.Nsteps+2,
+                                 is_log=True)
+                axes.append(axis)
+
+        # for the rest of unspecified axes, assign the fixed value
+        for ax_name in total_axes_name_arr:
+            if ax_name == "L peak Bietenholz":
+                axis = ParamAxis("L peak Bietenholz", args.Lpk)
+                axes.append(axis)
+            elif ax_name == "t peak":
+                axis = ParamAxis("t peak", args.tpk)
+                axes.append(axis)
+            elif ax_name == "t trans over t peak":
+                axis = ParamAxis("t trans over t peak", args.tt_ratio)
+                axes.append(axis)
+            elif ax_name == "t age total":
+                axis = ParamAxis("t age total", args.tage)
+                axes.append(axis)
+            elif ax_name == "galaxy l":
+                axis = ParamAxis("galaxy l", args.coords[0])
+                axes.append(axis)
+            elif ax_name == "galaxy b":
+                axis = ParamAxis("galaxy b", args.coords[1])
+                axes.append(axis)
+            elif ax_name == "distance":
+                axis = ParamAxis("distance", args.distance)
+                axes.append(axis)
+            elif ax_name == "square radians":
+                axis = ParamAxis("square radians", args.sr)
+                axes.append(axis)
+            elif ax_name == "spectral index":
+                axis = ParamAxis("spectral index", args.alpha)
+                axes.append(axis)
+            elif ax_name == "nu Bietenholz":
+                axis = ParamAxis("nu Bietenholz", args.nuB)
+                axes.append(axis)
 
     # generate 2D parameter space
     param_space = ParamSpaceSlice2D(axes)
@@ -1181,7 +1326,8 @@ if __name__ == "__main__":
 
 
 #
-# examples of the use cases
+# examples of the use cases (to be deprecated)
+# using it inside jupyter is maintained
 #
 # CASE1:
 # python ./run_custom.py --run 1 --nuB 8 --Nsteps 30 Lpk-tpk --dist 0.5 --tt_ratio 30 --t0 1e4 --t_extra 4e4 --long_lat 175 0
