@@ -102,20 +102,11 @@ def load_green_results(name, run_id=None):
     slice_idx = [('slice:' in line) for line in log_lines].index(True)
     slice = log_lines[slice_idx].split()[-1]
 
-    # loading Snu_echo, S/N, reach, age, and t_trans/Lpk results:
+    # file paths:
     folder = green_path+name+"/"
     file = name+"_run-"+str(run_id)+".txt"
 
-    echo = np.loadtxt(folder+"echo_"+file, delimiter=",")
-    sn = np.loadtxt(folder+"sn_"+file, delimiter=",")
-    ga_reach = np.loadtxt(folder+"ga_"+file, delimiter=",")
-    tage = np.loadtxt(folder+"tage_"+file, delimiter=",")
-
-    if (slice == "ma-ga") or (slice == "Lpk-tpk"):
-        extra = np.loadtxt(folder+"ttrans_"+file, delimiter=",")
-    elif slice == "ttr-tpk":
-        extra = np.loadtxt(folder+"Lpk_"+file, delimiter=",")
-
+    # loading parameters
     if slice == "ma-ga":
         params = ma_arr
     elif slice == "Lpk-tpk":
@@ -123,7 +114,25 @@ def load_green_results(name, run_id=None):
     elif slice == "ttr-tpk":
         params = (ttr_arr, pre_tpk_arr)
 
-    return echo, sn, ga_reach, tage, extra, params, log_lines
+    # loading results:
+    results = {}
+
+    results['echo'] = np.loadtxt(folder+"echo_"+file, delimiter=",")
+    results['sn'] = np.loadtxt(folder+"sn_"+file, delimiter=",")
+    results['ga'] = np.loadtxt(folder+"ga_"+file, delimiter=",")
+    results['tage'] = np.loadtxt(folder+"tage_"+file, delimiter=",")
+
+    try:
+        results['ttrans'] = np.loadtxt(folder+"ttrans_"+file, delimiter=",")
+    except:
+        pass
+
+    try:
+        results['Lpk'] = np.loadtxt(folder+"Lpk_"+file, delimiter=",")
+    except:
+        pass
+
+    return log_lines, params, results
 
 
 
