@@ -170,7 +170,7 @@ args = parser.parse_args()
 # Defining appropriate variables
 run_id = args.run_id
 Nsteps = args.Nsteps
-SKA_mode = args.SKA_mode
+SKA_mode = (args.SKA_mode).replace('_', ' ')
 t_extra = args.t_extra
 sn_th = args.sn_th
 verbose = args.verbose

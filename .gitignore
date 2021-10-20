@@ -9,3 +9,4 @@ batch_*
 **/output/**
 **/workspace_notebooks/scratch.ipynb
 **/workspace_notebooks/age_estimation.ipynb
+commands_batch.txt
