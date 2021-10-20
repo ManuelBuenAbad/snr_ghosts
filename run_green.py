@@ -478,7 +478,7 @@ for i, name in tqdm(enumerate(sorted_names)):
                                       't_peak':t_peak})
 
             # Snu kwargs
-            age_steps = abs(int(1000*(log10(t_age) - log10(t_peak/365.)) + 1))
+            age_steps = abs(int(20000*(log10(t_age) - log10(t_peak/365.)) + 1))
             snu_echo_kwargs = {'tmin_default': None,
                                'Nt': min(age_steps, max_steps),
                                'xmin': ct._au_over_kpc_,
@@ -522,10 +522,15 @@ for i, name in tqdm(enumerate(sorted_names)):
             with open(tage_file, 'w') as f:
                 f.write(str(t_age))
 
-            # ... and t_trans
+            # ... and t_trans...
             ttrans_file = os.path.join(snr_folder, "ttrans_"+file_name)
             with open(ttrans_file, 'w') as f:
                 f.write(str(t_trans))
+
+            # ... and L_peak...
+            Lpk_file = os.path.join(snr_folder, "Lpk_"+file_name)
+            with open(Lpk_file, 'w') as f:
+                f.write(str(L_peak))
 
         #........................................................
         # free+adiabatic, fixed Lpk-tpk free expansion parameters
@@ -560,7 +565,7 @@ for i, name in tqdm(enumerate(sorted_names)):
                     del computed_pars
 
                 # Snu kwargs
-                age_steps = abs(int(1000*(log10(t_age) - log10(tpk/365.)) + 1))
+                age_steps = abs(int(20000*(log10(t_age) - log10(tpk/365.)) + 1))
                 snu_echo_kwargs = {'tmin_default': None,
                                     'Nt': min(age_steps, max_steps),
                                     'xmin': ct._au_over_kpc_,
@@ -597,7 +602,7 @@ for i, name in tqdm(enumerate(sorted_names)):
                 signal_Snu = very_small*np.ones_like(ma_arr)
                 reg_z = very_small*np.ones_like(ma_arr)
                 ga_reach = very_large*np.ones_like(ma_arr)
-                t_trans = very_small*np.ones_like(ma_arr)
+                t_trans = very_small
 
             # Saving spectral irradiance of echo (Snu_echo), S/N ratio, and ga reach
             np.savetxt(snr_folder+"echo_"+file_name, signal_Snu, delimiter=",")
@@ -664,7 +669,7 @@ for i, name in tqdm(enumerate(sorted_names)):
                         del computed_pars
 
                     # Snu kwargs
-                    age_steps = abs(int(1000*(log10(t_age) - log10(tpk/365.)) + 1))
+                    age_steps = abs(int(20000*(log10(t_age) - log10(tpk/365.)) + 1))
                     snu_echo_kwargs = {'tmin_default': None,
                                         'Nt': min(age_steps, max_steps),
                                         'xmin': ct._au_over_kpc_,
@@ -778,7 +783,7 @@ for i, name in tqdm(enumerate(sorted_names)):
                     del computed_pars
 
                     # Snu kwargs
-                    age_steps = abs(int(1000*(log10(t_age) - log10(tpk/365.)) + 1))
+                    age_steps = abs(int(20000*(log10(t_age) - log10(tpk/365.)) + 1))
                     snu_echo_kwargs = {'tmin_default': None,
                                         'Nt': min(age_steps, max_steps),
                                         'xmin': ct._au_over_kpc_,
