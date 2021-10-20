@@ -33,6 +33,25 @@ except:
 
 # -------------------------------------------------
 
+
+################
+# BASIC PARAMS #
+################
+
+# Some basic axion parameters:
+ga_ref = 1.e-10 # [GeV^-1]
+nu_pivot = 1. # [GHz]
+ma_pivot = pt.ma_from_nu(1.) # [eV]
+
+# A small number:
+very_small = 1.e-100
+
+# Maximum number of steps:
+max_steps = 1000001
+
+
+# -------------------------------------------------
+
 #############
 # ARGUMENTS #
 #############
@@ -43,28 +62,33 @@ parser = argparse.ArgumentParser(description="Computes the reach for the SNR in 
 # Arguments with numerical values:
 parser.add_argument("-i", "--run_id", "--run", "--id", default=0,
                     type=int, help="The run ID number (default: 0)")
+parser.add_argument("-N", "--Nsteps", default=None,
+                    type=int, help="The number of steps in parameter space arrays (default: None)")
 parser.add_argument("-x", "--t_extra", "--extra", default=0.,
-                    type=float, help="The extra age of the SNR, after the adiabatic phase [years] (default: None)")
-parser.add_argument("-c", "--correlation_mode", "--correl", default=None,
+                    type=float, help="The extra age of the SNR, after the adiabatic phase [years] (default: 0.)")
+parser.add_argument("-z", "--sn_th", "--signal_noise_ratio", default=1.,
+                    type=float, help="The threshold signal-to-noise ratio to be considered (default: 1)")
+parser.add_argument("-c", "--SKA_mode", "--correlation_mode", "--correl", default=None,
                     type=str, choices=["single dish", "interferometry"], help="The running mode of SKA.")
 parser.add_argument("-a", "--age_mode", default=None,
                     type=str, choices=["known_age", "size_age", "ratio_age"], help="The way in which the age of the SNR will be treated.")
-# arguments for args.age_mode == "size_age":
-parser.add_argument('-m', '--method', default=None,
+
+# AGES CASE A: arguments for args.age_mode == "size_age":
+parser.add_argument("--method", default=None,
                     choices=['TM99-0', 'TM99-simple', 'estimate', 'lin', 'log', 'pheno', 'phenomenological'],
                     type=str, help="The method to compute the age. Based on either Truelove-McKee '99 (TM99; for n=0 ejecta or a simplified version), a quick-and-dirty estimate, a linear regression performed on the (linear/log) data of SNR with known age (default: None), or a phenomenological model with a broken power law.")
 
-# arguments for 'TM99-0' & 'TM99-simple'
+# A.1: arguments for 'TM99-0' & 'TM99-simple'
 parser.add_argument('--M_ej', default=1.,
                     type=float, help="The mass [Msun] of the SNR ejecta (default: 1). Only relevant if method=='TM99-0'/'TM99-simple'.")
 
-# arguments for 'TM99-0', 'TM99-simple', and 'estimate'
+# A.2: arguments for 'TM99-0', 'TM99-simple', and 'estimate'
 parser.add_argument('--E_sn', default=1.,
                     type=float, help="The energy output [1.e51 ergs] of the SNR (default: 1). Only relevant if method=='TM99-0'/'TM99-simple'.")
 parser.add_argument('--rho0', default=1.,
                     type=float, help="The density [proton mass/cm^3] of the interstellar medium surrounding the SNR (default: 1). Only relevant if method=='TM99-0'/'TM99-simple'.")
 
-# arguments for 'phenomenological'
+# A.3: arguments for 'phenomenological'
 parser.add_argument('--Rst', default=3.8,
                     type=float, help="Radius [pc] at the start of the Sedov-Taylor (adiabatic) expansion phase (default: 3.8).")
 parser.add_argument('--tst', default=360.,
@@ -74,65 +98,97 @@ parser.add_argument('--eta1', default=1.,
 parser.add_argument('--eta2', default=0.4,
                     type=float, help="Power scaling R`t^eta2 during the Sedov-Taylor expansion phase (default: 2/5 = 0.4).")
 
-
-
-# arguments for args.age_mode == "ratio_age":
+# AGES CASE B: arguments for args.age_mode == "ratio_age":
 parser.add_argument("-r", "--tt_ratio", "--ratio", default=None,
                     type=float, help="The ratio of t_trans/t_pk (default: None)")
 
 # verbosity
 parser.add_argument("-v", "--verbose", action="store_true", help="Verbosity (default: False)")
 
-# Defining the subparsers and sending their names to .lightcurve attributes
-subparsers = parser.add_subparsers(dest="lightcurve",
-                    help="Subcommand options determining the way in which the lightcurve of the SNR will be treated.")
 
+# defining the subparsers, and sending their names to .slice attribute
+slice_subparsers = parser.add_subparsers(dest="slice", description="The following subcommand options determine the parameter space slice to be explored. NOTA BENE: A slice is denoted by ParX-ParY, in (x,y) axis ordering. ParX is the x-array and will have Nsteps+1 points; ParY is the y-array will have Nsteps+2 points. The routine starts iterating over the y-array (rows), and then proceeds to iterate over the x-array (columns), for easier plotting.")
 
-#######################
+# SLICE 1: ma-ga slice
+mg_subparser = slice_subparsers.add_parser("ma-ga", help="ma-ga parameter space slice [eV, GeV^-1].")
+
+# SLICE 1: ma-ga slice
+#-----------
 # Lightcurve subparsers
-#######################
-#--------------------
-# CASE 1: Adiabatic expansion-only lightcurve
-adiab = subparsers.add_parser("adiabatic_only", help="Only the adiabatic expansion part of the lightcurve will be used in our computations.")
+# N.B.: if we want to have ma-ga parameter space slice, we need to fixed all the lightcurve parameters.
+# Otherwise, the dimensionality would be too large.
+
+# Defining the subparsers and sending their names to .lightcurve attributes
+lc_subparser = mg_subparser.add_subparsers(dest="lightcurve",
+                            help="Subcommand options determining the way in which the lightcurve of the SNR will be treated.")
+
+# 1.1 Adiabatic expansion-only lightcurve
+adiab = lc_subparser.add_parser("adiabatic_only", help="Only the adiabatic expansion part of the lightcurve will be used in our computations.")
 adiab.add_argument('--t_trans', default=None,
                     type=float, help="The duration [years] of the free expansion phase (default: None).")
-adiab.add_argument("-N", "--Nsteps", default=None,
-                    type=int, help="The number of steps in the axion mass parameter space arrays (default: None)")
 
 # N.B. FOR DEBUGGING PURPOSES ONLY:
 adiab.add_argument("-k", "--t_peak", default=10**(ct._mu_log10_tpk_),
                     type=float, help="N.B. FOR DEBUGGING PURPOSES ONLY: The time [days] of peak SNR luminosity. Since the free expansion will be ignored, its precise value is irrelevant (default: 10^1.7).")
 
-#--------------------
-# CASE 2: Free+Adiabatic expansions lightcurve
-free_adiab = subparsers.add_parser("free+adiabatic", help="Both the free expansion and adiabatic expansion parts of the lightcurve will be used in our computations.")
-free_adiab.add_argument("-N", "--Nsteps", default=None,
-                        type=int, help="The number of steps in the Lpk-tpk parameter space arrays (default: None)")
+# 1.2: Free+Adiabatic expansions lightcurve
+free_adiab = lc_subparser.add_parser("free+adiabatic", help="Both the free expansion and adiabatic expansion parts of the lightcurve will be used in our computations.")
 free_adiab.add_argument("-n", "--nuB", "--nu_Bietenholz", default=None,
                         type=float, help="The Bietenholz frequency [GHz] (default: None)")
-free_adiab.add_argument("-f", "--fixed_free", "--fixed_Lpk-tpk",
-                        action="store_true", help="Whether we fix the free expansion parameters L_peak & t_peak, as opposed to scanning them (default: False).")
 free_adiab.add_argument("-L", "--L_peak", default=None,
                         type=float, help="The peak luminosity [erg/s/Hz] (default: None)")
 free_adiab.add_argument("-k", "--t_peak", default=None,
                         type=float, help="The time [days] of peak SNR luminosity (default: None).")
 
 
-# Parsing arguments:
+
+# SLICE 2: Lpk-tpk slice
+Lt_subparser = slice_subparsers.add_parser("Lpk-tpk", help="L_peak-t_peak parameter space slice [ergs/s/Hz, days].")
+
+Lt_subparser.add_argument("-m", "--ma", default=ma_pivot,
+                            type=float, help="The benchmark axion mass [eV] (default: {:.1e}, for 1 GHz)".format(ma_pivot))
+Lt_subparser.add_argument("-n", "--nuB", "--nu_Bietenholz", default=None,
+                            type=float, help="The Bietenholz frequency [GHz] (default: None)")
+
+
+
+# SLICE 3: ttr-tpk slice
+tt_subparser = slice_subparsers.add_parser("ttr-tpk", help="t_trans-t_peak parameter space slice [years, days].")
+
+tt_subparser.add_argument("-m", "--ma", default=ma_pivot,
+                            type=float, help="The benchmark axion mass [eV] (default: {:.1e}, for 1 GHz)".format(ma_pivot))
+
+
+###################
+# Reading Arguments
+###################
+
+#-------------------
+# Parsing
 args = parser.parse_args()
 
 # Defining appropriate variables
 run_id = args.run_id
-correlation_mode = args.correlation_mode
+Nsteps = args.Nsteps
+SKA_mode = args.SKA_mode
 t_extra = args.t_extra
+sn_th = args.sn_th
 verbose = args.verbose
 
+#-----------------------
 # Checking basic values:
-if correlation_mode == None:
-    raise Exception("Pass a value for --correlation_mode.")
+if run_id == None:
+    raise Exception("Pass a value for --run_id.")
+if SKA_mode == None:
+    raise Exception("Pass a value for --SKA_mode.")
+if Nsteps == None:
+    raise Exception("Pass a value for --Nsteps.")
 if t_extra == None:
     raise Exception("Pass a value for --t_extra.")
+if sn_th == None:
+    raise Exception("Pass a value for --sn_th.")
 
+#-------------------------
 # Checking age_mode values
 age_is_known = False # will need to compute age: either from R or from size
 if args.age_mode == "known_age":
@@ -147,7 +203,7 @@ elif args.age_mode == "ratio_age":
 else:
     pass
 
-# defining age_kwargs
+# Defining age_kwargs
 age_kwargs = {}
 if args.age_mode == "size_age":
     if (args.method in ['TM99-0', 'TM99-simple', 'estimate']):
@@ -161,106 +217,83 @@ if args.age_mode == "size_age":
                            'eta2':args.eta2})
 
 # inconsistent choice:
-if args.age_mode == "ratio_age" and args.lightcurve == "adiabatic_only":
-    raise ValueError("If the age is to be deduced from t_trans/t_peak, then we need the full 'free+adiabatic' lightcurve evolution.")
+if args.age_mode == "ratio_age":
+    if args.slice == "ttr-tpk":
+        raise ValueError("If the age is to be deduced from r = t_trans/t_peak, then we cannot use the parameter space ttr-tpk (t_trans, t_peak). Please choose another parameter space slice.")
+    if (args.slice == "ma-ga") and (args.lightcurve == "adiabatic_only"):
+        raise ValueError("If the age is to be deduced from r = t_trans/t_peak, then we need the full 'free+adiabatic' lightcurve evolution.")
 else:
     pass
 
+
+#----------------------------
 # Checking lightcurve values:
-include_free = False
+include_free = True
 
-if args.lightcurve == "adiabatic_only":
+if args.slice == "ma-ga":
+    if args.lightcurve == "adiabatic_only":
 
-    if args.t_trans == None:
-        raise ValueError("Pass a value for --t_trans")
-    if args.t_peak == None:
-        raise ValueError("Pass a value for --t_peak")
-    if args.Nsteps == None :
-        raise ValueError("Pass a value for --Nsteps")
+        include_free = False
 
-    t_trans = args.t_trans
-    t_peak = args.t_peak
-    Nsteps = args.Nsteps
+        if args.t_trans == None:
+            raise ValueError("Pass a value for --t_trans")
+        if args.t_peak == None:
+            raise ValueError("Pass a value for --t_peak")
 
-elif args.lightcurve == "free+adiabatic":
+        t_trans = args.t_trans
+        t_peak = args.t_peak
 
-    include_free = True
-
-    if args.Nsteps == None :
-        raise ValueError("Pass a value for --Nsteps")
-    if args.nuB == None:
-        raise ValueError("Pass a value for --nuB")
-
-    Nsteps = args.Nsteps
-    nuB = args.nuB
-    fixed_free = args.fixed_free
-
-    if fixed_free: # running with fixed parameters
+    elif args.lightcurve == "free+adiabatic":
 
         if (args.t_peak == None) or (args.L_peak == None):
             raise ValueError("If you want to run with fixed values for the free expansion parameters L_peak and t_peak, then you better pass both of them!")
 
-else:
-    pass
+        if args.nuB == None:
+            raise ValueError("Pass a value for --nuB")
 
-# will we scan over the axion mass?
-# TODO: make it so we always do! (see problem with 3D-param space in next TODO flag)
-scan_ma = ((not include_free) or fixed_free)
+        nuB = args.nuB
 
+    else:
+        pass
+
+
+# shorthand
+if args.slice in ["Lpk-tpk", "ttr-tpk"]:
+    ma = args.ma
+if args.slice == "Lpk-tpk":
+    nuB = args.nuB
+
+#############################
+# File handling preliminaries
+#############################
+
+#----------
 # file tail
 tail = "_run-"+str(run_id)+".txt"
 
-####################################
+#-----------------------------------
 # save log file for future reference
-####################################
-
-# axion-photon coupling
-ga_ref = 1.e-10  # [GeV^-1]
 
 log_file = os.path.join(folder, "run_%d_log.txt" % run_id)
 with open(log_file, 'w') as f:
     f.write('#\n#-------Run info\n#\n')
     f.write('run_id: %d\n' % run_id)
     f.write('ga_ref: %e\n' % ga_ref)
-    f.write('scan_ma: %s\n' % scan_ma)
+    f.write('nu_pivot: %e\n' % nu_pivot)
+    f.write('ma_pivot: %e\n' % ma_pivot)
     f.write('#\n#-------Detailed log\n#\n')
     for key, entry in vars(args).items():
         f.write('%s: %s\n' % (key, entry))
 
-# -------------------------------------------------
 
 ##########
 # ARRAYS #
 ##########
 
-if include_free and (not fixed_free):
-    # SNR early-time evolution: from Bietenholz et al., Table 4.
-    # from quantities in constants.py
-    # including free expansion but scanning over Lpk & tpk
-    # we will NOT scan over ma, because that's a large dimensionality;
-    # rather, we will fix ma = ma @ nu_pivot of 1 GHz
-    # TODO: figure out a way to scan over ma as well!
 
-    # tpk and Lpk arrays:
-    Nsigs = 3. # number of standard deviations from the Bietenholz's mean to scan
-    tpk_arr = np.logspace(ct._mu_log10_tpk_-Nsigs*ct._sig_log10_tpk_, ct._mu_log10_tpk_+Nsigs*ct._sig_log10_tpk_, Nsteps+1)
-    Lpk_arr = np.logspace(ct._mu_log10_Lpk_-Nsigs*ct._sig_log10_Lpk_, ct._mu_log10_Lpk_+Nsigs*ct._sig_log10_Lpk_, Nsteps+2)
-
-    # Saving arrays
-    if os.access(folder+"tpk_arr.txt", os.R_OK):
-        pass
-    else:
-        np.savetxt(folder+"tpk_arr.txt", tpk_arr)
-
-    if os.access(folder+"Lpk_arr.txt", os.R_OK):
-        pass
-    else:
-        np.savetxt(folder+"Lpk_arr.txt", Lpk_arr)
-
-else:
-    # either adiabatic_only, or include_free but fixed_free.
-    # at any rate, there is only 1D param space: ma, so we will scan over it.
-
+#---------
+# SLICE 1:
+if args.slice == "ma-ga":
     # Defining a fine array of frequencies
     # for SKA low...
     nulow = np.logspace(log10(ct._nu_min_ska_low_), log10(ct._nu_max_ska_low_), Nsteps//2)[1:]
@@ -277,6 +310,54 @@ else:
     else:
         np.savetxt(folder+"ma_arr.txt", ma_arr)
 
+
+#---------
+# SLICE 2:
+elif args.slice == "Lpk-tpk":
+    # SNR early-time evolution: from Bietenholz et al., Table 4.
+    # from quantities in constants.py
+    # we will NOT scan over ma, because that's a large dimensionality;
+    # rather ma will be fixed.
+
+    # t_peak and L_peak arrays:
+    Nsigs = 3. # number of standard deviations from the Bietenholz's mean to scan
+    # x-array: L_peak
+    Lpk_arr = np.logspace(ct._mu_log10_Lpk_-Nsigs*ct._sig_log10_Lpk_, ct._mu_log10_Lpk_+Nsigs*ct._sig_log10_Lpk_, Nsteps+1)
+    # y-array: t_peak
+    tpk_arr = np.logspace(ct._mu_log10_tpk_-Nsigs*ct._sig_log10_tpk_, ct._mu_log10_tpk_+Nsigs*ct._sig_log10_tpk_, Nsteps+2)
+
+    # Saving arrays
+    if os.access(folder+"Lpk_arr.txt", os.R_OK):
+        pass
+    else:
+        np.savetxt(folder+"Lpk_arr.txt", Lpk_arr)
+
+    if os.access(folder+"tpk_arr.txt", os.R_OK):
+        pass
+    else:
+        np.savetxt(folder+"tpk_arr.txt", tpk_arr)
+
+
+#---------
+# SLICE 3:
+elif args.slice == "ttr-tpk":
+    # t_trans and t_peak arrays
+    Nsigs = 3. # number of standard deviations from the Bietenholz's mean to scan
+    # x-array: t_trans
+    ttr_arr = np.linspace(100, 1000, Nsteps+1)
+    # y-array: t_peak
+    tpk_arr = np.logspace(ct._mu_log10_tpk_-Nsigs*ct._sig_log10_tpk_, ct._mu_log10_tpk_+Nsigs*ct._sig_log10_tpk_, Nsteps+2)
+
+    # Saving arrays
+    if os.access(folder+"ttr_arr.txt", os.R_OK):
+        pass
+    else:
+        np.savetxt(folder+"ttr_arr.txt", ttr_arr)
+
+    if os.access(folder+"tpk_arr.txt", os.R_OK):
+        pass
+    else:
+        np.savetxt(folder+"tpk_arr.txt", tpk_arr)
 
 # -------------------------------------------------
 
@@ -301,17 +382,10 @@ for name in snrs_cut.keys():
     except:
         pass
 
-# -------------------------------------------------
 
 ###########
 # ROUTINE #
 ###########
-
-# A small number:
-ridiculous = 1.e-100
-
-# Maximum number of steps:
-max_steps = 1000001
 
 # data:
 data = {'deltaE_over_E': ct._deltaE_over_E_,
@@ -320,135 +394,158 @@ data = {'deltaE_over_E': ct._deltaE_over_E_,
         'total_observing_time': 100.,
         'verbose': 0,
         'DM_profile': 'NFW',
-        'correlation_mode': correlation_mode,
+        'correlation_mode': SKA_mode,
         'average': True}
 
-# Results dictionaries:
-sn_results = {}
-snu_results = {}
-if include_free:
-    time_results = {} # t_age for args.age_mode == "ratio_age", t_trans for args.age_mode == "known_age"/"size_age"
-
-# SNR counter
-counter = 0
 
 # Sorting the SNR names for easier tracking
 sorted_names = snrs_cut.keys()
 sorted_names.sort()
+
+# SNR counter
+counter = 0
 for i, name in tqdm(enumerate(sorted_names)):
 
     # SNR object:
     snr = snrs_cut[name]
 
-    # running only for those SNR with known ages
-    if age_is_known:
-        try:
-            # for SNR with known age:
-            t_age = snr.age # [years]
-        except:
-            continue
-
-    # SNR folder
-    snr_folder = folder+name+"/"
-    # name of file
-    file_name = name+tail
-
-    if verbose:
-        print(name)
-
     # Reading some important SNR properties:
-    gamma = ap.gamma_from_alpha(snr.alpha) # Sedov-Taylor analytic formula
+    alpha = snr.get_spectral_index() # spectral index
+    gamma = snr.get_gamma() # Sedov-Taylor analytic formula
     L0 = snr.get_luminosity() # [cgs]
     R = snr.get_radius() # [pc]
 
-    # defining the lightcurve parameters
+    # Defining the lightcurve parameters
     lightcurve_params = {'L_today': L0,
                          'use_free_expansion': include_free}
 
-    # adiabatic_only computation:
-    if not include_free:
-        # if age is not known it needs to be computed:
-        if not age_is_known:
-            # computed from the SNR radius
-            if args.age_mode == "size_age":
-                t_age = dt.age_from_radius(R,
-                                           method=args.method,
-                                           **age_kwargs)
-            elif args.age_mode == "ratio_age":
-                raise Error("args.lightcurve=='adiabatic_only' and yet args.age_mode=='ratio_age'. This should not have happened.")
+    # Running only for those SNR with known ages...
+    if age_is_known:
+        # For SNR with known age:
+        t_age = snr.get_age() # [years]
+        if t_age == None:
+            continue
 
-        # computing L_peak
-        _, computed_pars = ap.L_source(t_age, model='eff',
-                                       output_pars=True,
-                                       gamma=gamma,
-                                       t_peak=t_peak, t_trans=t_trans,
-                                       L_today=L0, t_age=t_age)
+        # Updating with age:
+        lightcurve_params.update({'t_age':t_age})
 
-        L_peak = computed_pars['L_peak']
-        del computed_pars
+    elif args.age_mode == "size_age":
+        # For SNR whose age will be computed from their radii:
+        t_age = dt.age_from_radius(R,
+                    method=args.method,
+                    **age_kwargs)
+        # Updating with age:
+        lightcurve_params.update({'t_age':t_age})
 
-        # updating lightcurve parameters
-        lightcurve_params.update({'t_age':t_age,
-                                  't_trans':t_trans,
-                                  't_peak':t_peak})
 
-        # Snu kwargs
-        age_steps = abs(int(1000*(log10(t_age) - log10(t_peak/365.)) + 1))
-        snu_echo_kwargs = {'tmin_default': None,
-                           'Nt': min(age_steps, max_steps),
-                           'xmin': ct._au_over_kpc_,
-                           'xmax_default': 100.,
-                           'use_quad': False,
-                           'lin_space': False,
-                           'Nint': min(age_steps, max_steps),
-                           't_extra_old': t_extra}
+    #-------------------
+    # SNR file handling:
+    # SNR folder
+    snr_folder = folder+name+"/"
+    # Name of file
+    file_name = name+tail
 
-        # computing routine
-        z, new_output = md.snr_routine(ma_arr, ga_ref,
-                                       snr,
-                                       lightcurve_params=lightcurve_params,
-                                       snu_echo_kwargs=snu_echo_kwargs,
-                                       data=data,
-                                       output_all=True)
+    # Printing SNR name!
+    if verbose:
+        print(name)
 
-        # keeping echo's spectral irradiance
-        signal_Snu = new_output['signal_Snu']
-        del new_output
+    #---------
+    # SLICE 1:
+    if args.slice == "ma-ga":
+        #............................
+        # adiabatic_only computation:
+        if not include_free:
+            # If age is not known it needs to be computed:
+            if args.age_mode == "ratio_age":
+                raise Error("args.lightcurve=='adiabatic_only' (available for args.slice=='ma-ga') and yet args.age_mode=='ratio_age'. This should not have happened.")
 
-        if verbose:
-            print("signal_Snu = "+str(signal_Snu))
-            print("S/N= "+str(z))
+            # Computing L_peak
+            _, computed_pars = ap.L_source(t_age, model='eff',
+                                           output_pars=True,
+                                           gamma=gamma,
+                                           t_peak=t_peak, t_trans=t_trans,
+                                           L_today=L0, t_age=t_age)
 
-        # saving S/N ratio and spectral irradiance of echo (Snu_echo)
-        np.savetxt(snr_folder+"sn_"+file_name, z, delimiter=",")
-        np.savetxt(snr_folder+"echo_"+file_name, signal_Snu, delimiter=",")
+            L_peak = computed_pars['L_peak']
+            del computed_pars
 
-        tage_file = os.path.join(snr_folder, "tage_"+file_name)
-        with open(tage_file, 'w') as f:
-            f.write(str(t_age))
+            # Updating lightcurve parameters
+            lightcurve_params.update({'t_age':t_age,
+                                      't_trans':t_trans,
+                                      't_peak':t_peak})
 
-        ttrans_file = os.path.join(snr_folder, "ttrans_"+file_name)
-        with open(ttrans_file, 'w') as f:
-            f.write(str(t_trans))
+            # Snu kwargs
+            age_steps = abs(int(1000*(log10(t_age) - log10(t_peak/365.)) + 1))
+            snu_echo_kwargs = {'tmin_default': None,
+                               'Nt': min(age_steps, max_steps),
+                               'xmin': ct._au_over_kpc_,
+                               'xmax_default': 100.,
+                               'use_quad': False,
+                               'lin_space': False,
+                               'Nint': min(age_steps, max_steps),
+                               't_extra_old': t_extra}
 
-    # free+adiabatic, fixed Lpk-tpk free expansion parameters
-    elif include_free and fixed_free:
-        # need to change Lpk @ nuB ---> Lpk @ 1 GHz
-        from_Bieten_to_pivot = (1./nuB)**-snr.alpha # correction from the fact that the Bietenholz frequency
+            # Performing routine
+            z, new_output = md.snr_routine(ma_arr, ga_ref,
+                                           snr,
+                                           lightcurve_params=lightcurve_params,
+                                           snu_echo_kwargs=snu_echo_kwargs,
+                                           data=data,
+                                           output_all=True)
 
-        tpk = args.t_peak
-        Lpk = args.L_peak*from_Bieten_to_pivot
+            # Keeping echo's spectral irradiance
+            signal_Snu = new_output['signal_Snu']
+            del new_output
 
-        # if age is not known it needs to be computed:
-        if not age_is_known:
-            # computed from the SNR radius
-            if args.age_mode == "size_age":
-                t_age = dt.age_from_radius(R,
-                                           method=args.method,
-                                           **age_kwargs)
-                lightcurve_params.update({'t_age':t_age})
+            if verbose:
+                print("signal_Snu = "+str(signal_Snu))
+                print("S/N= "+str(z))
 
-                # finding t_trans
+            # Regularizing the signal-to-noise ratio:
+            reg_z = np.nan_to_num(z)
+            reg_z = np.where(reg_z < very_small, very_small, reg_z) # converting 0s to a small number
+
+            # Finding reach
+            ga_reach = ec.ga_reach(sn_th, reg_z, ga_ref)
+            ga_reach = np.nan_to_num(ga_reach)
+
+            # Saving spectral irradiance of echo (Snu_echo), S/N ratio, and ga reach
+            np.savetxt(snr_folder+"echo_"+file_name, signal_Snu, delimiter=",")
+            np.savetxt(snr_folder+"sn_"+file_name, reg_z, delimiter=",")
+            np.savetxt(snr_folder+"ga_"+file_name, ga_reach, delimiter=",")
+
+            # Saving age...
+            tage_file = os.path.join(snr_folder, "tage_"+file_name)
+            with open(tage_file, 'w') as f:
+                f.write(str(t_age))
+
+            # ... and t_trans
+            ttrans_file = os.path.join(snr_folder, "ttrans_"+file_name)
+            with open(ttrans_file, 'w') as f:
+                f.write(str(t_trans))
+
+        #........................................................
+        # free+adiabatic, fixed Lpk-tpk free expansion parameters
+        else:
+            # Need to change Lpk @ nuB ---> Lpk @ 1 GHz
+            from_Bieten_to_pivot = (nu_pivot/nuB)**-alpha # correction from the fact that the Bietenholz frequency
+
+            # Peak parameters
+            tpk = args.t_peak
+            Lpk = args.L_peak*from_Bieten_to_pivot
+
+            # Updating lightcurve parameters
+            lightcurve_params.update({'t_peak':tpk,
+                                      'L_peak':Lpk})
+
+            # Age computed from tt_ratio = t_peak/t_trans
+            if args.age_mode == "ratio_age":
+                t_trans = tt_ratio*(tpk/365.)
+                lightcurve_params.update({'t_trans':t_trans})
+                t_age = ap.tage_compute(Lpk, tpk, t_trans, L0, gamma)
+
+            # Age was already computed from size; now computing t_trans
+            elif (args.age_mode == "size_age") or (args.age_mode == "known_age"):
                 _, computed_pars = ap.L_source(t_age, model='eff',
                                                output_pars=True,
                                                gamma=gamma,
@@ -458,66 +555,70 @@ for i, name in tqdm(enumerate(sorted_names)):
                 t_trans = computed_pars['t_trans']
                 del computed_pars
 
-            # computed from tt_ratio = t_peak/t_trans
-            elif args.age_mode == "ratio_age":
-                t_trans = tt_ratio*(tpk/365.)
-                lightcurve_params.update({'t_trans':t_trans})
-                t_age = ap.tage_compute(Lpk, tpk, t_trans, L0, gamma)
+            # Snu kwargs
+            age_steps = abs(int(1000*(log10(t_age) - log10(tpk/365.)) + 1))
+            snu_echo_kwargs = {'tmin_default': None,
+                                'Nt': min(age_steps, max_steps),
+                                'xmin': ct._au_over_kpc_,
+                                'xmax_default': 100.,
+                                'use_quad': False,
+                                'lin_space': False,
+                                'Nint': min(age_steps, max_steps),
+                                't_extra_old': t_extra}
 
-        # updating lightcurve parameters
-        lightcurve_params.update({'t_peak':tpk,
-                                  'L_peak':Lpk})
+            # computing routine
+            z, new_output = md.snr_routine(ma_arr, ga_ref,
+                                       snr,
+                                       lightcurve_params=lightcurve_params,
+                                       snu_echo_kwargs=snu_echo_kwargs,
+                                       data=data,
+                                       output_all=True)
 
-        # Snu kwargs
-        age_steps = abs(int(1000*(log10(t_age) - log10(tpk/365.)) + 1))
-        snu_echo_kwargs = {'tmin_default': None,
-                            'Nt': min(age_steps, max_steps),
-                            'xmin': ct._au_over_kpc_,
-                            'xmax_default': 100.,
-                            'use_quad': False,
-                            'lin_space': False,
-                            'Nint': min(age_steps, max_steps),
-                            't_extra_old': t_extra}
+            signal_Snu = new_output['signal_Snu']
+            del new_output
 
-        # computing routine
-        z, new_output = md.snr_routine(ma_arr, ga_ref,
-                                   snr,
-                                   lightcurve_params=lightcurve_params,
-                                   snu_echo_kwargs=snu_echo_kwargs,
-                                   data=data,
-                                   output_all=True)
+            if verbose:
+                print("signal_Snu = "+str(signal_Snu))
+                print("S/N= "+str(z))
 
-        signal_Snu = new_output['signal_Snu']
-        del new_output
+            # Regularizing the signal-to-noise ratio:
+            reg_z = np.nan_to_num(z)
+            reg_z = np.where(reg_z < very_small, very_small, reg_z) # converting 0s to a small number
 
-        if verbose:
-            print("signal_Snu = "+str(signal_Snu))
-            print("S/N= "+str(z))
+            # Finding reach
+            ga_reach = ec.ga_reach(sn_th, reg_z, ga_ref)
+            ga_reach = np.nan_to_num(ga_reach)
 
-        # saving S/N ratio and spectral irradiance of echo (Snu_echo)
-        np.savetxt(snr_folder+"sn_"+file_name, z, delimiter=",")
-        np.savetxt(snr_folder+"echo_"+file_name, signal_Snu, delimiter=",")
+            # Saving spectral irradiance of echo (Snu_echo), S/N ratio, and ga reach
+            np.savetxt(snr_folder+"echo_"+file_name, signal_Snu, delimiter=",")
+            np.savetxt(snr_folder+"sn_"+file_name, reg_z, delimiter=",")
+            np.savetxt(snr_folder+"ga_"+file_name, ga_reach, delimiter=",")
 
-        tage_file = os.path.join(snr_folder, "tage_"+file_name)
-        with open(tage_file, 'w') as f:
-            f.write(str(t_age))
+            # Saving age...
+            tage_file = os.path.join(snr_folder, "tage_"+file_name)
+            with open(tage_file, 'w') as f:
+                f.write(str(t_age))
 
-        ttrans_file = os.path.join(snr_folder, "ttrans_"+file_name)
-        with open(ttrans_file, 'w') as f:
-            f.write(str(t_trans))
+            # ... and t_trans
+            ttrans_file = os.path.join(snr_folder, "ttrans_"+file_name)
+            with open(ttrans_file, 'w') as f:
+                f.write(str(t_trans))
 
-    # free+adiabatic, scan over Lpk-tpk free expansion parameters
-    else:
+
+    #---------
+    # SLICE 2:
+    elif args.slice == "Lpk-tpk":
         # need to change Lpk @ nuB ---> Lpk @ 1 GHz
-        from_Bieten_to_pivot = (1./nuB)**-snr.alpha # correction from the fact that the Bietenholz frequency is not the pivot frequency [1 GHz]
+        from_Bieten_to_pivot = (nu_pivot/nuB)**-alpha # correction from the fact that the Bietenholz frequency is not the pivot frequency [1 GHz]
         new_Lpk_arr = np.copy(Lpk_arr) # copying peak luminosity array
         new_Lpk_arr *= from_Bieten_to_pivot  # correcting L_peak by switching from the Bietenholz to the pivot frequencies
 
         # preparing the arrays to be filled:
-        sn_results[name] = []
-        snu_results[name] = []
-        tage_results[name] = []
-        ttrans_results[name] = []
+        echo_gr = []
+        sn_gr = []
+        ga_gr = []
+        tage_gr = []
+        ttrans_gr = []
 
         # start!
         for tpk in tpk_arr:
@@ -526,38 +627,31 @@ for i, name in tqdm(enumerate(sorted_names)):
             row_b = []
             row_c = []
             row_d = []
+            row_e = []
 
             for Lpk in new_Lpk_arr:
 
+                # Updating lightcurve parameters
+                lightcurve_params.update({'t_peak':tpk,
+                                          'L_peak':Lpk})
+
                 try:
-                    # if age is not known it needs to be computed:
-                    if not age_is_known:
-                        # computed from the SNR radius
-                        if args.age_mode == "size_age":
-                            t_age = dt.age_from_radius(R,
-                                                       method=args.method,
-                                                       **age_kwargs)
-                            lightcurve_params.update({'t_age':t_age})
+                    # Computing age from tt_ratio = t_peak/t_trans
+                    if args.age_mode == "ratio_age":
+                        t_trans = tt_ratio*(tpk/365.)
+                        lightcurve_params.update({'t_trans':t_trans})
+                        t_age = ap.tage_compute(Lpk, tpk, t_trans, L0, gamma)
 
-                            # finding t_trans
-                            _, computed_pars = ap.L_source(t_age, model='eff',
-                                               output_pars=True,
-                                               gamma=gamma,
-                                               t_peak=tpk, L_peak=Lpk,
-                                               L_today=L0, t_age=t_age)
+                    # Age was already computed from the SNR radius; now finding t_trans
+                    elif (args.age_mode == "size_age") or (args.age_mode == "known_age"):
+                        _, computed_pars = ap.L_source(t_age, model='eff',
+                                           output_pars=True,
+                                           gamma=gamma,
+                                           t_peak=tpk, L_peak=Lpk,
+                                           L_today=L0, t_age=t_age)
 
-                            t_trans = computed_pars['t_trans']
-                            del computed_pars
-
-                        # computed from tt_ratio = t_peak/t_trans
-                        elif args.age_mode == "ratio_age":
-                            t_trans = tt_ratio*(tpk/365.)
-                            lightcurve_params.update({'t_trans':t_trans})
-                            t_age = ap.tage_compute(Lpk, tpk, t_trans, L0, gamma)
-
-                    # updating lightcurve parameters
-                    lightcurve_params.update({'t_peak':tpk,
-                                              'L_peak':Lpk})
+                        t_trans = computed_pars['t_trans']
+                        del computed_pars
 
                     # Snu kwargs
                     age_steps = abs(int(1000*(log10(t_age) - log10(tpk/365.)) + 1))
@@ -571,7 +665,7 @@ for i, name in tqdm(enumerate(sorted_names)):
                                         't_extra_old': t_extra}
 
                     # computing routine
-                    z, new_output = md.snr_routine(pt.ma_from_nu(1.), ga_ref,
+                    z, new_output = md.snr_routine(ma, ga_ref,
                                                snr,
                                                lightcurve_params=lightcurve_params,
                                                snu_echo_kwargs=snu_echo_kwargs,
@@ -585,43 +679,169 @@ for i, name in tqdm(enumerate(sorted_names)):
                         print("signal_Snu = "+str(signal_Snu))
                         print("S/N= "+str(z))
 
+                    # Regularizing the signal-to-noise ratio:
+                    reg_z = np.nan_to_num(z)
+                    reg_z = np.where(reg_z < very_small, very_small, reg_z) # converting 0s to a small number
+
+                    # Finding reach
+                    ga_reach = ec.ga_reach(sn_th, reg_z, ga_ref)
+                    ga_reach = np.nan_to_num(ga_reach)
+
                     # building rows
-                    row_a.append(z) # signal-to-noise ratio
-                    row_b.append(signal_Snu) # signal S_nu
-                    row_c.append(t_age) # t_age
-                    row_d.append(t_trans) # t_trans
+                    row_a.append(signal_Snu) # signal S_nu
+                    row_b.append(reg_z) # signal-to-noise ratio
+                    row_c.append(ga_reach) # ga reach
+                    row_d.append(t_age) # t_age
+                    row_e.append(t_trans) # t_trans
 
                 except:
-                    # nonsense results; append some ridiculous value
-                    row_a.append(ridiculous)
-                    row_b.append(ridiculous)
-                    row_c.append(ridiculous)
-                    row_d.append(ridiculous)
+                    # nonsense results; append some very small value
+                    row_a.append(very_small)
+                    row_b.append(very_small)
+                    row_c.append(very_small)
+                    row_d.append(very_small)
+                    row_e.append(very_small)
 
                 # end of routine for fixed Lpk
 
             # appending finished Lpk rows
-            sn_results[name].append(row_a)
-            snu_results[name].append(row_b)
-            tage_results[name].append(row_c)
-            ttrans_results[name].append(row_d)
+            echo_gr.append(row_a)
+            sn_gr.append(row_b)
+            ga_gr.append(row_c)
+            tage_gr.append(row_d)
+            ttrans_gr.append(row_e)
 
             # end of routine for fixed tpk
 
         # converting grids to arrays
-        sn_results[name] = np.array(sn_results[name])
-        snu_results[name] = np.array(snu_results[name])
-        tage_results[name] = np.array(tage_results[name])
-        ttrans_results[name] = np.array(ttrans_results[name])
+        echo_gr = np.array(echo_gr)
+        sn_gr = np.array(sn_gr)
+        ga_gr = np.array(ga_gr)
+        tage_gr = np.array(tage_gr)
+        ttrans_gr = np.array(ttrans_gr)
 
         # saving grids
-        np.savetxt(snr_folder+"sn_"+file_name, sn_results[name], delimiter=",")
-        np.savetxt(snr_folder+"echo_"+file_name, snu_results[name], delimiter=",")
-        np.savetxt(snr_folder+"tage_"+file_name, tage_results[name], delimiter=",")
-        np.savetxt(snr_folder+"ttrans_"+file_name, ttrans_results[name], delimiter=",")
+        np.savetxt(snr_folder+"echo_"+file_name, echo_gr, delimiter=",")
+        np.savetxt(snr_folder+"sn_"+file_name, sn_gr, delimiter=",")
+        np.savetxt(snr_folder+"ga_"+file_name, ga_gr, delimiter=",")
+        np.savetxt(snr_folder+"tage_"+file_name, tage_gr, delimiter=",")
+        np.savetxt(snr_folder+"ttrans_"+file_name, ttrans_gr, delimiter=",")
 
+
+    #---------
+    # SLICE 3:
+    elif args.slice == "ttr-tpk":
+        # preparing the arrays to be filled:
+        echo_gr = []
+        sn_gr = []
+        ga_gr = []
+        tage_gr = []
+        Lpk_gr = []
+
+        # start!
+        for tpk in tpk_arr:
+
+            row_a = []
+            row_b = []
+            row_c = []
+            row_d = []
+            row_e = []
+
+            for t_trans in ttr_arr:
+                # Updating lightcurve parameters
+                lightcurve_params.update({'t_peak':tpk,
+                                          't_trans':t_trans})
+
+                try:
+                    # Computing age from tt_ratio = t_peak/t_trans
+                    if args.age_mode == "ratio_age":
+                        raise Error("args.slice=='ttr-tpk' and yet args.age_mode=='ratio_age'. This should not have happened.")
+
+                    # Age was already computed from the SNR radius; now finding L_peak
+                    _, computed_pars = ap.L_source(t_age, model='eff',
+                                       output_pars=True,
+                                       gamma=gamma,
+                                       t_peak=tpk, t_trans=t_trans,
+                                       L_today=L0, t_age=t_age)
+
+                    Lpk = computed_pars['L_peak']
+                    del computed_pars
+
+                    # Snu kwargs
+                    age_steps = abs(int(1000*(log10(t_age) - log10(tpk/365.)) + 1))
+                    snu_echo_kwargs = {'tmin_default': None,
+                                        'Nt': min(age_steps, max_steps),
+                                        'xmin': ct._au_over_kpc_,
+                                        'xmax_default': 100.,
+                                        'use_quad': False,
+                                        'lin_space': False,
+                                        'Nint': min(age_steps, max_steps),
+                                        't_extra_old': t_extra}
+
+                    # computing routine
+                    z, new_output = md.snr_routine(ma, ga_ref,
+                                               snr,
+                                               lightcurve_params=lightcurve_params,
+                                               snu_echo_kwargs=snu_echo_kwargs,
+                                               data=data,
+                                               output_all=True)
+
+                    signal_Snu = new_output['signal_Snu']
+                    del new_output
+
+                    if verbose:
+                        print("signal_Snu = "+str(signal_Snu))
+                        print("S/N= "+str(z))
+
+                    # Regularizing the signal-to-noise ratio:
+                    reg_z = np.nan_to_num(z)
+                    reg_z = np.where(reg_z < very_small, very_small, reg_z) # converting 0s to a small number
+
+                    # Finding reach
+                    ga_reach = ec.ga_reach(sn_th, reg_z, ga_ref)
+                    ga_reach = np.nan_to_num(ga_reach)
+
+                    # building rows
+                    row_a.append(signal_Snu) # signal S_nu
+                    row_b.append(reg_z) # signal-to-noise ratio
+                    row_c.append(ga_reach) # ga reach
+                    row_d.append(t_age) # t_age
+                    row_e.append(Lpk) # L_peak
+
+                except:
+                    # nonsense results; append some very small value
+                    row_a.append(very_small)
+                    row_b.append(very_small)
+                    row_c.append(very_small)
+                    row_d.append(very_small)
+                    row_e.append(very_small)
+
+                # end of routine for fixed ttr
+
+            # appending finished ttr rows
+            echo_gr.append(row_a)
+            sn_gr.append(row_b)
+            ga_gr.append(row_c)
+            tage_gr.append(row_d)
+            Lpk_gr.append(row_e)
+
+            # end of routine for fixed tpk
+
+        # converting grids to arrays
+        echo_gr = np.array(echo_gr)
+        sn_gr = np.array(sn_gr)
+        ga_gr = np.array(ga_gr)
+        tage_gr = np.array(tage_gr)
+        Lpk_gr = np.array(Lpk_gr)
+
+        # saving grids
+        np.savetxt(snr_folder+"echo_"+file_name, echo_gr, delimiter=",")
+        np.savetxt(snr_folder+"sn_"+file_name, sn_gr, delimiter=",")
+        np.savetxt(snr_folder+"ga_"+file_name, ga_gr, delimiter=",")
+        np.savetxt(snr_folder+"tage_"+file_name, tage_gr, delimiter=",")
+        np.savetxt(snr_folder+"Lpk_"+file_name, Lpk_gr, delimiter=",")
+
+    #-----------
     counter += 1
-
     # end of routine for fixed snr
-
 print(counter)

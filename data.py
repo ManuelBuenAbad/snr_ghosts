@@ -761,19 +761,19 @@ def name_expand(name):
     """
     A simple function that expands the names of the Green's Catalog by adding 0's, in order to put it in the form 'GLLL.L[+-]BB.B'.
     """
-    
+
     m = re.search('G(\d\d\d\.\d|\d\d\.\d|\d\.\d)([+-])(\d\d\.\d|\d\.\d)',
               name)
-    
+
     lon = m.group(1)
     sig = m.group(2)
     lat = m.group(3)
-    
+
     new_lon = (5-len(lon))*'0'+lon
     new_lat = (4-len(lat))*'0'+lat
-    
+
     new_name = 'G'+new_lon+sig+new_lat
-    
+
     return new_name
 
 
@@ -924,7 +924,7 @@ def age_from_radius(R, method=None, **kwargs):
 
     elif method in ['estimate', 'TM99-0', 'TM99-simple']:
         age = physics_age(R, model=method, **kwargs)
-    
+
     elif method in ['pheno', 'phenomenological']:
         age = pheno_age(R, **kwargs)
 

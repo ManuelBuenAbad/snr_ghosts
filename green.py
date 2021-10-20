@@ -53,6 +53,12 @@ try:
 except:
     ma_arr = None
 
+try:
+    pre_tpk_arr = np.loadtxt(green_path+"tpk_arr.txt", delimiter=",")
+    ttr_arr = np.loadtxt(green_path+"ttr_arr.txt", delimiter=",")
+except:
+    pass
+
 # -------------------------------------------------
 
 ###############
@@ -92,25 +98,32 @@ def load_green_results(name, run_id=None):
     with open(green_path+log_file, 'r') as log_info:
         log_lines = [line.rstrip('\n') for line in log_info]
 
-    # looking in the log whether this run scanned over the axion mass
-    scan_idx = [('scan_ma:' in line) for line in log_lines].index(True)
-    scan_ma = (log_lines[scan_idx].split()[-1] == "True")
+    # looking in the log what the parameter slice was:
+    slice_idx = [('slice:' in line) for line in log_lines].index(True)
+    slice = log_lines[slice_idx].split()[-1]
 
-    # loading S/N, Snu_echo, age, and t_trans results:
+    # loading Snu_echo, S/N, reach, age, and t_trans/Lpk results:
     folder = green_path+name+"/"
     file = name+"_run-"+str(run_id)+".txt"
 
-    sn = np.loadtxt(folder+"sn_"+file, delimiter=",")
     echo = np.loadtxt(folder+"echo_"+file, delimiter=",")
+    sn = np.loadtxt(folder+"sn_"+file, delimiter=",")
+    ga_reach = np.loadtxt(folder+"ga_"+file, delimiter=",")
     tage = np.loadtxt(folder+"tage_"+file, delimiter=",")
-    ttrans = np.loadtxt(folder+"ttrans_"+file, delimiter=",")
 
-    if scan_ma:
+    if (slice == "ma-ga") or (slice == "Lpk-tpk"):
+        extra = np.loadtxt(folder+"ttrans_"+file, delimiter=",")
+    elif slice == "ttr-tpk":
+        extra = np.loadtxt(folder+"Lpk_"+file, delimiter=",")
+
+    if slice == "ma-ga":
         params = ma_arr
-    else:
+    elif slice == "Lpk-tpk":
         params = (pre_Lpk_arr, pre_tpk_arr)
+    elif slice == "ttr-tpk":
+        params = (ttr_arr, pre_tpk_arr)
 
-    return sn, echo, tage, ttrans, params, log_lines
+    return echo, sn, ga_reach, tage, extra, params, log_lines
 
 
 
