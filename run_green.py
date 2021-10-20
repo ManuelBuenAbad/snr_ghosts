@@ -46,6 +46,9 @@ ma_pivot = pt.ma_from_nu(1.) # [eV]
 # A small number:
 very_small = 1.e-100
 
+# A large number
+very_large = 1.e100
+
 # Maximum number of steps:
 max_steps = 1000001
 
@@ -69,7 +72,7 @@ parser.add_argument("-x", "--t_extra", "--extra", default=0.,
 parser.add_argument("-z", "--sn_th", "--signal_noise_ratio", default=1.,
                     type=float, help="The threshold signal-to-noise ratio to be considered (default: 1)")
 parser.add_argument("-c", "--SKA_mode", "--correlation_mode", "--correl", default=None,
-                    type=str, choices=["single dish", "interferometry"], help="The running mode of SKA.")
+                    type=str, choices=["single_dish", "interferometry"], help="The running mode of SKA.")
 parser.add_argument("-a", "--age_mode", default=None,
                     type=str, choices=["known_age", "size_age", "ratio_age"], help="The way in which the age of the SNR will be treated.")
 
@@ -538,56 +541,63 @@ for i, name in tqdm(enumerate(sorted_names)):
             lightcurve_params.update({'t_peak':tpk,
                                       'L_peak':Lpk})
 
-            # Age computed from tt_ratio = t_peak/t_trans
-            if args.age_mode == "ratio_age":
-                t_trans = tt_ratio*(tpk/365.)
-                lightcurve_params.update({'t_trans':t_trans})
-                t_age = ap.tage_compute(Lpk, tpk, t_trans, L0, gamma)
+            try:
+                # Age computed from tt_ratio = t_peak/t_trans
+                if args.age_mode == "ratio_age":
+                    t_trans = tt_ratio*(tpk/365.)
+                    lightcurve_params.update({'t_trans':t_trans})
+                    t_age = ap.tage_compute(Lpk, tpk, t_trans, L0, gamma)
 
-            # Age was already computed from size; now computing t_trans
-            elif (args.age_mode == "size_age") or (args.age_mode == "known_age"):
-                _, computed_pars = ap.L_source(t_age, model='eff',
-                                               output_pars=True,
-                                               gamma=gamma,
-                                               t_peak=tpk, L_peak=Lpk,
-                                               L_today=L0, t_age=t_age)
+                # Age was already computed from size; now computing t_trans
+                elif (args.age_mode == "size_age") or (args.age_mode == "known_age"):
+                    _, computed_pars = ap.L_source(t_age, model='eff',
+                                                    output_pars=True,
+                                                    gamma=gamma,
+                                                    t_peak=tpk, L_peak=Lpk,
+                                                    L_today=L0, t_age=t_age)
 
-                t_trans = computed_pars['t_trans']
-                del computed_pars
+                    t_trans = computed_pars['t_trans']
+                    del computed_pars
 
-            # Snu kwargs
-            age_steps = abs(int(1000*(log10(t_age) - log10(tpk/365.)) + 1))
-            snu_echo_kwargs = {'tmin_default': None,
-                                'Nt': min(age_steps, max_steps),
-                                'xmin': ct._au_over_kpc_,
-                                'xmax_default': 100.,
-                                'use_quad': False,
-                                'lin_space': False,
-                                'Nint': min(age_steps, max_steps),
-                                't_extra_old': t_extra}
+                # Snu kwargs
+                age_steps = abs(int(1000*(log10(t_age) - log10(tpk/365.)) + 1))
+                snu_echo_kwargs = {'tmin_default': None,
+                                    'Nt': min(age_steps, max_steps),
+                                    'xmin': ct._au_over_kpc_,
+                                    'xmax_default': 100.,
+                                    'use_quad': False,
+                                    'lin_space': False,
+                                    'Nint': min(age_steps, max_steps),
+                                    't_extra_old': t_extra}
 
-            # computing routine
-            z, new_output = md.snr_routine(ma_arr, ga_ref,
-                                       snr,
-                                       lightcurve_params=lightcurve_params,
-                                       snu_echo_kwargs=snu_echo_kwargs,
-                                       data=data,
-                                       output_all=True)
+                # computing routine
+                z, new_output = md.snr_routine(ma_arr, ga_ref,
+                                                snr,
+                                                lightcurve_params=lightcurve_params,
+                                                snu_echo_kwargs=snu_echo_kwargs,
+                                                data=data,
+                                                output_all=True)
 
-            signal_Snu = new_output['signal_Snu']
-            del new_output
+                signal_Snu = new_output['signal_Snu']
+                del new_output
 
-            if verbose:
-                print("signal_Snu = "+str(signal_Snu))
-                print("S/N= "+str(z))
+                if verbose:
+                    print("signal_Snu = "+str(signal_Snu))
+                    print("S/N= "+str(z))
 
-            # Regularizing the signal-to-noise ratio:
-            reg_z = np.nan_to_num(z)
-            reg_z = np.where(reg_z < very_small, very_small, reg_z) # converting 0s to a small number
+                # Regularizing the signal-to-noise ratio:
+                reg_z = np.nan_to_num(z)
+                reg_z = np.where(reg_z < very_small, very_small, reg_z) # converting 0s to a small number
 
-            # Finding reach
-            ga_reach = ec.ga_reach(sn_th, reg_z, ga_ref)
-            ga_reach = np.nan_to_num(ga_reach)
+                # Finding reach
+                ga_reach = ec.ga_reach(sn_th, reg_z, ga_ref)
+                ga_reach = np.nan_to_num(ga_reach)
+
+            except:
+                signal_Snu = very_small*np.ones_like(ma_arr)
+                reg_z = very_small*np.ones_like(ma_arr)
+                ga_reach = very_large*np.ones_like(ma_arr)
+                t_trans = very_small*np.ones_like(ma_arr)
 
             # Saving spectral irradiance of echo (Snu_echo), S/N ratio, and ga reach
             np.savetxt(snr_folder+"echo_"+file_name, signal_Snu, delimiter=",")
@@ -695,10 +705,10 @@ for i, name in tqdm(enumerate(sorted_names)):
                     row_e.append(t_trans) # t_trans
 
                 except:
-                    # nonsense results; append some very small value
+                    # nonsense results; append some very small/large value
                     row_a.append(very_small)
                     row_b.append(very_small)
-                    row_c.append(very_small)
+                    row_c.append(very_large)
                     row_d.append(very_small)
                     row_e.append(very_small)
 
@@ -809,10 +819,10 @@ for i, name in tqdm(enumerate(sorted_names)):
                     row_e.append(Lpk) # L_peak
 
                 except:
-                    # nonsense results; append some very small value
+                    # nonsense results; append some very small/large value
                     row_a.append(very_small)
                     row_b.append(very_small)
-                    row_c.append(very_small)
+                    row_c.append(very_large)
                     row_d.append(very_small)
                     row_e.append(very_small)
 
