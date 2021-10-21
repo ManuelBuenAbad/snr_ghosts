@@ -159,7 +159,7 @@ _nu_max_ska2_mid_ = 30.  # [GHz] # this is SKA2-mid c.f. Caputo
 # SKA beam geometry
 #
 _SKALow_station_diameter_ = 38.  # [m]
-_SKA1Mid_dish_diameter_ = 15.  # [m]
+_SKA1Mid_dish_diameter_ = 14.53  # [m] weighted average
 
 #
 # SKA array configuration
