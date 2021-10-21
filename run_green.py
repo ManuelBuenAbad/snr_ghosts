@@ -478,7 +478,7 @@ for i, name in tqdm(enumerate(sorted_names)):
                                       't_peak':t_peak})
 
             # Snu kwargs
-            age_steps = abs(int(20000*(log10(t_age) - log10(t_peak/365.)) + 1))
+            age_steps = abs(int(1000*(log10(t_age) - log10(t_peak/365.)) + 1))
             snu_echo_kwargs = {'tmin_default': None,
                                'Nt': min(age_steps, max_steps),
                                'xmin': ct._au_over_kpc_,
@@ -565,7 +565,7 @@ for i, name in tqdm(enumerate(sorted_names)):
                     del computed_pars
 
                 # Snu kwargs
-                age_steps = abs(int(20000*(log10(t_age) - log10(tpk/365.)) + 1))
+                age_steps = abs(int(1000*(log10(t_age) - log10(tpk/365.)) + 1))
                 snu_echo_kwargs = {'tmin_default': None,
                                     'Nt': min(age_steps, max_steps),
                                     'xmin': ct._au_over_kpc_,
@@ -669,7 +669,7 @@ for i, name in tqdm(enumerate(sorted_names)):
                         del computed_pars
 
                     # Snu kwargs
-                    age_steps = abs(int(20000*(log10(t_age) - log10(tpk/365.)) + 1))
+                    age_steps = abs(int(1000*(log10(t_age) - log10(tpk/365.)) + 1))
                     snu_echo_kwargs = {'tmin_default': None,
                                         'Nt': min(age_steps, max_steps),
                                         'xmin': ct._au_over_kpc_,
@@ -783,7 +783,7 @@ for i, name in tqdm(enumerate(sorted_names)):
                     del computed_pars
 
                     # Snu kwargs
-                    age_steps = abs(int(20000*(log10(t_age) - log10(tpk/365.)) + 1))
+                    age_steps = abs(int(1000*(log10(t_age) - log10(tpk/365.)) + 1))
                     snu_echo_kwargs = {'tmin_default': None,
                                         'Nt': min(age_steps, max_steps),
                                         'xmin': ct._au_over_kpc_,
