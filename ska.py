@@ -14,6 +14,11 @@ import tools as tl
 # Preparing SKA configurations
 ##############################
 def main():
+    """This routine is supposed to be run only once, therefore\
+ the I/O is not optimized for speed concerns.
+
+    """
+
     SKA_conf = {}
 
     # --------------
@@ -60,6 +65,23 @@ def main():
             SKA_conf['mid baseline'] = (
                 baseline_arr, hist_baseline, bins_baseline, hist_baseline_cumsum)
 
+        # about effective area
+
+        if exper == "low":
+            path = os.path.dirname(os.path.abspath(__file__)) + \
+                "/data/SKA1-low_Aeff_over_Tsys.txt"
+            data_raw = np.loadtxt(path)
+            # low is given in MHz, convert to GHz
+            data_raw[:, 0] = data_raw[:, 0] * 1.e-3
+            SKA_conf['low A/T'] = data_raw
+
+        elif exper == "mid":
+            path = os.path.dirname(os.path.abspath(__file__)) + \
+                "/data/SKA1-mid_Aeff_over_Tsys.txt"
+            data_raw = np.loadtxt(path)
+            SKA_conf['mid A/T'] = data_raw
+    SKA_conf['A/T'] = np.concatenate((SKA_conf['low A/T'],
+                                     SKA_conf['mid A/T']))
     return SKA_conf
 
 ################
@@ -294,8 +316,40 @@ def get_baseline(x_arr, y_arr):
     baseline_arr = baseline_arr[baseline_arr > 0]
     return baseline_arr
 
-##################################
+###############
+# Aeff
+###############
 
+
+def get_eta_eff(nu, Tsys, SKA_conf):
+    """Compute the effective area [m^2] for a given Tsys
+
+    :param Tsys: systematic noise temperature [K]
+    :param SKA_conf: the dictionary that stores the SKA configurations
+
+    """
+    nu_arr = SKA_conf['A/T'][:, 0]
+    area_arr = SKA_conf['A/T'][:, 1] * Tsys
+    nu, is_scalar = tl.treat_as_arr(nu)
+    eta = []
+
+    for nu_i in nu:
+        area_eff = np.interp(nu_i, nu_arr, area_arr)
+
+        if nu_i > ct._nu_max_ska_low_:
+            area_geo = np.pi * (ct._SKA1Mid_dish_diameter_ / 2.)**2
+        else:
+            area_geo = np.pi * (ct._SKALow_station_diameter_ / 2.)**2
+        eta.append(min(area_eff / area_geo, 1))  # eta cannot be larger than 1
+    eta = np.array(eta)
+
+    if is_scalar:
+        return np.squeeze(eta)
+    else:
+        return eta
+
+
+##################################
 
 # The global variable to be saved
 SKA_conf = main()
