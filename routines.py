@@ -71,7 +71,7 @@ default_data = {'deltaE_over_E': ct._deltaE_over_E_,
                 'total_observing_time': 100.,
                 'average': True,
                 'DM_profile': 'NFW',
-#                 'correlation_mode': 'interferometry',
+                #                 'correlation_mode': 'interferometry',
                 'verbose': 0
                 }
 # I'm not setting 'correlation_mode' for now to expose and update all old code through Exceptions.
@@ -178,7 +178,7 @@ def Snu_rescale_axion(ma, ga, ma_ref, ga_ref, source_input=default_source_input)
     return nu_fac * ax_pref
 
 
-def SKA_rescaled_specs(ma, data=default_data, theta_sig=None):
+def SKA_rescaled_specs(ma, data=default_data, theta_sig=None, source_input=None):
     """
     Returns the SKA specs for the rescaled axion parameters.
 
@@ -207,8 +207,21 @@ def SKA_rescaled_specs(ma, data=default_data, theta_sig=None):
         for nn in nu_flat:
 
             exper_mode = sk.SKA_exper_nu(nn)
+
+            # NEWADD
+            # computing efficiency
+            l_source = source_input['longitude']
+            b_source = source_input['latitude']
+            l_echo = l_source + 180.  # [deg] galactic longitude of echo
+            b_echo = -b_source  # [deg] galactic latitude of echo
+            Tbg_at_408 = ap.bg_408_temp(l=l_echo, b=b_echo)  # no average
+            T_sys = ap.T_noise(nn, Tbg_at_408=Tbg_at_408)
+            eta = sk.get_eta_eff(nn, T_sys, sk.SKA_conf)
+
             aa, ww, tr, od, nd, nm = sk.SKA_specs(
-                nn, exper_mode, eta=ct._eta_ska_, correlation_mode=correlation_mode, theta_sig=theta_sig)
+                nn, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_sig)
+            # aa, ww, tr, od, nd, nm = sk.SKA_specs(
+            #     nn, exper_mode, eta=eta, correlation_mode=correlation_mode, theta_sig=theta_sig)
 
             area.append(aa)
             window.append(ww)
@@ -217,17 +230,63 @@ def SKA_rescaled_specs(ma, data=default_data, theta_sig=None):
             number_of_dishes.append(nd)
             number_of_measurements.append(nm)
 
-        area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = np.array(area), np.array(
-            window), np.array(Tr), np.array(Omega_res), np.array(number_of_dishes), np.array(number_of_measurements)
-        area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = np.reshape(area, nu.shape), np.reshape(
-            window, nu.shape), np.reshape(Tr, nu.shape), np.reshape(Omega_res, nu.shape), np.reshape(number_of_dishes, nu.shape), np.reshape(number_of_measurements, nu.shape)
-        area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = np.squeeze(area), np.squeeze(
-            window), np.squeeze(Tr), np.squeeze(Omega_res), np.squeeze(number_of_dishes), np.squeeze(number_of_measurements)
+        (area,
+         window,
+         Tr,
+         Omega_res,
+         number_of_dishes,
+         number_of_measurements) = (np.array(area),
+                                    np.array(window),
+                                    np.array(Tr),
+                                    np.array(Omega_res),
+                                    np.array(number_of_dishes),
+                                    np.array(number_of_measurements))
+        (area,
+         window,
+         Tr,
+         Omega_res,
+         number_of_dishes,
+         number_of_measurements) = (np.reshape(area, nu.shape),
+                                    np.reshape(window, nu.shape),
+                                    np.reshape(Tr, nu.shape),
+                                    np.reshape(Omega_res, nu.shape),
+                                    np.reshape(number_of_dishes, nu.shape),
+                                    np.reshape(number_of_measurements, nu.shape))
+        (area,
+         window,
+         Tr,
+         Omega_res,
+         number_of_dishes,
+         number_of_measurements) = (np.squeeze(area),
+                                    np.squeeze(window),
+                                    np.squeeze(Tr),
+                                    np.squeeze(Omega_res),
+                                    np.squeeze(number_of_dishes),
+                                    np.squeeze(number_of_measurements))
 
     elif exper in ['SKA low', 'SKA mid']:  # in case the range was fixed by hand
         exper_mode = exper
-        area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = ak.SKA_specs(
-            nu, exper_mode, eta=ct._eta_ska_, correlation_mode=correlation_mode, theta_sig=theta_sig)
+
+        # NEWADD
+        # computing efficiency
+        l_source = source_input['longitude']
+        b_source = source_input['latitude']
+        l_echo = l_source + 180.  # [deg] galactic longitude of echo
+        b_echo = -b_source  # [deg] galactic latitude of echo
+        Tbg_at_408 = ap.bg_408_temp(l=l_echo, b=b_echo)  # no average
+        T_sys = ap.T_noise(nu, Tbg_at_408=Tbg_at_408)
+        eta = sk.get_eta_eff(nu, T_sys, sk.SKA_conf)
+
+        (area,
+         window,
+         Tr,
+         Omega_res,
+         number_of_dishes,
+         number_of_measurements) = sk.SKA_specs(nu,
+                                                exper_mode,
+                                                # eta=eta,
+                                                correlation_mode=correlation_mode,
+                                                theta_sig=theta_sig)
 
     else:
         raise ValueError(
@@ -278,7 +337,7 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
     # area_ref, window_ref, Tr_ref, Omega_res_ref, number_of_dishes_ref, number_of_measurements_ref = SKA_rescaled_specs(
     #     ma_ref, data=data, theta_sig=theta_sig)  # SKA specs
     area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = SKA_rescaled_specs(
-        ma, data=data, theta_sig=theta_sig)  # SKA specs
+        ma, data=data, theta_sig=theta_sig, source_input=source_input)  # SKA specs
     # factor_of_signal = area / area_ref
     # factor_of_noise = area / area_ref * \
     #     np.sqrt(number_of_measurements_ref / number_of_measurements)

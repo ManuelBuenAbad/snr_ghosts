@@ -77,6 +77,7 @@ _rs_of_MW_ = 20.  # [kpc]
 _rho_H_ = 1.568  # [GeV/cm**3]
 _r_H_ = 9.26  # [kpc]
 # _r_H_ = 4.  # [kpc]
+_MW_spectral_beta_ = -2.75  # from Braun et al. 2019
 
 
 _solar_solid_angle_ = NaturalUnit('3.14159*Rsun**2/au**2').val  # 6.8001e-5
@@ -148,12 +149,18 @@ _area_ska_mid_ = 32663.9  # [m^2]
 #
 _band_width_ska_low_ = 0.3  # [GHz]
 _band_width_ska_mid_ = 15.05  # [GHz]
-_eta_ska_ = 0.8  # detector efficiency, same for mid and low
+# _eta_ska_ = 0.8  # detector efficiency, same for mid and low
 _nu_min_ska_low_ = 0.05  # [GHz]
 _nu_max_ska_low_ = 0.35  # [GHz]
 _nu_min_ska_mid_ = 0.35  # [GHz] # both SKA1/2
 _nu_max_ska_mid_ = 15.4  # [GHz] # this is SKA1-mid
 _nu_max_ska2_mid_ = 30.  # [GHz] # this is SKA2-mid c.f. Caputo
+
+#
+# SKA receiver noise
+#
+_Tr_ska_low_ = 40.
+_Tr_ska_mid_ = 20.
 
 #
 # SKA beam geometry

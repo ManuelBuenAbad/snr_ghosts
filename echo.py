@@ -110,7 +110,6 @@ Tbg_408_avg = ap.bg_408_temp(0., 0., size=(
 Tbg_408_antipodal = ap.bg_408_temp(180., 0., average=False)
 
 
-
 #########################################
 # Check functions
 
@@ -317,7 +316,8 @@ def Omega_size(source_input, verbose=0):
         # catches either 'size' is not in source_input.key(), or it's there but None
         check_source(source_input)
         # v_free = ct._v_hom_  # speed of the free expansion [c]
-        v_free = ct._v_TM99_ # speed of the free expansion, according to TM99 [c]
+        # speed of the free expansion, according to TM99 [c]
+        v_free = ct._v_TM99_
         t_trans = source_input['t_trans']
         t_end = source_input['t_age']
         distance = source_input['distance']
@@ -1048,11 +1048,21 @@ def signal(source_input, axion_input, data,
     # [eV^4] irradiance (flux) over the bandwidth
     signal_S_echo = (signal_Snu*ct._Jy_over_eV3_)*(delnu*ct._GHz_over_eV_)
 
+    # NEWADD
+    # computing efficiency
+    l_source = source_input['longitude']  # [deg] galactic longitude of source
+    b_source = source_input['latitude']  # [deg] galactic latitude of source
+    l_echo = l_source + 180.  # [deg] galactic longitude of echo
+    b_echo = -b_source  # [deg] galactic latitude of echo
+    Tbg_at_408 = ap.bg_408_temp(l=l_echo, b=b_echo)  # no average
+    T_sys = ap.T_noise(nu, Tbg_at_408=Tbg_at_408)
+    eta = sk.get_eta_eff(nu, T_sys, sk.SKA_conf)
+
     # compute the signal power
     # [eV^2], assuming the default SKA efficiency of eta = 0.8
 
     signal_power = ap.P_signal(
-        S=signal_S_echo, A=area, eta=ct._eta_ska_, f_Delta=f_Delta)
+        S=signal_S_echo, A=area, eta=eta, f_Delta=f_Delta)
 
     # truncate the power according to the SKA freq range window
     signal_power *= window
@@ -1231,9 +1241,9 @@ def sn_ratio(signal_power, noise_power,
     return res
 
 
-def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._eta_ska_, f_Delta=ct._f_Delta_, tobs=100.,  correlation_mode=None, theta_sig=None):
+def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=None, f_Delta=ct._f_Delta_, tobs=100.,  correlation_mode=None, theta_sig=None):
     """
-    Simpler signal-to-noise ratio formula.
+    Simpler signal-to-noise ratio formula. [DEPRECATED]
 
     Parameters
     ----------
@@ -1255,8 +1265,10 @@ def snr_fn(Secho, nu, delta_nu, Omega_obs=1.e-4, Tbg_408=Tbg_408_avg, eta=ct._et
 
     # experiment
     exper_mode = sk.SKA_exper_nu(nu)
+    # area, window, Tr, Omega_res, _, _ = sk.SKA_specs(
+    #     nu, exper_mode, eta=eta, correlation_mode=correlation_mode, theta_sig=theta_sig)
     area, window, Tr, Omega_res, _, _ = sk.SKA_specs(
-        nu, exper_mode, eta=eta, correlation_mode=correlation_mode, theta_sig=theta_sig)
+        nu, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_sig)
 
     # if Omega_obs > Omega_max:
     #     Psig = 0.

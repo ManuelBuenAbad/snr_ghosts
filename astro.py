@@ -956,7 +956,7 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
     size : angular size [sr] of the region of interest (default: None)
     average : whether the brightness temperature is averaged over the size of the region of interest (default: False)
     verbose: control of warning output. Switch to False only if you know what you are doing.
-    load_on_the_fly: flag
+    load_on_the_fly: flag to load the map on the fly. It's for debugging purpose. Switch to True only if you know what you are doing.
     """
 
     if load_on_the_fly:
@@ -1013,17 +1013,23 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
     return bg_T408
 
 
-def T_noise(nu, Tbg_at_408=27, beta=-2.55, Tr=0.):
+def T_noise(nu, Tbg_at_408=27, beta=ct._MW_spectral_beta_, Tr=None):
     """
-    The background noise temperature [K]
+    The background noise temperature [K]. This function can be used for any experiments but if Tr is not specified, it will be automatically computed based on SKA. 
 
     Parameters
     ----------
     nu: frequency [GHz]
     Tbg_at_408: the MW background at 408 MHz [K] (default: 27, for Cygnus A gegenschein position)
-    beta: the index for the Milky (default: -2.55 from Ghosh paper)
+    beta: the index for the Milky (default: -2.75 from Braun et al. 2019)
     Tr: the receiver's noise brightness temperature (default: 0.)
     """
+
+    nu, is_scalar = tl.treat_as_arr(nu)
+    if Tr is None:
+        Tr = np.ones_like(nu)
+        Tr[(nu > ct._nu_max_ska_low_)] = ct._Tr_ska_mid_
+        Tr[(nu < ct._nu_max_ska_low_)] = ct._Tr_ska_low_
 
     Tcmb = 2.7255  # cmb brightness [K]
     Ta = 3.  # atmospheric brightness [K]
@@ -1032,6 +1038,9 @@ def T_noise(nu, Tbg_at_408=27, beta=-2.55, Tr=0.):
     Tbg = Tbg_at_408 * (nu/0.408)**beta
 
     res = Tcmb + Ta + Tr + Tbg
+
+    if is_scalar:
+        res = np.squeeze(res)
 
     return res
 
@@ -1107,7 +1116,7 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     return res
 
 
-def P_signal(S, A, eta=ct._eta_ska_, f_Delta=1.):
+def P_signal(S, A, eta=None, f_Delta=1.):
     """
     The signal power, assuming given bandwidth [eV^2].
 

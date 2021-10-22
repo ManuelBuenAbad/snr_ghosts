@@ -140,7 +140,7 @@ def SKA_exper_nu(nu):
     return exper_mode
 
 
-def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig=None):
+def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
     """
     Returns the specifications (area [m^2], window, receiver noise brightness temperature [K], and solid angle resolution [sr], number_of_dishes, number_of_measurements) of the SKA experiment mode, for the given frequency [GHz].
 
@@ -148,7 +148,6 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
     ----------
     nu : frequency [GHz]
     exper_mode : mode in which the experiment is working
-    eta: the detector efficiency (default: 0.8)
     correlation_mode: whether to run in interferometry mode or single dish mode. Default None is meant to raise error if not assigned explicitly.
     theta_sig: the signal size we want to observe [radian]
     """
@@ -161,13 +160,14 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
         area = ct._area_ska_low_
         window = np.heaviside(nu - ct._nu_min_ska_low_, 1.) * \
             np.heaviside(ct._nu_max_ska_low_ - nu, 1.)
-        Tr = 40.
+        Tr = ct._Tr_ska_low_
 
         # finding resolution:
         wavelength = pt.lambda_from_nu(nu)/100.  # wavelength [m]
         # angular size of pixel resolution [rad]
         # assuming this is the aperture angle and not the radial angle
-        theta_res = (1.22*wavelength)/ct._SKALow_station_diameter_/sqrt(eta)
+        theta_res = (1.22*wavelength) / \
+            ct._SKALow_station_diameter_  # /sqrt(eta)
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
         number_of_dishes = ct._area_ska_low_ / \
@@ -178,7 +178,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
     elif exper_mode == 'SKA low' and correlation_mode == "interferometry":
         window = np.heaviside(nu - ct._nu_min_ska_low_, 1.) * \
             np.heaviside(ct._nu_max_ska_low_ - nu, 1.)
-        Tr = 40.
+        Tr = ct._Tr_ska_low_
 
         # get the required baseline length for nu
         wavelength = pt.lambda_from_nu(nu) / 100.  # wavelength [m]
@@ -208,7 +208,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
         area = ct._area_ska_mid_
         window = np.heaviside(nu - ct._nu_min_ska_mid_, 0.) * \
             np.heaviside(ct._nu_max_ska_mid_ - nu, 1.)
-        Tr = 20.
+        Tr = ct._Tr_ska_mid_
 
         # finding resolution:
         wavelength = pt.lambda_from_nu(nu)/100.  # wavelength [m]
@@ -216,7 +216,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
         # angular size of pixel resolution [rad]
         # assuming this is the aperture angle and not the radial angle
         # theta_res = (1.22*wavelength)/sqrt(eta*4.*area/pi)
-        theta_res = (1.22*wavelength)/ct._SKA1Mid_dish_diameter_/sqrt(eta)
+        theta_res = (1.22*wavelength)/ct._SKA1Mid_dish_diameter_  # /sqrt(eta)
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
 
@@ -230,7 +230,7 @@ def SKA_specs(nu, exper_mode, eta=ct._eta_ska_, correlation_mode=None, theta_sig
         area = ct._area_ska_mid_
         window = np.heaviside(nu - ct._nu_min_ska_mid_, 0.) * \
             np.heaviside(ct._nu_max_ska_mid_ - nu, 1.)
-        Tr = 20.
+        Tr = ct._Tr_ska_mid_
 
         # get the required baseline length for nu
         wavelength = pt.lambda_from_nu(nu) / 100.  # wavelength [m]
