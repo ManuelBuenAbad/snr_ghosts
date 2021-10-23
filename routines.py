@@ -299,7 +299,7 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
     source_input : dictionary with source input parameters (default: default_source_input)
     data : dictionary with environmental, experimental, and observational data (default: default_data)
     Snu_echo_kwargs : Snu_echo() keyword arguments (default: default_Snu_echo_kwargs)
-    beta: the index for the Milky (default: -2.75 from Braun et al. 2019)
+    beta: the index for the Milky (default: -2.55)
     """
 
     # reference frequency:
@@ -421,7 +421,7 @@ def full_routine(ma, ga, ga_ref, output,
     source_input : dictionary with source input parameters (default: default_source_input)
     data : dictionary with environmental, experimental, and observational data (default: default_data)
     Snu_echo_kwargs : Snu_echo() keyword arguments (default: default_Snu_echo_kwargs)
-    beta: the index for the Milky (default: -2.75 from Braun et al. 2019)
+    beta: the index for the Milky (default: -2.55)
     """
 
     # pre-computed reference quantities:

@@ -26,49 +26,8 @@ import constants as ct
 import particle as pt
 import ska as sk
 
-#########################################
-# List of required parameters for the sources:
-
-
-source_id = ['name', 'longitude', 'latitude', 'distance']
-pars_always = ['alpha', 'nu_pivot', 'gamma']
-pars_early = {'eff': ['L_peak', 't_peak'],
-              'thy': ['L_norm', 'K2', 'beta', 'delta']
-              }
-pars_late = ['t_trans', 't_age', 'L_today']
-# lightcurve params
-pars_lightcurve = {model: pars_early[model] +
-                   ['gamma']+pars_late for model in ['eff', 'thy']}
-
-pars_required = {('eff', 'L_today'): ['L_peak', 't_peak', 'gamma', 't_trans', 't_age'],
-                 ('eff', 'L_peak'): ['t_peak', 'gamma', 't_trans', 't_age', 'L_today'],
-                 ('eff', 't_age'): ['L_peak', 't_peak', 'gamma', 't_trans', 'L_today'],
-                 ('eff', 't_trans'): ['L_peak', 't_peak', 'gamma', 'L_today', 't_age'],
-                 ('thy', 'L_today'): ['L_norm', 'K2', 'beta', 'delta', 't_trans', 'gamma', 't_age'],
-                 ('thy', 'L_norm'): ['K2', 'beta', 'delta', 't_trans', 'gamma', 't_age', 'L_today']
-                 }
-
-# all params:
-source_input = {key: source_id+pars_always+value +
-                pars_late for key, value in pars_early.items()}
-
-
-# default time array [years]
-t_arr_default = np.logspace(-4, 11, 50001)
-L_arr_default = np.logspace(-40, 60, 50001)
-
-# initialize the haslem map
-try:
-    path = os.path.dirname(os.path.abspath(__file__))+'/data/'
-    path = os.path.join(path, 'lambda_haslam408_dsds.fits')
-    map_allsky_408 = hp.read_map(path)
-except FileNotFoundError:
-    raise Exception(
-        'Haslam map (lambda_haslam408_dsds.fits) is not found.')
-
-
-#########################################
 # Dark matter and galactic functions:
+
 
 def rho_NFW(r, rs, rhos):
     """
@@ -1013,6 +972,91 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
     return bg_T408
 
 
+def T_atm(nu):
+    nu, is_scalar = tl.treat_as_arr(nu)
+    nu_low = nu[nu <= ct._nu_min_ska_mid_]
+    nu_mid = nu[nu > ct._nu_min_ska_mid_]
+    res_low = Tatm_low_fn(nu_low)
+    res_mid = Tatm_mid_fn(nu_mid)
+    res = np.concatenate((res_low, res_mid))
+    if is_scalar:
+        res = np.squeeze(res)
+    return res
+
+
+def Tatm_mid_fn(nu):
+    """The atmospheric temperature for SKA1-Mid frequency
+
+    :param nu: frequency [GHz] 
+
+    """
+
+    nu, is_scalar = tl.treat_as_arr(nu)
+    fn = tl.interp_fn(Tsky_mid)
+    Tsky_arr = fn(nu)
+    # Braun 10th percentile
+    Tgal_arr = 17.1 * (nu/0.408)**ct._MW_spectral_beta_
+    res = Tsky_arr - ct._Tcmb_ - Tgal_arr
+    if is_scalar:
+        res = np.squeeze(res)
+    return res
+
+
+def Tatm_low_fn(nu):
+    nu, is_scalar = tl.treat_as_arr(nu)
+    fn = tl.interp_fn(Tsky_low)
+    Tsky_arr = fn(nu)
+    # Tgal_arr = 20. * (0.408/nu)**2.55
+    Tgal_arr = 20. * (nu/0.408)**ct._MW_spectral_beta_  # Braun 2017
+    res = Tsky_arr - ct._Tcmb_ - Tgal_arr
+    if is_scalar:
+        res = np.squeeze(res)
+    return res
+
+
+def T_sys_mid(nu):
+    """System noise temperature [K] of a single dish for SKA-Mid. It's defined by Treceiver + Tspillover + Tsky, where Tsky = Tcmb + Tgal + Tatm. Note that this function is only used to compute eta from the table of Aeff/Tsys in Braun et al. It is not used in the noise computation. 
+
+    :param nu: frequency [GHz]
+
+    """
+    nu, is_scalar = tl.treat_as_arr(nu)
+    Tsky_arr = np.interp(nu, Tsky_mid[:, 0], Tsky_mid[:, 1])
+
+    # combine MeerKAT with SKA dishes
+    # if there's only SKA dish, use SKA dish
+    # if there are both, use geometric mean
+    Trec_arr = []
+    for nui in nu:
+        val1 = sk.Trec_mid_MeerKAT(nui)
+        val2 = sk.Trec_mid_SKA(nui)
+        if np.isinf(val1):
+            val1 = val2
+        val = np.sqrt(val1*val2)
+        Trec_arr.append(val)
+    Trec_arr = np.array(Trec_arr)
+    res = ct._T_spill_mid_ + Tsky_arr + Trec_arr
+    if is_scalar:
+        res = np.squeeze(res)
+    return res
+
+
+def T_sys_low(nu):
+    """System noise temperature [K] of a single station SKA-Low. It's defined by Treceiver + Tspillover + Tsky, where Tsky = Tcmb + Tgal + Tatm. Note that this function is only used to compute eta from the table of Aeff/Tsys in Braun et al. It is not used in the real noise computation. 
+"""
+
+    nu, is_scalar = tl.treat_as_arr(nu)
+
+    Tsky_arr = np.interp(nu, Tsky_low[:, 0], Tsky_low[:, 1])
+
+    Trec_arr = np.ones_like(nu) * 40.
+    res = ct._T_spill_low_ + Tsky_arr + Trec_arr
+    # res = Tsky_arr
+    if is_scalar:
+        res = np.squeeze(res)
+    return res
+
+
 def T_sys(nu, Tbg_at_408=27, beta=ct._MW_spectral_beta_, Tr=None):
     """
     The system temperature [K] seen by a single unit instantaneously. This function can be used for any experiments but if Tr is not specified, it will be automatically computed based on SKA.
@@ -1021,7 +1065,7 @@ def T_sys(nu, Tbg_at_408=27, beta=ct._MW_spectral_beta_, Tr=None):
     ----------
     nu: frequency [GHz]
     Tbg_at_408: the MW background at 408 MHz [K] (default: 27, for Cygnus A gegenschein position)
-    beta: the index for the Milky (default: -2.75 from Braun et al. 2019)
+    beta: the index for the Milky (default: -2.55)
     Tr: the receiver's noise brightness temperature (default: 0.)
     """
 
@@ -1032,7 +1076,7 @@ def T_sys(nu, Tbg_at_408=27, beta=ct._MW_spectral_beta_, Tr=None):
         Tr[(nu < ct._nu_max_ska_low_)] = ct._Tr_ska_low_
 
     Tcmb = ct._Tcmb_  # cmb brightness [K]
-    Ta = ct._Tatm_  # atmospheric brightness [K]
+    Ta = T_atm(nu)  # atmospheric brightness [K]
     Tbg = Tbg_at_408 * (nu/0.408)**beta
 
     res = Tcmb + Ta + Tr + Tbg
@@ -1245,3 +1289,66 @@ def P_signal(S, A, eta=None, f_Delta=1.):
     # fix units
     res *= ct._m_eV_**2
     return res
+
+
+##################
+# global variables
+##################
+# Defining local path
+# --------------------
+local_path = os.path.dirname(os.path.abspath(__file__))
+
+# List of required parameters
+# for the sources:
+# ---------------------------
+
+source_id = ['name', 'longitude', 'latitude', 'distance']
+pars_always = ['alpha', 'nu_pivot', 'gamma']
+pars_early = {'eff': ['L_peak', 't_peak'],
+              'thy': ['L_norm', 'K2', 'beta', 'delta']
+              }
+pars_late = ['t_trans', 't_age', 'L_today']
+# lightcurve params
+pars_lightcurve = {model: pars_early[model] +
+                   ['gamma']+pars_late for model in ['eff', 'thy']}
+
+pars_required = {('eff', 'L_today'): ['L_peak', 't_peak', 'gamma', 't_trans', 't_age'],
+                 ('eff', 'L_peak'): ['t_peak', 'gamma', 't_trans', 't_age', 'L_today'],
+                 ('eff', 't_age'): ['L_peak', 't_peak', 'gamma', 't_trans', 'L_today'],
+                 ('eff', 't_trans'): ['L_peak', 't_peak', 'gamma', 'L_today', 't_age'],
+                 ('thy', 'L_today'): ['L_norm', 'K2', 'beta', 'delta', 't_trans', 'gamma', 't_age'],
+                 ('thy', 'L_norm'): ['K2', 'beta', 'delta', 't_trans', 'gamma', 't_age', 'L_today']
+                 }
+
+# all params:
+# -----------
+source_input = {key: source_id+pars_always+value +
+                pars_late for key, value in pars_early.items()}
+
+
+# default time array [years]
+# --------------------------
+t_arr_default = np.logspace(-4, 11, 50001)
+L_arr_default = np.logspace(-40, 60, 50001)
+
+# initialize the haslem map
+# -------------------------
+try:
+    path = os.path.dirname(os.path.abspath(__file__))+'/data/'
+    path = os.path.join(path, 'lambda_haslam408_dsds.fits')
+    map_allsky_408 = hp.read_map(path)
+except FileNotFoundError:
+    raise Exception(
+        'Haslam map (lambda_haslam408_dsds.fits) is not found.')
+
+
+# load the sky temperature (Tsky=Tcmb + Tgal + Tatm)
+# from Braun et al. 2017
+# and SKA-TEL-SKO-0000308_SKA1_System_Baseline_v2_DescriptionRev01-part-1-signed.
+# Note that this Tsky is used for two things
+# 1. for computing eta
+# 2. for extracting Tatm
+# -------------------------
+
+Tsky_mid = np.loadtxt(local_path+"/data/Tsky_mid.csv", delimiter=',')
+Tsky_low = np.loadtxt(local_path+"/data/Tsky_low.csv", delimiter=',')

@@ -8,12 +8,7 @@ import os
 import constants as ct
 import particle as pt
 import tools as tl
-
-#####################
-# Defining local path
-#####################
-
-local_path = os.path.dirname(os.path.abspath(__file__))
+import astro as ap
 
 
 ##############################
@@ -21,7 +16,8 @@ local_path = os.path.dirname(os.path.abspath(__file__))
 ##############################
 
 def initialize():
-    """This routine is supposed to be run only once, therefore\
+    """This routine is supposed to be run only once, \
+i.e. when the module is loaded, therefore\
  the I/O is not optimized for speed concerns.
 
     """
@@ -87,6 +83,40 @@ def initialize():
             SKA_conf['mid A/T'] = data_raw
     SKA_conf['A/T'] = np.concatenate((SKA_conf['low A/T'],
                                      SKA_conf['mid A/T']))
+
+    # computing efficiency
+    # make a nu grid
+    Nsteps = 2001
+
+    nulow = np.logspace(log10(ct._nu_min_ska_low_), log10(
+        ct._nu_max_ska_low_), Nsteps//2)[1:]
+    # ... and SKA mid...
+    numid = np.logspace(log10(ct._nu_min_ska_mid_), log10(
+        ct._nu_max_ska_mid_), Nsteps - Nsteps//2)[1:]
+
+    Aeff_over_Tsys = SKA_conf['A/T']
+
+    # Mid
+    nu_arr = numid
+    Aeff_over_Tsys_arr = np.interp(
+        nu_arr, Aeff_over_Tsys[:, 0], Aeff_over_Tsys[:, 2])
+    Tsys_arr = ap.T_sys_mid(nu_arr)
+    eta_arr = Aeff_over_Tsys_arr * Tsys_arr / ct._area_ska_mid_
+    SKA_conf['eta mid'] = (nu_arr, eta_arr)
+
+    # Low
+    nu_arr = nulow
+    Aeff_over_Tsys_arr = np.interp(
+        nu_arr, Aeff_over_Tsys[:, 0], Aeff_over_Tsys[:, 2])
+    Tsys_arr = ap.T_sys_low(nu_arr)
+    eta_arr = Aeff_over_Tsys_arr * Tsys_arr / ct._area_ska_low_
+    SKA_conf['eta low'] = (nu_arr, eta_arr)
+
+    # combined storage
+    nu_arr = np.concatenate((SKA_conf['eta low'][0], SKA_conf['eta mid'][0]))
+    eta_arr = np.concatenate((SKA_conf['eta low'][1], SKA_conf['eta mid'][1]))
+    SKA_conf['eta'] = (nu_arr, eta_arr)
+
     return SKA_conf
 
 ################
@@ -173,7 +203,7 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
         window = np.heaviside(nu - ct._nu_min_ska_low_, 1.) * \
             np.heaviside(ct._nu_max_ska_low_ - nu, 1.)
         Tr = ct._Tr_ska_low_
-        eta = eta_nu(nu, exper_mode)
+        eta = eta_nu(nu)
 
         # finding resolution:
         wavelength = pt.lambda_from_nu(nu)/100.  # wavelength [m]
@@ -191,7 +221,7 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
         window = np.heaviside(nu - ct._nu_min_ska_low_, 1.) * \
             np.heaviside(ct._nu_max_ska_low_ - nu, 1.)
         Tr = ct._Tr_ska_low_
-        eta = eta_nu(nu, exper_mode)
+        eta = eta_nu(nu)
 
         # get the required baseline length for nu
         wavelength = pt.lambda_from_nu(nu) / 100.  # wavelength [m]
@@ -222,7 +252,7 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
         window = np.heaviside(nu - ct._nu_min_ska_mid_, 0.) * \
             np.heaviside(ct._nu_max_ska_mid_ - nu, 1.)
         Tr = ct._Tr_ska_mid_
-        eta = eta_nu(nu, exper_mode)
+        eta = eta_nu(nu)
 
         # finding resolution:
         wavelength = pt.lambda_from_nu(nu)/100.  # wavelength [m]
@@ -244,7 +274,7 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
         window = np.heaviside(nu - ct._nu_min_ska_mid_, 0.) * \
             np.heaviside(ct._nu_max_ska_mid_ - nu, 1.)
         Tr = ct._Tr_ska_mid_
-        eta = eta_nu(nu, exper_mode)
+        eta = eta_nu(nu)
 
         # get the required baseline length for nu
         wavelength = pt.lambda_from_nu(nu) / 100.  # wavelength [m]
@@ -331,39 +361,106 @@ def get_baseline(x_arr, y_arr):
     return baseline_arr
 
 
-############
-# Efficiency
-############
-# --------------------------------------
-# (nu, eta) arrays for SKA1 low and mid
-nu_eta_low = np.loadtxt(local_path+"/data/eta_low.csv", delimiter=",")
-nu_eta_mid = np.loadtxt(local_path+"/data/eta_mid.csv", delimiter=",")
+def Trec_mid_MeerKAT(nu):
+    """Receiver noise temperature [K] of a MeerKAT dish (13.5m-diameter type)
 
-# ------------------------
-# interpolating the data:
-eta_low_fn = tl.interp_fn(nu_eta_low)
-eta_mid_fn = tl.interp_fn(nu_eta_mid)
+    :param nu: frequency [GHz]
 
-# --------------------------------
-# defining the general efficiency
+    """
+
+    nu, is_scalar = tl.treat_as_arr(nu)
+    res = []
+    for nui in nu:
+        if 0.58 < nui < 1.02:
+            res.append(11 - 4.5*(nui-0.58))
+        elif 1.02 < nui < 1.67:
+            res.append(7.5 + 6.8 * np.abs(nui - 1.65)**1.5)
+        elif 1.65 < nui < 3.05:
+            res.append(7.5)
+        else:
+            res.append(np.inf)
+    if is_scalar:
+        res = np.squeeze(res)
+    return np.array(res)
 
 
-def eta_nu(nu, exper_mode):
+def Trec_mid_SKA(nu):
+    """Receiver noise temperature [K] of a SKA dish (15m-diameter type)
+
+    :param nu: frequency [GHz]
+
+    """
+    nu, is_scalar = tl.treat_as_arr(nu)
+    res = []
+    for nui in nu:
+        if 0.35 < nui < 0.95:
+            res.append(15 + 30*(nui-0.75)**2)
+        elif 0.95 < nui < 4.6:
+            res.append(7.5)
+        elif 4.6 < nui < 50:
+            res.append(4.4+0.69 * nui)
+        else:
+            res.append(np.inf)
+    if is_scalar:
+        res = np.squeeze(res)
+    return np.array(res)
+
+
+# #
+# # efficiency related global vairiables
+# # --------------------------------------
+# # (nu, eta) arrays for SKA1 low and mid
+# nu_eta_low = np.loadtxt(local_path+"/data/eta_low.csv", delimiter=",")
+# nu_eta_mid = np.loadtxt(local_path+"/data/eta_mid.csv", delimiter=",")
+
+# # interpolating the data:
+# eta_low_fn = tl.interp_fn(nu_eta_low)
+# eta_mid_fn = tl.interp_fn(nu_eta_mid)
+
+# # --------------------------------
+# # defining the general efficiency
+
+# def eta_nu(nu, exper_mode):
+#     """Returns the efficiency eta.
+
+#     nu : frequency [GHz]
+#     exper_mode : mode in which the experiment is working
+#     """
+#     if exper_mode == None:
+#         eta = 0.
+#     elif exper_mode == 'SKA low':
+#         eta = eta_low_fn(nu)
+#     elif exper_mode == 'SKA mid':
+#         eta = eta_mid_fn(nu)
+
+#     return eta
+
+
+def eta_nu(nu, exper=None):
     """Returns the efficiency eta.
 
     nu : frequency [GHz]
+    exper : DEPRECATED
+
     exper_mode : mode in which the experiment is working
     """
-    if exper_mode == None:
-        eta = 0.
-    elif exper_mode == 'SKA low':
-        eta = eta_low_fn(nu)
-    elif exper_mode == 'SKA mid':
-        eta = eta_mid_fn(nu)
-
-    return eta
+    nu_arr, eta_arr = SKA_conf['eta']
+    nu, is_scalar = tl.treat_as_arr(nu)
+    res = np.interp(nu, nu_arr, eta_arr)
+    if is_scalar:
+        res = np.squeeze(res)
+    return res
 
 
-##################################
-# The global variable to be saved
+##################
+# global variables
+##################
+
+# Defining local path
+# --------------------
+local_path = os.path.dirname(os.path.abspath(__file__))
+
+# The global variable of SKA
+# configuration saved into SKA_conf
+# ---------------------------------
 SKA_conf = initialize()

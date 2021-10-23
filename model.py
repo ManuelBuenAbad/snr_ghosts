@@ -34,7 +34,7 @@ def snr_routine(ma, ga,
     snu_echo_kwargs : keyword args that go into snu_echo computation (default: None)
     data : experiment and detection data dictionary (default: None)
     output_all : False
-    beta: the index for the Milky (default: -2.75 from Braun et al. 2019)
+    beta: the index for the Milky (default: -2.55)
     """
 
     # Preparing source_input dictionary from SNR object
@@ -82,7 +82,7 @@ def snr_routine(ma, ga,
 
         try:
             S0 = sn_remnant.get_flux_density()  # [Jy] at 1 GHz
-            L_today = sn_remnant.get_luminosity() # [erg * s^-1 * Hz^-1]
+            L_today = sn_remnant.get_luminosity()  # [erg * s^-1 * Hz^-1]
             lightcurve_params['L_today'] = L_today
 
         except:

@@ -107,7 +107,8 @@ _rs_of_MW_ = 20.  # [kpc]
 _rho_H_ = 1.568  # [GeV/cm**3]
 _r_H_ = 9.26  # [kpc]
 # _r_H_ = 4.  # [kpc]
-_MW_spectral_beta_ = -2.75  # from Braun et al. 2019
+_MW_spectral_beta_ = -2.55  # 2015 SKA design report v2
+# _MW_spectral_beta_ = -2.75 # from Braun et al. 2019
 
 # -----------------------------------------
 # Properties of some astrophysical objects
@@ -133,7 +134,7 @@ _cygA_bg_T_at_408Hz_ = 27.  # [K]
 ######################
 # background temperatures
 _Tcmb_ = 2.7255  # cmb brightness [K]
-_Tatm_ = 3.  # atmospheric brightness [K]
+# _Tatm_ = 3.  # atmospheric brightness [K]
 
 # -------------------
 # SKA receiver noise
