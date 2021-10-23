@@ -128,9 +128,21 @@ _cygA_solid_angle_ = angle_to_solid_angle(
 _cygA_theta_ = 76.26 * np.pi/180.  # [radian]
 _cygA_bg_T_at_408Hz_ = 27.  # [K]
 
+######################
+# Noitse temperatures
+######################
 # background temperatures
 _Tcmb_ = 2.7255  # cmb brightness [K]
 _Tatm_ = 3.  # atmospheric brightness [K]
+
+# -------------------
+# SKA receiver noise
+
+_Tr_ska_low_ = 40.  # [K]
+_Tr_ska_mid_ = 20.  # [K]
+
+_T_spill_mid_ = 3.  # [K]
+_T_spill_low_ = 0.  # [K]
 
 ##############################
 # SN fits from Bietenholz 2021
@@ -206,11 +218,6 @@ _nu_min_ska_mid_ = 0.35  # [GHz] # both SKA1/2
 _nu_max_ska_mid_ = 15.4  # [GHz] # this is SKA1-mid
 _nu_max_ska2_mid_ = 30.  # [GHz] # this is SKA2-mid c.f. Caputo
 
-# -------------------
-# SKA receiver noise
-
-_Tr_ska_low_ = 40.
-_Tr_ska_mid_ = 20.
 
 # ------------------
 # SKA beam geometry
