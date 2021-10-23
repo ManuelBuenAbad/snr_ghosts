@@ -7,7 +7,6 @@ import numpy as np
 import constants as ct
 
 
-
 # decay constant
 def Gamma(ma, ga):
     """
@@ -18,9 +17,8 @@ def Gamma(ma, ga):
     ma : axion mass [eV]
     ga : axion-photon coupling [GeV^-1]
     """
-    res = (ga * ct._eV_over_GeV_)**2 * ma**3. /64. /np.pi
+    res = (ga * ct._eV_over_GeV_)**2 * ma**3. / 64. / np.pi
     return res
-
 
 
 # mass and frequency
@@ -34,8 +32,7 @@ def nu_from_ma(ma):
     """
 
     E = ma/2.
-    return E/ct._GHz_over_eV_
-
+    return E/ct._GHz_over_eV_/ct._h_
 
 
 def ma_from_nu(nu):
@@ -47,10 +44,9 @@ def ma_from_nu(nu):
     nu : photon frequency [GHz]
     """
 
-    E = nu*ct._GHz_over_eV_
+    E = ct._h_ * nu * ct._GHz_over_eV_
 
     return 2*E
-
 
 
 # wavelength
@@ -63,7 +59,7 @@ def lambda_from_nu(nu):
     nu: photon frequency [GHz]
     """
 
-    period = 1./(nu*1.e9) # [sec]
-    wl = 100.*ct._light_speed_*period # [cm]
+    period = 1./(nu*1.e9)  # [sec]
+    wl = 100.*ct._light_speed_*period  # [cm]
 
     return wl

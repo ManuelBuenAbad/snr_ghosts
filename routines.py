@@ -203,20 +203,11 @@ def SKA_rescaled_specs(ma, data=default_data, theta_sig=None, source_input=None)
 
         nu_flat = nu.flatten()
 
-        area, window, Tr, eta, Omega_res, number_of_dishes, number_of_measurements = [], [], [], [], [], [], []
+        area, window, Tr, eta, Omega_res, number_of_dishes, number_of_measurements = [
+        ], [], [], [], [], [], []
         for nn in nu_flat:
 
             exper_mode = sk.SKA_exper_nu(nn)
-
-            # # NEWADD
-            # # computing efficiency
-            # l_source = source_input['longitude']
-            # b_source = source_input['latitude']
-            # l_echo = l_source + 180.  # [deg] galactic longitude of echo
-            # b_echo = -b_source  # [deg] galactic latitude of echo
-            # Tbg_at_408 = ap.bg_408_temp(l=l_echo, b=b_echo)  # no average
-            # T_sys = ap.T_sys(nn, Tbg_at_408=Tbg_at_408)
-            # eta = sk.get_eta_eff(nn, T_sys, sk.SKA_conf)
 
             aa, ww, tr, et, od, nd, nm = sk.SKA_specs(
                 nn, exper_mode, correlation_mode=correlation_mode, theta_sig=theta_sig)
@@ -271,16 +262,6 @@ def SKA_rescaled_specs(ma, data=default_data, theta_sig=None, source_input=None)
 
     elif exper in ['SKA low', 'SKA mid']:  # in case the range was fixed by hand
         exper_mode = exper
-
-        # # NEWADD
-        # # computing efficiency
-        # l_source = source_input['longitude']
-        # b_source = source_input['latitude']
-        # l_echo = l_source + 180.  # [deg] galactic longitude of echo
-        # b_echo = -b_source  # [deg] galactic latitude of echo
-        # Tbg_at_408 = ap.bg_408_temp(l=l_echo, b=b_echo)  # no average
-        # T_sys = ap.T_sys(nu, Tbg_at_408=Tbg_at_408)
-        # eta = sk.get_eta_eff(nu, T_sys, sk.SKA_conf)
 
         (area,
          window,
@@ -386,12 +367,12 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
     new_output['noise_Tsys'] = ap.T_sys(
         nu, Tbg_at_408=new_output['noise_T408'], beta=beta, Tr=Tr)
     new_output['noise_Trms'] = ap.T_noise(new_output['noise_Tsys'],
-                                           new_output['noise_delnu'],
-                                           tobs=obs_time,
-                                           Omega_obs=new_output['noise_Omega_obs'],
-                                           Omega_res=new_output['noise_Omega_res'],
-                                           nu=nu,
-                                           correlation_mode=correlation_mode)
+                                          new_output['noise_delnu'],
+                                          tobs=obs_time,
+                                          Omega_obs=new_output['noise_Omega_obs'],
+                                          Omega_res=new_output['noise_Omega_res'],
+                                          nu=nu,
+                                          correlation_mode=correlation_mode)
     new_output['noise_power'] = ap.P_noise(new_output['noise_Tsys'],
                                            new_output['noise_delnu'],
                                            tobs=obs_time,
@@ -410,8 +391,10 @@ def rescale_routine(ma, ga, ma_ref, ga_ref, ref_dict,
     if verbose > 2:
         print('routines.py::Omega_max:', Omega_max)
     # is_visible = np.where(Omega_obs > Omega_max, 0., 1.)
-    new_output['S/N_power'] = new_output['signal_power'] / new_output['noise_power']
-    new_output['S/N_temp'] = new_output['signal_Tant'] / new_output['noise_Trms']
+    new_output['S/N_power'] = new_output['signal_power'] / \
+        new_output['noise_power']
+    new_output['S/N_temp'] = new_output['signal_Tant'] / \
+        new_output['noise_Trms']
 
     # axion:
     new_output['ma'] = ma

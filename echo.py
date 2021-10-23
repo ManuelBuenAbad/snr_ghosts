@@ -1050,19 +1050,11 @@ def signal(source_input, axion_input, data,
 
     # compute the integrated flux S for signal (ignoring the non-uniform dependence of Snu on nu; which is OK for a narrow band)
     # [eV^4] irradiance (flux) over the bandwidth
-    signal_S_echo = (signal_Snu*ct._Jy_over_SI_)*(delnu*1.e9) # [W/m^2] = [J/s/m^2]
-    signal_S_echo *= ct._J_over_eV_/(ct._m_eV_**2. * ct._s_eV_) # [W/m^2] --> eV^4
+    signal_S_echo = (signal_Snu*ct._Jy_over_SI_) * \
+        (delnu*1.e9)  # [W/m^2] = [J/s/m^2]
+    signal_S_echo *= ct._J_over_eV_ / \
+        (ct._m_eV_**2. * ct._s_eV_)  # [W/m^2] --> eV^4
     # signal_S_echo = (signal_Snu*ct._Jy_over_eV3_)*(delnu*ct._GHz_over_eV_) # equivalent to the previous one...
-
-    # # NEWADD
-    # # computing efficiency
-    # l_source = source_input['longitude']  # [deg] galactic longitude of source
-    # b_source = source_input['latitude']  # [deg] galactic latitude of source
-    # l_echo = l_source + 180.  # [deg] galactic longitude of echo
-    # b_echo = -b_source  # [deg] galactic latitude of echo
-    # Tbg_at_408 = ap.bg_408_temp(l=l_echo, b=b_echo)  # no average
-    # T_sys = ap.T_sys(nu, Tbg_at_408=Tbg_at_408)
-    # eta = sk.get_eta_eff(nu, T_sys, sk.SKA_conf) # taken from sk.SKA_specs above
 
     # compute the signal power
     # [eV^2], assuming the default SKA efficiency of eta = 0.8
@@ -1074,7 +1066,7 @@ def signal(source_input, axion_input, data,
     signal_power *= window
 
     # computing signal (antenna) temperature:
-    dish_area =area/Ndishes
+    dish_area = area/Ndishes
     signal_Tant = ap.T_signal(signal_Snu, dish_area, eta=eta, f_Delta=f_Delta)
 
     if recycle and (type(output) == dict):
@@ -1194,12 +1186,12 @@ def noise(source_input, axion_input, data,
 
     # computing the noise rms temperature
     Trms = ap.T_noise(T_sys=T_sys,
-                    delnu=delnu,
-                    tobs=obs_time,
-                    Omega_obs=Omega_obs,
-                    Omega_res=Omega_res,
-                    nu=nu,
-                    correlation_mode=correlation_mode) # [K]
+                      delnu=delnu,
+                      tobs=obs_time,
+                      Omega_obs=Omega_obs,
+                      Omega_res=Omega_res,
+                      nu=nu,
+                      correlation_mode=correlation_mode)  # [K]
 
     # computing the noise power
     noise_power = ap.P_noise(T_sys=T_sys,
@@ -1268,8 +1260,8 @@ def sn_ratio(signal_power, noise_power,
 
 
 def sn_temp_ratio(signal_Tant, noise_Trms,
-             output=None,
-             verbose=0):
+                  output=None,
+                  verbose=0):
     """
     Returns the signal-to-noise ratio.
 

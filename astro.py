@@ -164,7 +164,7 @@ def flux_density_to_psd(nu, Snu, Omega):
     Omega :  the solid angle the source subtends [sr]
     """
     Snu_in_eV3 = Snu * ct._Jy_over_eV3_
-    E = nu * ct._GHz_over_eV_
+    E = ct._h_ * nu * ct._GHz_over_eV_
     res = Snu_in_eV3 / Omega * 2. * np.pi**2 / E**3
 
     return (E, res)
@@ -181,7 +181,7 @@ def psd_to_flux_density(E, f, Omega):
     Omega : the angle the source subtends [sr]
     """
     Snu = E**3 / 2. / np.pi**2 * f * Omega / ct._Jy_over_eV3_
-    nu = E / ct._GHz_over_eV_
+    nu = E / ct._GHz_over_eV_ / ct._h_
     return (nu, Snu)
 
 
@@ -1015,7 +1015,7 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
 
 def T_sys(nu, Tbg_at_408=27, beta=ct._MW_spectral_beta_, Tr=None):
     """
-    The system temperature [K]. This function can be used for any experiments but if Tr is not specified, it will be automatically computed based on SKA.
+    The system temperature [K] seen by a single unit instantaneously. This function can be used for any experiments but if Tr is not specified, it will be automatically computed based on SKA.
 
     Parameters
     ----------
@@ -1031,8 +1031,8 @@ def T_sys(nu, Tbg_at_408=27, beta=ct._MW_spectral_beta_, Tr=None):
         Tr[(nu > ct._nu_max_ska_low_)] = ct._Tr_ska_mid_
         Tr[(nu < ct._nu_max_ska_low_)] = ct._Tr_ska_low_
 
-    Tcmb = 2.7255  # cmb brightness [K]
-    Ta = 3.  # atmospheric brightness [K]
+    Tcmb = ct._Tcmb_  # cmb brightness [K]
+    Ta = ct._Tatm_  # atmospheric brightness [K]
     Tbg = Tbg_at_408 * (nu/0.408)**beta
 
     res = Tcmb + Ta + Tr + Tbg
@@ -1043,10 +1043,9 @@ def T_sys(nu, Tbg_at_408=27, beta=ct._MW_spectral_beta_, Tr=None):
     return res
 
 
-
 def T_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     """
-    The noise rms temperature [K].
+    The noise rms temperature [K] of the array. 
 
     Based on Sec. 3 of arXiv:1811.08436.
 
@@ -1066,7 +1065,7 @@ def T_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     # We now look for all the factors that will affect T_sys:
 
     # 1. The number of independent measurements in time
-    N_time = (nu*1.e9)*(tobs*3600.) # [GHz --> 1/s], [hours --> s]
+    N_time = (delnu*1.e9)*(tobs*3600.)  # [GHz --> 1/s], [hours --> s]
 
     # 2. Any angular size-dependent factors:
     # Angle of observation
@@ -1102,7 +1101,7 @@ def T_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     if is_scalar:
         # determine what exp we are looking at
         exper_mode = sk.SKA_exper_nu(nu)
-        _, _, _, _, _, number_of_dishes, number_of_measurements = \
+        _, _, _, _, _, _, number_of_measurements = \
             sk.SKA_specs(nu,
                          exper_mode,
                          correlation_mode=correlation_mode,
@@ -1116,7 +1115,7 @@ def T_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
         for i, nu_i in enumerate(nu):
             # determine what exp we are looking at
             exper_mode = sk.SKA_exper_nu(nu_i)
-            _, _, _, _, _, number_of_dishes, number_of_measurements = \
+            _, _, _, _, _, _, number_of_measurements = \
                 sk.SKA_specs(nu_i,
                              exper_mode,
                              correlation_mode=correlation_mode,
@@ -1131,10 +1130,9 @@ def T_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     return res
 
 
-
 def P_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     """
-    The power of the noise [eV^2].
+    The power of the noise [eV^2] of the array.
 
     Parameters
     ----------
@@ -1150,11 +1148,11 @@ def P_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
 
     # From temperature and bandwidth to power:
     # Tnu_to_P = (T_sys * ct._K_over_eV_) * (delnu * ct._GHz_over_eV_) # N.B.: WRONG!!!!!!!!
-    Tnu_to_P = (T_sys*ct._k_B_)*(delnu*1.e9) # [W] = [J/s]
-    Tnu_to_P *= ct._J_over_eV_/ct._s_eV_ # [W] --> eV^2
+    Tnu_to_P = (T_sys*ct._k_B_)*(delnu*1.e9)  # [W] = [J/s]
+    Tnu_to_P *= ct._J_over_eV_/ct._s_eV_  # [W] --> eV^2
 
     # number of independent measurements in time
-    N_time = (nu*1.e9)*(tobs*3600.) # [GHz --> 1/s], [hours --> s]
+    N_time = (delnu*1.e9)*(tobs*3600.)  # [GHz --> 1/s], [hours --> s]
 
     # house keeping
     theta_obs = ct.solid_angle_to_angle(Omega_obs)
@@ -1213,7 +1211,6 @@ def P_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     return res
 
 
-
 def T_signal(Snu, A, eta=None, f_Delta=1.):
     """
     The signal temperature, also called the antenna temperature [K].
@@ -1231,7 +1228,6 @@ def T_signal(Snu, A, eta=None, f_Delta=1.):
     res = f_Delta * (Snu * ct._Jy_over_SI_) * eta * A / 2. / ct._k_B_
 
     return res
-
 
 
 def P_signal(S, A, eta=None, f_Delta=1.):

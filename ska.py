@@ -20,7 +20,7 @@ local_path = os.path.dirname(os.path.abspath(__file__))
 # Preparing SKA configurations
 ##############################
 
-def main():
+def initialize():
     """This routine is supposed to be run only once, therefore\
  the I/O is not optimized for speed concerns.
 
@@ -61,6 +61,8 @@ def main():
         baseline_arr = get_baseline(x_arr, y_arr)
         hist_baseline, bins_baseline = np.histogram(
             baseline_arr, bins=np.logspace(1, 5, 20))
+        # correcting the over-counting of baseline pair
+        hist_baseline = hist_baseline/2.
         hist_baseline_cumsum = np.cumsum(hist_baseline)
         # save it
         if exper == "low":
@@ -90,7 +92,6 @@ def main():
 ################
 # SKA properties
 ################
-
 
 
 def SKA_get_active_baseline(length, exper_mode):
@@ -123,7 +124,6 @@ def SKA_get_active_baseline(length, exper_mode):
     return res
 
 
-
 def SKA_exper_nu(nu):
     """
     Returns the SKA experiment mode (low/mid) sensitive to the given frequency nu [GHz].
@@ -143,7 +143,6 @@ def SKA_exper_nu(nu):
         exper_mode = None  # just a placeholder, won't matter
 
     return exper_mode
-
 
 
 def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
@@ -184,8 +183,7 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
             ct._SKALow_station_diameter_  # /sqrt(eta)
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
-        number_of_dishes = ct._area_ska_low_ / \
-            (np.pi * ct._SKALow_station_diameter_**2 / 4.)
+        number_of_dishes = ct._SKALow_number_of_stations_
         number_of_measurements = number_of_dishes
         # Omega_max = np.inf  # being sloppy here but we never reach FOV
 
@@ -236,10 +234,9 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
         Omega_res = ct.angle_to_solid_angle(
             theta_res)  # solid angle of resolution [sr]
 
-        number_of_dishes = ct._area_ska_mid_ / \
-            (np.pi * ct._SKA1Mid_dish_diameter_**2 / 4.)
+        number_of_dishes = ct._SKA1Mid_number_of_dishes_
         number_of_measurements = number_of_dishes
-        Omega_max = np.inf  # being sloppy here but we never reach FOV
+        # Omega_max = np.inf  # being sloppy here but we never reach FOV
 
     elif exper_mode == 'SKA mid' and correlation_mode == "interferometry":
 
@@ -280,7 +277,6 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
     return area, window, Tr, eta, Omega_res, number_of_dishes, number_of_measurements
 
 
-
 def get_telescope_coordinate(tel_arr, r_arr, SKA):
     """Generate an array with coordinate of each telescope computed
 
@@ -297,12 +293,12 @@ def get_telescope_coordinate(tel_arr, r_arr, SKA):
         r_core = ct._SKA1Mid_r_core_
     r_fine_arr = np.interp(tel_fine_arr, tel_arr, r_arr)
 
-    # fix see as we don't really need the randomness
+    # fix seed as we don't really need the randomness
     np.random.seed(123)
     theta_arr = np.random.random(size=len(r_fine_arr)) * np.pi * 2.
 
     # over write the arm part
-    mask = np.where(r_fine_arr > r_core, True, False)
+    # mask = np.where(r_fine_arr > r_core, True, False)
     for i in tel_fine_arr:
         if r_fine_arr[int(i)] > r_core:
             theta_arr[int(i)] = int(i) % 3 * 2. * np.pi / 3.
@@ -313,7 +309,6 @@ def get_telescope_coordinate(tel_arr, r_arr, SKA):
     return x_arr, y_arr
 
 
-
 def get_baseline(x_arr, y_arr):
     """Given array coordinates x, y, compute lengths of each pair. Returns the array of pair lengths.
 
@@ -322,7 +317,7 @@ def get_baseline(x_arr, y_arr):
 
     """
     n_unit = len(x_arr)
-    n_baseline = int(n_unit * (n_unit - 1) / 2.)
+    # n_baseline = int(n_unit * (n_unit - 1) / 2.)
     baseline_arr = np.zeros((n_unit, n_unit))
     for i in range(n_unit):
         for j in range(n_unit):
@@ -336,23 +331,22 @@ def get_baseline(x_arr, y_arr):
     return baseline_arr
 
 
-
 ############
 # Efficiency
 ############
-
-#--------------------------------------
+# --------------------------------------
 # (nu, eta) arrays for SKA1 low and mid
 nu_eta_low = np.loadtxt(local_path+"/data/eta_low.csv", delimiter=",")
 nu_eta_mid = np.loadtxt(local_path+"/data/eta_mid.csv", delimiter=",")
 
-#------------------------
+# ------------------------
 # interpolating the data:
 eta_low_fn = tl.interp_fn(nu_eta_low)
 eta_mid_fn = tl.interp_fn(nu_eta_mid)
 
-#--------------------------------
+# --------------------------------
 # defining the general efficiency
+
 
 def eta_nu(nu, exper_mode):
     """Returns the efficiency eta.
@@ -370,39 +364,6 @@ def eta_nu(nu, exper_mode):
     return eta
 
 
-###############
-# Aeff
-###############
-
-# def get_eta_eff(nu, Tsys, SKA_conf):
-#     """Compute the effective area [m^2] for a given Tsys
-#
-#     :param Tsys: systematic noise temperature [K]
-#     :param SKA_conf: the dictionary that stores the SKA configurations
-#
-#     """
-#     nu_arr = SKA_conf['A/T'][:, 0]
-#     area_arr = SKA_conf['A/T'][:, 1] * Tsys
-#     nu, is_scalar = tl.treat_as_arr(nu)
-#     eta = []
-#
-#     for nu_i in nu:
-#         area_eff = np.interp(nu_i, nu_arr, area_arr)
-#
-#         if nu_i > ct._nu_max_ska_low_:
-#             area_geo = np.pi * (ct._SKA1Mid_dish_diameter_ / 2.)**2
-#         else:
-#             area_geo = np.pi * (ct._SKALow_station_diameter_ / 2.)**2
-#         eta.append(min(area_eff / area_geo, 1))  # eta cannot be larger than 1
-#     eta = np.array(eta)
-#
-#     if is_scalar:
-#         return np.squeeze(eta)
-#     else:
-#         return eta
-
-
 ##################################
-
 # The global variable to be saved
-SKA_conf = main()
+SKA_conf = initialize()

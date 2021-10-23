@@ -12,6 +12,7 @@ import os
 # functions converting between (diameter) angle and solid angle
 ###############################################################
 
+
 def angle_to_solid_angle(theta):
     """convert the angle to solid angle
 
@@ -54,13 +55,14 @@ _huge_ = 1.e100
 # Constants & Units
 ###################
 
-#------------------
+# ------------------
 # Constants:
 
 _light_speed_ = 299792458.  # [m/s]
 _k_B_ = NaturalUnit('K/J').val  # Boltzmann constant 1.3806503e-23 [J/K]
+_h_ = 2.*np.pi  # Planck's constant in natural unit
 
-#----------------
+# ----------------
 # Unit conversion
 
 _year_over_s_ = NaturalUnit('year/s').val  # 31557600
@@ -72,7 +74,9 @@ _kpc_over_m_ = NaturalUnit('kpc/m').val  # 3.0857e19
 _kpc_eV_ = NaturalUnit('kpc*eV').val
 _kpc_over_pc_ = 1000.
 _kpc_over_lightyear_ = NaturalUnit('kpc/year').val
-_GHz_over_eV_ = (NaturalUnit('1.e9/s/eV').val * 2.*np.pi)  # 4.13566773306e-06 NOTE: the crucial factor of 2*pi coming from Planck's Law: E = h*nu = hbar * 2pi * nu, in order to convert a photon's frequency into its energy
+# _GHz_over_eV_ = (NaturalUnit('1.e9/s/eV').val * 2.*np.pi)  # 4.13566773306e-06 NOTE: the crucial factor of 2*pi coming from Planck's Law: E = h*nu = hbar * 2pi * nu, in order to convert a photon's frequency into its energy
+# note that this is a pure unit conversion. It does not convert frequency to energy. Remember h=2pi when converting to energy.
+_GHz_over_eV_ = (NaturalUnit('1.e9/s/eV').val)
 _Jy_over_SFU_ = 1.e-4
 _Jy_over_eV3_ = (NaturalUnit('1e-26*J/s/m**2*s/eV**3').val /
                  (2.*np.pi))  # 3.867966373282915e-22
@@ -81,17 +85,17 @@ _Jy_over_cgs_irrad_ = 1.e-23  # [Jy] -> [erg * s^-1 * cm^-2 * Hz^-1]
 _Jy_over_SI_ = 1.e-26  # [Jy] -> [W * m^-2 * Hz^-1]
 _au_over_kpc_ = NaturalUnit('au/kpc').val  # 4.8481e-9
 _K_over_eV_ = NaturalUnit('K/eV').val
-_s_eV_ = NaturalUnit('s*eV').val # 1519267407871140
-_J_over_eV_ = NaturalUnit('J/eV').val # 6.24150934326018e+18
-_hour_eV_ = NaturalUnit('60.*60.*s*eV').val # 5.4693626683361e+18
-_m_eV_ = NaturalUnit('m*eV').val # 5067730.58270578
+_s_eV_ = NaturalUnit('s*eV').val  # 1519267407871140
+_J_over_eV_ = NaturalUnit('J/eV').val  # 6.24150934326018e+18
+_hour_eV_ = NaturalUnit('60.*60.*s*eV').val  # 5.4693626683361e+18
+_m_eV_ = NaturalUnit('m*eV').val  # 5067730.58270578
 _arcmin_over_radian_ = 1./60.*np.pi/180
 
 ##################
 # Astro quantities
 ##################
 
-#--------------------
+# --------------------
 # Galactic quantities
 
 _Sun_to_gal_center_ = 8.1  # [kpc]
@@ -105,7 +109,7 @@ _r_H_ = 9.26  # [kpc]
 # _r_H_ = 4.  # [kpc]
 _MW_spectral_beta_ = -2.75  # from Braun et al. 2019
 
-#-----------------------------------------
+# -----------------------------------------
 # Properties of some astrophysical objects
 
 # Sun:
@@ -124,18 +128,22 @@ _cygA_solid_angle_ = angle_to_solid_angle(
 _cygA_theta_ = 76.26 * np.pi/180.  # [radian]
 _cygA_bg_T_at_408Hz_ = 27.  # [K]
 
+# background temperatures
+_Tcmb_ = 2.7255  # cmb brightness [K]
+_Tatm_ = 3.  # atmospheric brightness [K]
+
 ##############################
 # SN fits from Bietenholz 2021
 ##############################
 
-#-------
+# -------
 # L_peak
 
 _mu_log10_Lpk_, _sig_log10_Lpk_ = 25.5, 1.5  # all types, D<100Mpc
 _mu_log10_Lpk_50_, _sig_log10_Lpk_50_ = 25.5, 1.5  # all types, D<50Mpc
 _mu_log10_Lpk_IIb_, _sig_log10_Lpk_IIb_ = 26.8, 0.5  # type IIb
 
-#-------
+# -------
 # t_peak
 
 _mu_log10_tpk_, _sig_log10_tpk_ = 1.7, 0.9  # all types, D<100Mpc
@@ -168,7 +176,7 @@ _deltaE_over_E_ = 0.00145326  # _tophat_width_ * _sigma_v_
 # Experiment specs
 ##################
 
-#------------------
+# ------------------
 # SKA aperture area
 
 # _area_ska_low_ = 419000.  # [m^2] Ghosh et al
@@ -185,7 +193,7 @@ _area_ska_low_ = 580667.  # [m^2]
 # 133 SKA 15m-dishes, 64 MeerKAT 13.5-dishes
 _area_ska_mid_ = 32663.9  # [m^2]
 
-#----------------
+# ----------------
 # SKA frequencies
 
 _band_width_ska_low_ = 0.3  # [GHz]
@@ -198,19 +206,19 @@ _nu_min_ska_mid_ = 0.35  # [GHz] # both SKA1/2
 _nu_max_ska_mid_ = 15.4  # [GHz] # this is SKA1-mid
 _nu_max_ska2_mid_ = 30.  # [GHz] # this is SKA2-mid c.f. Caputo
 
-#-------------------
+# -------------------
 # SKA receiver noise
 
 _Tr_ska_low_ = 40.
 _Tr_ska_mid_ = 20.
 
-#------------------
+# ------------------
 # SKA beam geometry
 
 _SKALow_station_diameter_ = 38.  # [m]
 _SKA1Mid_dish_diameter_ = 14.53  # [m] weighted average
 
-#------------------------
+# ------------------------
 # SKA array configuration
 
 
@@ -226,7 +234,7 @@ _SKALow_total_baselines_ = _SKALow_number_of_stations_ * \
     (_SKALow_number_of_stations_ - 1.) / 2.
 _SKALow_r_core_ = 300  # [m]
 
-#----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 # the value of theta_sig/theta_b at which the given baseline loses the signal
 # fudge factor */ 2
 _SKA_factor_lose_signal_ = 1.
