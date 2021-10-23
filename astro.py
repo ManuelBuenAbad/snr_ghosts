@@ -973,6 +973,12 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
 
 
 def T_atm(nu):
+    """Compute the atmospheric temperature [K]
+
+    :param nu: Frequency [GHz]
+
+    """
+
     nu, is_scalar = tl.treat_as_arr(nu)
     nu_low = nu[nu <= ct._nu_min_ska_mid_]
     nu_mid = nu[nu > ct._nu_min_ska_mid_]
