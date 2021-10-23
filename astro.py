@@ -1,5 +1,5 @@
 """
-This is a module for the basics of the astrophyscial expressions
+This is a module for the basics of the astrophysical expressions
 
 """
 
@@ -1013,9 +1013,9 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
     return bg_T408
 
 
-def T_noise(nu, Tbg_at_408=27, beta=ct._MW_spectral_beta_, Tr=None):
+def T_sys(nu, Tbg_at_408=27, beta=ct._MW_spectral_beta_, Tr=None):
     """
-    The background noise temperature [K]. This function can be used for any experiments but if Tr is not specified, it will be automatically computed based on SKA. 
+    The system temperature [K]. This function can be used for any experiments but if Tr is not specified, it will be automatically computed based on SKA.
 
     Parameters
     ----------
@@ -1033,8 +1033,6 @@ def T_noise(nu, Tbg_at_408=27, beta=ct._MW_spectral_beta_, Tr=None):
 
     Tcmb = 2.7255  # cmb brightness [K]
     Ta = 3.  # atmospheric brightness [K]
-    # Tbg_0 = 60.  # at 0.3 GHz [K]
-    # Tbg = Tbg_0 * (nu/0.3)**beta
     Tbg = Tbg_at_408 * (nu/0.408)**beta
 
     res = Tcmb + Ta + Tr + Tbg
@@ -1045,13 +1043,16 @@ def T_noise(nu, Tbg_at_408=27, beta=ct._MW_spectral_beta_, Tr=None):
     return res
 
 
-def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
+
+def T_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     """
-    The power of the noise [eV^2].
+    The noise rms temperature [K].
+
+    Based on Sec. 3 of arXiv:1811.08436.
 
     Parameters
     ----------
-    T_noise: the temperature of the noise [K]
+    T_sys: the system temperature [K]
     delnu: the bandwidth of the detector [GHz]
     tobs: the total observation time [hour]
     Omega_obs: the observation solid angle [sr]
@@ -1059,14 +1060,111 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     correlation_mode: the correlation mode, "single dish" or "interferometry".
     """
 
+    # Photons have two polarizations:
+    npol = 2.
+
+    # We now look for all the factors that will affect T_sys:
+
+    # 1. The number of independent measurements in time
+    N_time = (nu*1.e9)*(tobs*3600.) # [GHz --> 1/s], [hours --> s]
+
+    # 2. Any angular size-dependent factors:
+    # Angle of observation
+    theta_obs = ct.solid_angle_to_angle(Omega_obs)
+
+    # Starting with a size factor of 1...
+    size_factor = 1.
+    if correlation_mode == "single dish":
+
+        # Even though we always feed P_noise() with Omega_obs >= Omega_res
+        # I'm adding an extra check here just in case I get sloppy in the
+        # future. The noise increase due to larger angles is:
+        try:
+            factor = max(sqrt(Omega_obs/Omega_res), 1)
+        except ValueError:
+            factor = np.array([max(x, 1) for x in sqrt(Omega_obs/Omega_res)])
+
+        size_factor *= factor
+
+    elif correlation_mode == "interferometry":
+        # NOTE: according to Eq. (3.9) of 1811.08436, there should be a factor of (Omega_pix / Omega) * sqrt(N_pix) where N_pix is the number of pixels of size Omega_pix (given by theta_sinth) in the observed primary beam angle Omega. It seems to me that this factor amounts to 1/sqrt(N_pix), but that seems to be the opposite of what they're saying. Also, we are not computing theta_sinth yet. I'm making this factor to be 1 provisionally.
+        size_factor *= 1.
+
+    else:
+        raise Exception(
+            "Correlation mode can only be 'single dish' or 'interferometry'.\
+ You assigned %s" % correlation_mode)
+
+    # 3. the number of independent array measurements
+
+    nu, is_scalar = tl.treat_as_arr(nu)  # scalar --> array trick
+
+    if is_scalar:
+        # determine what exp we are looking at
+        exper_mode = sk.SKA_exper_nu(nu)
+        _, _, _, _, _, number_of_dishes, number_of_measurements = \
+            sk.SKA_specs(nu,
+                         exper_mode,
+                         correlation_mode=correlation_mode,
+                         theta_sig=theta_obs)
+
+        # the total independent number of measurements
+        N_meas = npol*np.squeeze(number_of_measurements)
+
+    else:
+        N_meas = []
+        for i, nu_i in enumerate(nu):
+            # determine what exp we are looking at
+            exper_mode = sk.SKA_exper_nu(nu_i)
+            _, _, _, _, _, number_of_dishes, number_of_measurements = \
+                sk.SKA_specs(nu_i,
+                             exper_mode,
+                             correlation_mode=correlation_mode,
+                             theta_sig=theta_obs[i])
+
+            # the total independent number of measurements
+            N_meas.append(npol*np.squeeze(number_of_measurements))
+        N_meas = np.array(N_meas)
+
+    res = T_sys*size_factor / sqrt(N_time) / sqrt(N_meas)
+
+    return res
+
+
+
+def P_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
+    """
+    The power of the noise [eV^2].
+
+    Parameters
+    ----------
+    T_sys: the temperature of the noise [K]
+    delnu: the bandwidth of the detector [GHz]
+    tobs: the total observation time [hour]
+    Omega_obs: the observation solid angle [sr]
+    Omega_res: the resolution solid angle [sr]
+    correlation_mode: the correlation mode, "single dish" or "interferometry".
+    """
+
+    # IMPORTANT: NOTA BENE: In converting the T_sys into energy (in Joules [J], after multiplying it by Boltzmann's constant) and then multiplying by the bandwidth frequency, the [Hz] units in the bandwidth play the role of the [1/s] in the SI units of power [W] = [J/s]. In other words [W] = [J*Hz]. Only after this one has to convert the SI power [W] into natural units [eV^2]. Converting the bandwidth frequency [Hz] into [eV] first *makes an error of 2pi*. The reason is that there's not energy associated with the bandwidth! The energy of the photons is *not* the bandwidth. The bandwidth is simply a rate time.
+
+    # From temperature and bandwidth to power:
+    # Tnu_to_P = (T_sys * ct._K_over_eV_) * (delnu * ct._GHz_over_eV_) # N.B.: WRONG!!!!!!!!
+    Tnu_to_P = (T_sys*ct._k_B_)*(delnu*1.e9) # [W] = [J/s]
+    Tnu_to_P *= ct._J_over_eV_/ct._s_eV_ # [W] --> eV^2
+
+    # number of independent measurements in time
+    N_time = (nu*1.e9)*(tobs*3600.) # [GHz --> 1/s], [hours --> s]
+
     # house keeping
     theta_obs = ct.solid_angle_to_angle(Omega_obs)
 
     # First, we compute the noise of a single unit
     if correlation_mode == "single dish":
         # this is the noise of a single dish
-        res = 2. * T_noise * ct._K_over_eV_ * \
-            sqrt(delnu * ct._GHz_over_eV_/(tobs * ct._hour_eV_))
+        res = sqrt(2.)*Tnu_to_P/sqrt(N_time)
+        # res = 2.*Tnu_to_P/sqrt(N_time) # NOTE: SEE BELOW!!!
+        # NOTA BENE: previously, the prefactor above was 2. But according to Caputo's 1811.08436, there should be a sqrt(npol) = sqrt(2) factor in the denominator due to the npol=2 polarizations of the photon.
 
         # Even though we always feed P_noise() with Omega_obs >= Omega_res
         # I'm adding an extra check here just in case I get sloppy in the
@@ -1078,8 +1176,7 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
         res *= factor
     elif correlation_mode == "interferometry":
         # this is the noise of a single baseline. c.f. 7-33 of Napier and Crane 1982
-        res = np.sqrt(2.) * T_noise * ct._K_over_eV_ * \
-            sqrt(delnu * ct._GHz_over_eV_/(tobs * ct._hour_eV_))
+        res = sqrt(2.)*Tnu_to_P/sqrt(N_time)
     else:
         raise Exception(
             "Correlation mode can only be 'single dish' or 'interferometry'.\
@@ -1092,7 +1189,7 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     if is_scalar:
         # determine what exp we are looking at
         exper_mode = sk.SKA_exper_nu(nu)
-        _, _, _, _, number_of_dishes, number_of_measurements = \
+        _, _, _, _, _, number_of_dishes, number_of_measurements = \
             sk.SKA_specs(nu,
                          exper_mode,
                          correlation_mode=correlation_mode,
@@ -1106,7 +1203,7 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
         for i, nu_i in enumerate(nu):
             # determine what exp we are looking at
             exper_mode = sk.SKA_exper_nu(nu_i)
-            _, _, _, _, number_of_dishes, number_of_measurements = \
+            _, _, _, _, _, number_of_dishes, number_of_measurements = \
                 sk.SKA_specs(nu_i,
                              exper_mode,
                              correlation_mode=correlation_mode,
@@ -1114,6 +1211,27 @@ def P_noise(T_noise, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
             res[i] *= number_of_dishes / np.sqrt(number_of_measurements)
 
     return res
+
+
+
+def T_signal(Snu, A, eta=None, f_Delta=1.):
+    """
+    The signal temperature, also called the antenna temperature [K].
+
+    Based on Sec. 3 of arXiv:1811.08436.
+
+    Parameters
+    ----------
+    Snu: the average flux density (spectral irradiance) over the bandwidth [Jy]
+    A: the area of the detector [m^2]
+    eta: the detector efficiency (default: 0.8)
+    f_Delta: the fraction of signal falling withing the bandwidth
+    """
+
+    res = f_Delta * (Snu * ct._Jy_over_SI_) * eta * A / 2. / ct._k_B_
+
+    return res
+
 
 
 def P_signal(S, A, eta=None, f_Delta=1.):

@@ -1,9 +1,9 @@
+# getting future division
+from __future__ import division
+
 # autoreloading for imported modules
 %load_ext autoreload
 %autoreload 2
-
-# getting future division
-from __future__ import division
 
 # numpy
 import numpy as np
@@ -21,6 +21,7 @@ from matplotlib.lines import Line2D
 # other
 import os
 import sys
+
 from tqdm import tqdm
 
 # parallelization
@@ -37,3 +38,6 @@ rc('text', usetex=True)
 
 # current directory
 current_dir = os.getcwd()
+
+# include paths from above
+sys.path.insert(0, '../')

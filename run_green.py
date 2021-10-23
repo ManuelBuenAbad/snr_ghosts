@@ -43,12 +43,6 @@ ga_ref = 1.e-10 # [GeV^-1]
 nu_pivot = 1. # [GHz]
 ma_pivot = pt.ma_from_nu(1.) # [eV]
 
-# A small number:
-very_small = 1.e-100
-
-# A large number
-very_large = 1.e100
-
 # Maximum number of steps:
 max_steps = 1000001
 
@@ -506,7 +500,7 @@ for i, name in tqdm(enumerate(sorted_names)):
 
             # Regularizing the signal-to-noise ratio:
             reg_z = np.nan_to_num(z)
-            reg_z = np.where(reg_z < very_small, very_small, reg_z) # converting 0s to a small number
+            reg_z = np.where(reg_z < ct._zero_, ct._zero_, reg_z) # converting 0s to a small number
 
             # Finding reach
             ga_reach = ec.ga_reach(sn_th, reg_z, ga_ref)
@@ -592,17 +586,17 @@ for i, name in tqdm(enumerate(sorted_names)):
 
                 # Regularizing the signal-to-noise ratio:
                 reg_z = np.nan_to_num(z)
-                reg_z = np.where(reg_z < very_small, very_small, reg_z) # converting 0s to a small number
+                reg_z = np.where(reg_z < ct._zero_, ct._zero_, reg_z) # converting 0s to a small number
 
                 # Finding reach
                 ga_reach = ec.ga_reach(sn_th, reg_z, ga_ref)
                 ga_reach = np.nan_to_num(ga_reach)
 
             except:
-                signal_Snu = very_small*np.ones_like(ma_arr)
-                reg_z = very_small*np.ones_like(ma_arr)
-                ga_reach = very_large*np.ones_like(ma_arr)
-                t_trans = very_small
+                signal_Snu = ct._zero_*np.ones_like(ma_arr)
+                reg_z = ct._zero_*np.ones_like(ma_arr)
+                ga_reach = ct._huge_*np.ones_like(ma_arr)
+                t_trans = ct._zero_
 
             # Saving spectral irradiance of echo (Snu_echo), S/N ratio, and ga reach
             np.savetxt(snr_folder+"echo_"+file_name, signal_Snu, delimiter=",")
@@ -696,7 +690,7 @@ for i, name in tqdm(enumerate(sorted_names)):
 
                     # Regularizing the signal-to-noise ratio:
                     reg_z = np.nan_to_num(z)
-                    reg_z = np.where(reg_z < very_small, very_small, reg_z) # converting 0s to a small number
+                    reg_z = np.where(reg_z < ct._zero_, ct._zero_, reg_z) # converting 0s to a small number
 
                     # Finding reach
                     ga_reach = ec.ga_reach(sn_th, reg_z, ga_ref)
@@ -711,11 +705,11 @@ for i, name in tqdm(enumerate(sorted_names)):
 
                 except:
                     # nonsense results; append some very small/large value
-                    row_a.append(very_small)
-                    row_b.append(very_small)
-                    row_c.append(very_large)
-                    row_d.append(very_small)
-                    row_e.append(very_small)
+                    row_a.append(ct._zero_)
+                    row_b.append(ct._zero_)
+                    row_c.append(ct._huge_)
+                    row_d.append(ct._zero_)
+                    row_e.append(ct._zero_)
 
                 # end of routine for fixed Lpk
 
@@ -810,7 +804,7 @@ for i, name in tqdm(enumerate(sorted_names)):
 
                     # Regularizing the signal-to-noise ratio:
                     reg_z = np.nan_to_num(z)
-                    reg_z = np.where(reg_z < very_small, very_small, reg_z) # converting 0s to a small number
+                    reg_z = np.where(reg_z < ct._zero_, ct._zero_, reg_z) # converting 0s to a small number
 
                     # Finding reach
                     ga_reach = ec.ga_reach(sn_th, reg_z, ga_ref)
@@ -825,11 +819,11 @@ for i, name in tqdm(enumerate(sorted_names)):
 
                 except:
                     # nonsense results; append some very small/large value
-                    row_a.append(very_small)
-                    row_b.append(very_small)
-                    row_c.append(very_large)
-                    row_d.append(very_small)
-                    row_e.append(very_small)
+                    row_a.append(ct._zero_)
+                    row_b.append(ct._zero_)
+                    row_c.append(ct._huge_)
+                    row_d.append(ct._zero_)
+                    row_e.append(ct._zero_)
 
                 # end of routine for fixed ttr
 

@@ -18,6 +18,7 @@ def snr_routine(ma, ga,
                 snu_echo_kwargs=None,
                 data=None,
                 output_all=False,
+                beta=ct._MW_spectral_beta_,
                 verbose=0):
     """
     Computes the full echo routine for any axion parameters (ma, ga) and a particular Supernova Remnant object.
@@ -33,6 +34,7 @@ def snr_routine(ma, ga,
     snu_echo_kwargs : keyword args that go into snu_echo computation (default: None)
     data : experiment and detection data dictionary (default: None)
     output_all : False
+    beta: the index for the Milky (default: -2.75 from Braun et al. 2019)
     """
 
     # Preparing source_input dictionary from SNR object
@@ -113,11 +115,11 @@ def snr_routine(ma, ga,
                                  source_input=source_input,
                                  data=data,
                                  Snu_echo_kwargs=snu_echo_kwargs,
-                                 beta=-2.55)
+                                 beta=beta)
 
     signal_power = new_output['signal_power']
     noise_power = new_output['noise_power']
-    signal_noise_ratio = new_output['S/N']
+    signal_noise_ratio = new_output['S/N_power']
 
     if verbose > 0:
         print('signal power:{}'.format(signal_power))

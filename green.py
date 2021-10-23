@@ -81,9 +81,6 @@ snrs_age_only = dt.snrs_age_only
 # FUNCTIONS #
 #############
 
-# a small number, but not too small for it to cause overflows when manipulated
-very_small = 1.e-100
-
 
 def load_green_results(name, run_id=None):
     """

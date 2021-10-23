@@ -9,10 +9,17 @@ import constants as ct
 import particle as pt
 import tools as tl
 
+#####################
+# Defining local path
+#####################
+
+local_path = os.path.dirname(os.path.abspath(__file__))
+
 
 ##############################
 # Preparing SKA configurations
 ##############################
+
 def main():
     """This routine is supposed to be run only once, therefore\
  the I/O is not optimized for speed concerns.
@@ -25,12 +32,10 @@ def main():
     # SKA-low
     for exper in ['low', 'mid']:
         if exper == "low":
-            path = os.path.dirname(os.path.abspath(__file__)) + \
-                "/data/SKA1-low_accumu.csv"
+            path = local_path + "/data/SKA1-low_accumu.csv"
 
         elif exper == "mid":
-            path = os.path.dirname(os.path.abspath(__file__)) + \
-                "/data/SKA1-mid_accumu.csv"
+            path = local_path + "/data/SKA1-mid_accumu.csv"
 
         data_raw = np.loadtxt(path, delimiter=',')
         radius = data_raw[:, 0]
@@ -68,16 +73,14 @@ def main():
         # about effective area
 
         if exper == "low":
-            path = os.path.dirname(os.path.abspath(__file__)) + \
-                "/data/SKA1-low_Aeff_over_Tsys.txt"
+            path = local_path + "/data/SKA1-low_Aeff_over_Tsys.txt"
             data_raw = np.loadtxt(path)
             # low is given in MHz, convert to GHz
             data_raw[:, 0] = data_raw[:, 0] * 1.e-3
             SKA_conf['low A/T'] = data_raw
 
         elif exper == "mid":
-            path = os.path.dirname(os.path.abspath(__file__)) + \
-                "/data/SKA1-mid_Aeff_over_Tsys.txt"
+            path = local_path + "/data/SKA1-mid_Aeff_over_Tsys.txt"
             data_raw = np.loadtxt(path)
             SKA_conf['mid A/T'] = data_raw
     SKA_conf['A/T'] = np.concatenate((SKA_conf['low A/T'],
@@ -87,6 +90,7 @@ def main():
 ################
 # SKA properties
 ################
+
 
 
 def SKA_get_active_baseline(length, exper_mode):
@@ -119,6 +123,7 @@ def SKA_get_active_baseline(length, exper_mode):
     return res
 
 
+
 def SKA_exper_nu(nu):
     """
     Returns the SKA experiment mode (low/mid) sensitive to the given frequency nu [GHz].
@@ -140,9 +145,18 @@ def SKA_exper_nu(nu):
     return exper_mode
 
 
+
 def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
     """
-    Returns the specifications (area [m^2], window, receiver noise brightness temperature [K], and solid angle resolution [sr], number_of_dishes, number_of_measurements) of the SKA experiment mode, for the given frequency [GHz].
+    Returns the SKA specifications for the given experiment mode and frequency [GHz]:
+
+    area [m^2],
+    window,
+    receiver noise brightness temperature [K],
+    efficiency,
+    solid angle resolution [sr],
+    number_of_dishes, and
+    number_of_measurements.
 
     Parameters
     ----------
@@ -153,14 +167,14 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
     """
 
     if exper_mode == None:
-        # area, window, Tr, Omega_res, Omega_max, number_of_dishes = 0., 0., 0., 1.e-100, np.inf, 1e100
-        area, window, Tr, Omega_res, number_of_dishes, number_of_measurements = 0., 0., 0., 1.e-100, 0., 0.  # set to zero so it will raise error if not treated
+        area, window, Tr, eta, Omega_res, number_of_dishes, number_of_measurements = 0., 0., 0., 0., 1.e-100, 0., 0.  # set to zero so it will raise error if not treated
 
     elif exper_mode == 'SKA low' and correlation_mode == "single dish":
         area = ct._area_ska_low_
         window = np.heaviside(nu - ct._nu_min_ska_low_, 1.) * \
             np.heaviside(ct._nu_max_ska_low_ - nu, 1.)
         Tr = ct._Tr_ska_low_
+        eta = eta_nu(nu, exper_mode)
 
         # finding resolution:
         wavelength = pt.lambda_from_nu(nu)/100.  # wavelength [m]
@@ -179,6 +193,7 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
         window = np.heaviside(nu - ct._nu_min_ska_low_, 1.) * \
             np.heaviside(ct._nu_max_ska_low_ - nu, 1.)
         Tr = ct._Tr_ska_low_
+        eta = eta_nu(nu, exper_mode)
 
         # get the required baseline length for nu
         wavelength = pt.lambda_from_nu(nu) / 100.  # wavelength [m]
@@ -209,6 +224,7 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
         window = np.heaviside(nu - ct._nu_min_ska_mid_, 0.) * \
             np.heaviside(ct._nu_max_ska_mid_ - nu, 1.)
         Tr = ct._Tr_ska_mid_
+        eta = eta_nu(nu, exper_mode)
 
         # finding resolution:
         wavelength = pt.lambda_from_nu(nu)/100.  # wavelength [m]
@@ -231,6 +247,7 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
         window = np.heaviside(nu - ct._nu_min_ska_mid_, 0.) * \
             np.heaviside(ct._nu_max_ska_mid_ - nu, 1.)
         Tr = ct._Tr_ska_mid_
+        eta = eta_nu(nu, exper_mode)
 
         # get the required baseline length for nu
         wavelength = pt.lambda_from_nu(nu) / 100.  # wavelength [m]
@@ -260,7 +277,8 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
     if number_of_measurements == 0:
         number_of_measurements = 1e-100
 
-    return area, window, Tr, Omega_res, number_of_dishes, number_of_measurements
+    return area, window, Tr, eta, Omega_res, number_of_dishes, number_of_measurements
+
 
 
 def get_telescope_coordinate(tel_arr, r_arr, SKA):
@@ -295,6 +313,7 @@ def get_telescope_coordinate(tel_arr, r_arr, SKA):
     return x_arr, y_arr
 
 
+
 def get_baseline(x_arr, y_arr):
     """Given array coordinates x, y, compute lengths of each pair. Returns the array of pair lengths.
 
@@ -316,37 +335,71 @@ def get_baseline(x_arr, y_arr):
     baseline_arr = baseline_arr[baseline_arr > 0]
     return baseline_arr
 
+
+
+############
+# Efficiency
+############
+
+#--------------------------------------
+# (nu, eta) arrays for SKA1 low and mid
+nu_eta_low = np.loadtxt(local_path+"/data/eta_low.csv", delimiter=",")
+nu_eta_mid = np.loadtxt(local_path+"/data/eta_mid.csv", delimiter=",")
+
+#------------------------
+# interpolating the data:
+eta_low_fn = tl.interp_fn(nu_eta_low)
+eta_mid_fn = tl.interp_fn(nu_eta_mid)
+
+#--------------------------------
+# defining the general efficiency
+
+def eta_nu(nu, exper_mode):
+    """Returns the efficiency eta.
+
+    nu : frequency [GHz]
+    exper_mode : mode in which the experiment is working
+    """
+    if exper_mode == None:
+        eta = 0.
+    elif exper_mode == 'SKA low':
+        eta = eta_low_fn(nu)
+    elif exper_mode == 'SKA mid':
+        eta = eta_mid_fn(nu)
+
+    return eta
+
+
 ###############
 # Aeff
 ###############
 
-
-def get_eta_eff(nu, Tsys, SKA_conf):
-    """Compute the effective area [m^2] for a given Tsys
-
-    :param Tsys: systematic noise temperature [K]
-    :param SKA_conf: the dictionary that stores the SKA configurations
-
-    """
-    nu_arr = SKA_conf['A/T'][:, 0]
-    area_arr = SKA_conf['A/T'][:, 1] * Tsys
-    nu, is_scalar = tl.treat_as_arr(nu)
-    eta = []
-
-    for nu_i in nu:
-        area_eff = np.interp(nu_i, nu_arr, area_arr)
-
-        if nu_i > ct._nu_max_ska_low_:
-            area_geo = np.pi * (ct._SKA1Mid_dish_diameter_ / 2.)**2
-        else:
-            area_geo = np.pi * (ct._SKALow_station_diameter_ / 2.)**2
-        eta.append(min(area_eff / area_geo, 1))  # eta cannot be larger than 1
-    eta = np.array(eta)
-
-    if is_scalar:
-        return np.squeeze(eta)
-    else:
-        return eta
+# def get_eta_eff(nu, Tsys, SKA_conf):
+#     """Compute the effective area [m^2] for a given Tsys
+#
+#     :param Tsys: systematic noise temperature [K]
+#     :param SKA_conf: the dictionary that stores the SKA configurations
+#
+#     """
+#     nu_arr = SKA_conf['A/T'][:, 0]
+#     area_arr = SKA_conf['A/T'][:, 1] * Tsys
+#     nu, is_scalar = tl.treat_as_arr(nu)
+#     eta = []
+#
+#     for nu_i in nu:
+#         area_eff = np.interp(nu_i, nu_arr, area_arr)
+#
+#         if nu_i > ct._nu_max_ska_low_:
+#             area_geo = np.pi * (ct._SKA1Mid_dish_diameter_ / 2.)**2
+#         else:
+#             area_geo = np.pi * (ct._SKALow_station_diameter_ / 2.)**2
+#         eta.append(min(area_eff / area_geo, 1))  # eta cannot be larger than 1
+#     eta = np.array(eta)
+#
+#     if is_scalar:
+#         return np.squeeze(eta)
+#     else:
+#         return eta
 
 
 ##################################

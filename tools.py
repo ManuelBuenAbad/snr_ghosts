@@ -26,6 +26,7 @@ def interp_fn(array):
     return fn
 
 
+
 def zeros(fn, arr, *args):
     """
     Find where a function crosses 0. Returns the zeroes of the function.
@@ -36,10 +37,10 @@ def zeros(fn, arr, *args):
     arr : array of arguments for function
     *args : any other arguments the function may have
     """
-    
+
     # the reduced function, with only the argument to be solved for (all other arguments fixed):
     def fn_reduced(array): return fn(array, *args)
-    
+
     # the array of values of the function:
     fn_arr = fn_reduced(arr)
 
@@ -73,6 +74,7 @@ def zeros(fn, arr, *args):
     return cross_arr
 
 
+
 def treat_as_arr(arg):
     """
     A routine to cleverly return scalars as (temporary and fake) arrays. True arrays are returned unharmed. Thanks to Chen!
@@ -89,10 +91,11 @@ def treat_as_arr(arg):
     return arr, is_scalar
 
 
+
 def load_dct(dct, key):
     """Used to load and determine if dict has a key
 
-    :param dct: the dictionary to be interogated 
+    :param dct: the dictionary to be interrogated
     :param key: the key to be tried
 
     """
