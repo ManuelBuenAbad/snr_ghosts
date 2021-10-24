@@ -134,7 +134,7 @@ _cygA_bg_T_at_408Hz_ = 27.  # [K]
 ######################
 # background temperatures
 _Tcmb_ = 2.7255  # cmb brightness [K]
-# _Tatm_ = 3.  # atmospheric brightness [K]
+_Tatm_ = 3.  # atmospheric brightness for SKA1-mid freq range [K]
 
 # -------------------
 # SKA receiver noise

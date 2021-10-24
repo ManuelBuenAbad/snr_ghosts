@@ -1000,11 +1000,12 @@ def Tatm_mid_fn(nu):
     """
 
     nu, is_scalar = tl.treat_as_arr(nu)
-    fn = tl.interp_fn(Tsky_mid)
-    Tsky_arr = fn(nu)
-    # Braun 10th percentile
-    Tgal_arr = 17.1 * (nu/0.408)**ct._MW_spectral_beta_
-    res = Tsky_arr - ct._Tcmb_ - Tgal_arr
+    # fn = tl.interp_fn(Tsky_mid)
+    # Tsky_arr = fn(nu)
+    # # Braun 10th percentile
+    # Tgal_arr = 17.1 * (nu/0.408)**ct._MW_spectral_beta_
+    # res = Tsky_arr - ct._Tcmb_ - Tgal_arr
+    res = np.ones_like(nu) * ct._Tatm_
     if is_scalar:
         res = np.squeeze(res)
     return res
