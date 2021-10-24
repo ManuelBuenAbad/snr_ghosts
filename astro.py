@@ -973,7 +973,9 @@ def bg_408_temp(l, b, size=None, average=False, verbose=True, load_on_the_fly=Fa
 
 
 def T_atm(nu):
-    """Compute the atmospheric temperature [K]
+    """Compute the atmospheric temperature [K].
+
+    NOTE: There is an unphysical break at the boundary.
 
     :param nu: Frequency [GHz]
 
@@ -993,7 +995,7 @@ def T_atm(nu):
 def Tatm_mid_fn(nu):
     """The atmospheric temperature for SKA1-Mid frequency
 
-    :param nu: frequency [GHz] 
+    :param nu: frequency [GHz]
 
     """
 
@@ -1009,55 +1011,17 @@ def Tatm_mid_fn(nu):
 
 
 def Tatm_low_fn(nu):
-    nu, is_scalar = tl.treat_as_arr(nu)
-    fn = tl.interp_fn(Tsky_low)
-    Tsky_arr = fn(nu)
-    # Tgal_arr = 20. * (0.408/nu)**2.55
-    Tgal_arr = 20. * (nu/0.408)**ct._MW_spectral_beta_  # Braun 2017
-    res = Tsky_arr - ct._Tcmb_ - Tgal_arr
-    if is_scalar:
-        res = np.squeeze(res)
-    return res
-
-
-def T_sys_mid(nu):
-    """System noise temperature [K] of a single dish for SKA-Mid. It's defined by Treceiver + Tspillover + Tsky, where Tsky = Tcmb + Tgal + Tatm. Note that this function is only used to compute eta from the table of Aeff/Tsys in Braun et al. It is not used in the noise computation. 
+    """The atmospheric temperature for SKA1-low frequency
 
     :param nu: frequency [GHz]
 
     """
     nu, is_scalar = tl.treat_as_arr(nu)
-    Tsky_arr = np.interp(nu, Tsky_mid[:, 0], Tsky_mid[:, 1])
-
-    # combine MeerKAT with SKA dishes
-    # if there's only SKA dish, use SKA dish
-    # if there are both, use geometric mean
-    Trec_arr = []
-    for nui in nu:
-        val1 = sk.Trec_mid_MeerKAT(nui)
-        val2 = sk.Trec_mid_SKA(nui)
-        if np.isinf(val1):
-            val1 = val2
-        val = np.sqrt(val1*val2)
-        Trec_arr.append(val)
-    Trec_arr = np.array(Trec_arr)
-    res = ct._T_spill_mid_ + Tsky_arr + Trec_arr
-    if is_scalar:
-        res = np.squeeze(res)
-    return res
-
-
-def T_sys_low(nu):
-    """System noise temperature [K] of a single station SKA-Low. It's defined by Treceiver + Tspillover + Tsky, where Tsky = Tcmb + Tgal + Tatm. Note that this function is only used to compute eta from the table of Aeff/Tsys in Braun et al. It is not used in the real noise computation. 
-"""
-
-    nu, is_scalar = tl.treat_as_arr(nu)
-
-    Tsky_arr = np.interp(nu, Tsky_low[:, 0], Tsky_low[:, 1])
-
-    Trec_arr = np.ones_like(nu) * 40.
-    res = ct._T_spill_low_ + Tsky_arr + Trec_arr
-    # res = Tsky_arr
+    fn = tl.interp_fn(Tsky_low)
+    Tsky_arr = fn(nu)
+    # Braun 2017
+    Tgal_arr = 20. * (nu/0.408)**ct._MW_spectral_beta_
+    res = Tsky_arr - ct._Tcmb_ - Tgal_arr
     if is_scalar:
         res = np.squeeze(res)
     return res
@@ -1076,16 +1040,36 @@ def T_sys(nu, Tbg_at_408=27, beta=ct._MW_spectral_beta_, Tr=None):
     """
 
     nu, is_scalar = tl.treat_as_arr(nu)
-    if Tr is None:
-        Tr = np.ones_like(nu)
-        Tr[(nu > ct._nu_max_ska_low_)] = ct._Tr_ska_mid_
-        Tr[(nu < ct._nu_max_ska_low_)] = ct._Tr_ska_low_
 
-    Tcmb = ct._Tcmb_  # cmb brightness [K]
-    Ta = T_atm(nu)  # atmospheric brightness [K]
+    nu_low_idx = np.where(nu <= ct._nu_max_ska_low_)
+    nu_mid_idx = np.where(nu > ct._nu_max_ska_low_)
+
+    # receiver temperature [K]
+    if Tr is None:
+        # use approximate values
+        Tr = np.where((nu > ct._nu_max_ska_low_), ct._Tr_ska_mid_avg_, ct._Tr_ska_low_)
+
+    # spill temperature [K]
+    # Ts = np.ones_like(nu)
+    # Ts[(nu > ct._nu_max_ska_low_)] = ct._T_spill_mid_
+    # Ts[(nu <= ct._nu_max_ska_low_)] = ct._T_spill_low_
+    Ts = np.where((nu > ct._nu_max_ska_low_), ct._T_spill_mid_, ct._T_spill_low_)
+
+    # CMB temperature [K]
+    Tcmb = ct._Tcmb_
+
+    # atmospheric temperature [K]
+    # the average temperature in the SKA1-mid range is 2.1 K, using 3 because we're conservative
+    # Ta = T_atm(nu)  # atmospheric brightness [K] # DEPRECATED, ADN WRONG FOR SKA1-mid
+    # Ta = np.ones_like(nu)
+    # Ta[(nu > ct._nu_max_ska_low_)] = T_atm(nu)
+    # Ta[(nu <= ct._nu_max_ska_low_)] = 3.
+    Ta = np.where((nu > ct._nu_max_ska_low_), T_atm(nu), 3.)
+
+    # background temperature [K]
     Tbg = Tbg_at_408 * (nu/0.408)**beta
 
-    res = Tcmb + Ta + Tr + Tbg
+    res = Tr + Ts + Ta + Tcmb + Tbg
 
     if is_scalar:
         res = np.squeeze(res)
@@ -1095,7 +1079,7 @@ def T_sys(nu, Tbg_at_408=27, beta=ct._MW_spectral_beta_, Tr=None):
 
 def T_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     """
-    The noise rms temperature [K] of the array. 
+    The noise rms temperature [K] of the array.
 
     Based on Sec. 3 of arXiv:1811.08436.
 
@@ -1292,8 +1276,10 @@ def P_signal(S, A, eta=None, f_Delta=1.):
     f_Delta: the fraction of signal falling withing the bandwidth
     """
     res = S * eta * A * f_Delta
+
     # fix units
     res *= ct._m_eV_**2
+
     return res
 
 

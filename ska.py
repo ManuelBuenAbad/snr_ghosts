@@ -8,7 +8,6 @@ import os
 import constants as ct
 import particle as pt
 import tools as tl
-import astro as ap
 
 
 ##############################
@@ -100,7 +99,7 @@ i.e. when the module is loaded, therefore\
     nu_arr = numid
     Aeff_over_Tsys_arr = np.interp(
         nu_arr, Aeff_over_Tsys[:, 0], Aeff_over_Tsys[:, 2])
-    Tsys_arr = ap.T_sys_mid(nu_arr)
+    Tsys_arr = T_sys_mid(nu_arr)
     eta_arr = Aeff_over_Tsys_arr * Tsys_arr / ct._area_ska_mid_
     SKA_conf['eta mid'] = (nu_arr, eta_arr)
 
@@ -108,7 +107,7 @@ i.e. when the module is loaded, therefore\
     nu_arr = nulow
     Aeff_over_Tsys_arr = np.interp(
         nu_arr, Aeff_over_Tsys[:, 0], Aeff_over_Tsys[:, 2])
-    Tsys_arr = ap.T_sys_low(nu_arr)
+    Tsys_arr = T_sys_low(nu_arr)
     eta_arr = Aeff_over_Tsys_arr * Tsys_arr / ct._area_ska_low_
     SKA_conf['eta low'] = (nu_arr, eta_arr)
 
@@ -202,7 +201,8 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
         area = ct._area_ska_low_
         window = np.heaviside(nu - ct._nu_min_ska_low_, 1.) * \
             np.heaviside(ct._nu_max_ska_low_ - nu, 1.)
-        Tr = ct._Tr_ska_low_
+        # Tr = ct._Tr_ska_low_ # DEPRECATED
+        Tr = Trec_low(nu)
         eta = eta_nu(nu)
 
         # finding resolution:
@@ -220,7 +220,8 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
     elif exper_mode == 'SKA low' and correlation_mode == "interferometry":
         window = np.heaviside(nu - ct._nu_min_ska_low_, 1.) * \
             np.heaviside(ct._nu_max_ska_low_ - nu, 1.)
-        Tr = ct._Tr_ska_low_
+        # Tr = ct._Tr_ska_low_ # DEPRECATED
+        Tr = Trec_low(nu)
         eta = eta_nu(nu)
 
         # get the required baseline length for nu
@@ -251,7 +252,8 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
         area = ct._area_ska_mid_
         window = np.heaviside(nu - ct._nu_min_ska_mid_, 0.) * \
             np.heaviside(ct._nu_max_ska_mid_ - nu, 1.)
-        Tr = ct._Tr_ska_mid_
+        # Tr = ct._Tr_ska_mid_ # DEPRECATED, AND INCONSISTENT
+        Tr = Trec_mid(nu)
         eta = eta_nu(nu)
 
         # finding resolution:
@@ -273,7 +275,8 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
         area = ct._area_ska_mid_
         window = np.heaviside(nu - ct._nu_min_ska_mid_, 0.) * \
             np.heaviside(ct._nu_max_ska_mid_ - nu, 1.)
-        Tr = ct._Tr_ska_mid_
+        # Tr = ct._Tr_ska_mid_ # DEPRECATED, AND INCONSISTENT
+        Tr = Trec_mid(nu)
         eta = eta_nu(nu)
 
         # get the required baseline length for nu
@@ -406,6 +409,83 @@ def Trec_mid_SKA(nu):
     return np.array(res)
 
 
+def Trec_mid(nu):
+    """Receiver noise temperature [K] of a typical SKA1-mid dish. Combines MeerKAT with SKA dishes. If there's only SKA dish, use that one; if there are both, use a weighted mean.
+
+    :param nu: frequency [GHz]
+
+    """
+
+    nu, is_scalar = tl.treat_as_arr(nu)
+    Trec_arr = []
+
+    for nui in nu:
+        val1 = Trec_mid_MeerKAT(nui)
+        val2 = Trec_mid_SKA(nui)
+        if np.isinf(val1):
+            val1 = val2
+        # val = np.sqrt(val1*val2) # NOTE: geometric mean puts them on equal footing, even if there was but a single MeerKAT telescope!!!
+        val = (val1*64. + val2*133.)/(133.+64.) # weighted mean: seems fairer
+        Trec_arr.append(val)
+    Trec_arr = np.array(Trec_arr)
+
+    if is_scalar:
+        Trec_arr = np.squeeze(Trec_arr)
+
+    return Trec_arr
+
+
+def Trec_low(nu):
+    """Receiver noise temperature [K] of a typical SKA1-low dish.
+
+    :param nu: frequency [GHz]
+
+    """
+
+    nu, is_scalar = tl.treat_as_arr(nu)
+    Trec_arr = np.ones_like(nu) * ct._Tr_ska_low_
+
+    if is_scalar:
+        Trec_arr = np.squeeze(Trec_arr)
+
+    return Trec_arr
+
+
+def T_sys_mid(nu):
+    """System noise temperature [K] of a single dish for SKA-Mid. It's defined by Treceiver + Tspillover + Tsky, where Tsky = Tcmb + Tgal + Tatm. Note that this function is only used to compute eta from the table of Aeff/Tsys in Braun et al. It is not used in the noise computation.
+
+    :param nu: frequency [GHz]
+
+    """
+    nu, is_scalar = tl.treat_as_arr(nu)
+
+    Tsky_arr = np.interp(nu, Tsky_mid[:, 0], Tsky_mid[:, 1])
+    Trec_arr = Trec_mid(nu)
+
+    res = ct._T_spill_mid_ + Tsky_arr + Trec_arr
+
+    if is_scalar:
+        res = np.squeeze(res)
+
+    return res
+
+
+def T_sys_low(nu):
+    """System noise temperature [K] of a single station SKA-Low. It's defined by Treceiver + Tspillover + Tsky, where Tsky = Tcmb + Tgal + Tatm. Note that this function is only used to compute eta from the table of Aeff/Tsys in Braun et al. It is not used in the real noise computation.
+"""
+
+    nu, is_scalar = tl.treat_as_arr(nu)
+
+    Tsky_arr = np.interp(nu, Tsky_low[:, 0], Tsky_low[:, 1])
+    Trec_arr = Trec_low(nu)
+
+    res = ct._T_spill_low_ + Tsky_arr + Trec_arr
+
+    if is_scalar:
+        res = np.squeeze(res)
+
+    return res
+
 # #
 # # efficiency related global vairiables
 # # --------------------------------------
@@ -436,13 +516,10 @@ def Trec_mid_SKA(nu):
 #     return eta
 
 
-def eta_nu(nu, exper=None):
+def eta_nu(nu):
     """Returns the efficiency eta.
 
     nu : frequency [GHz]
-    exper : DEPRECATED
-
-    exper_mode : mode in which the experiment is working
     """
     nu_arr, eta_arr = SKA_conf['eta']
     nu, is_scalar = tl.treat_as_arr(nu)
@@ -459,6 +536,17 @@ def eta_nu(nu, exper=None):
 # Defining local path
 # --------------------
 local_path = os.path.dirname(os.path.abspath(__file__))
+
+# load the sky temperature (Tsky=Tcmb + Tgal + Tatm)
+# from Braun et al. 2017
+# and SKA-TEL-SKO-0000308_SKA1_System_Baseline_v2_DescriptionRev01-part-1-signed.
+# Note that this Tsky is used for two things
+# 1. for computing eta
+# 2. for extracting Tatm
+# -------------------------
+
+Tsky_mid = np.loadtxt(local_path+"/data/Tsky_mid.csv", delimiter=',')
+Tsky_low = np.loadtxt(local_path+"/data/Tsky_low.csv", delimiter=',')
 
 # The global variable of SKA
 # configuration saved into SKA_conf
