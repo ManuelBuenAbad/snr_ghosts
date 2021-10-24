@@ -1,0 +1,17 @@
+.ipynb_checkpoints
+*~
+\#*#
+__pycache__
+local_test*
+plots*
+batch_*
+*.pyc
+**/output/**
+**/workspace_notebooks/scratch.ipynb
+**/workspace_notebooks/age_estimation.ipynb
+commands_batch.txt
+commands_run.txt
+gc_analysis.py
+mcmc.py
+**/data/jiji_etalow.csv
+**/data/jiji_etamid.csv
