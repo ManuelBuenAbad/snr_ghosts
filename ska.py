@@ -425,7 +425,7 @@ def Trec_mid(nu):
         if np.isinf(val1):
             val1 = val2
         # val = np.sqrt(val1*val2) # NOTE: geometric mean puts them on equal footing, even if there was but a single MeerKAT telescope!!!
-        val = (val1*64. + val2*133.)/(133.+64.) # weighted mean: seems fairer
+        val = (val1*64. + val2*133.)/(133.+64.)  # weighted mean: seems fairer
         Trec_arr.append(val)
     Trec_arr = np.array(Trec_arr)
 
@@ -449,6 +449,24 @@ def Trec_low(nu):
         Trec_arr = np.squeeze(Trec_arr)
 
     return Trec_arr
+
+
+def Trec(nu):
+    """The receiver noise [K] for both SKA1-Mid and SKA1-Low
+
+    :param nu: frequency [GHz]
+
+    """
+
+    nu, is_scalar = tl.treat_as_arr(nu)
+    res = np.zeros_like(nu)
+    low_idx = np.where(nu <= ct._nu_max_ska_low_)
+    mid_idx = np.where(nu > ct._nu_max_ska_low_)
+    res[low_idx] = Trec_low(nu[low_idx])
+    res[mid_idx] = Trec_mid(nu[mid_idx])
+    if is_scalar:
+        res = np.squeeze(res)
+    return res
 
 
 def T_sys_mid(nu):

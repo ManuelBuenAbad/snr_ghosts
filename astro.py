@@ -1041,19 +1041,18 @@ def T_sys(nu, Tbg_at_408=27, beta=ct._MW_spectral_beta_, Tr=None):
 
     nu, is_scalar = tl.treat_as_arr(nu)
 
-    nu_low_idx = np.where(nu <= ct._nu_max_ska_low_)
-    nu_mid_idx = np.where(nu > ct._nu_max_ska_low_)
-
     # receiver temperature [K]
     if Tr is None:
         # use approximate values
-        Tr = np.where((nu > ct._nu_max_ska_low_), ct._Tr_ska_mid_avg_, ct._Tr_ska_low_)
+        # Tr = np.where((nu > ct._nu_max_ska_low_), ct._Tr_ska_mid_avg_, ct._Tr_ska_low_)
+        Tr = sk.Trec(nu)
 
     # spill temperature [K]
     # Ts = np.ones_like(nu)
     # Ts[(nu > ct._nu_max_ska_low_)] = ct._T_spill_mid_
     # Ts[(nu <= ct._nu_max_ska_low_)] = ct._T_spill_low_
-    Ts = np.where((nu > ct._nu_max_ska_low_), ct._T_spill_mid_, ct._T_spill_low_)
+    Ts = np.where((nu > ct._nu_max_ska_low_),
+                  ct._T_spill_mid_, ct._T_spill_low_)
 
     # CMB temperature [K]
     Tcmb = ct._Tcmb_
@@ -1064,7 +1063,8 @@ def T_sys(nu, Tbg_at_408=27, beta=ct._MW_spectral_beta_, Tr=None):
     # Ta = np.ones_like(nu)
     # Ta[(nu > ct._nu_max_ska_low_)] = T_atm(nu)
     # Ta[(nu <= ct._nu_max_ska_low_)] = 3.
-    Ta = np.where((nu > ct._nu_max_ska_low_), T_atm(nu), 3.)
+    # Ta = np.where((nu > ct._nu_max_ska_low_), T_atm(nu), 3.)
+    Ta = T_atm(nu)
 
     # background temperature [K]
     Tbg = Tbg_at_408 * (nu/0.408)**beta
@@ -1135,11 +1135,10 @@ def T_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     if is_scalar:
         # determine what exp we are looking at
         exper_mode = sk.SKA_exper_nu(nu)
-        _, _, _, _, _, _, number_of_measurements = \
-            sk.SKA_specs(nu,
-                         exper_mode,
-                         correlation_mode=correlation_mode,
-                         theta_sig=theta_obs)
+        _, _, _, _, _, _, number_of_measurements = sk.SKA_specs(nu,
+                                                                exper_mode,
+                                                                correlation_mode=correlation_mode,
+                                                                theta_sig=theta_obs)
 
         # the total independent number of measurements
         N_meas = npol*np.squeeze(number_of_measurements)
@@ -1149,11 +1148,10 @@ def T_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
         for i, nu_i in enumerate(nu):
             # determine what exp we are looking at
             exper_mode = sk.SKA_exper_nu(nu_i)
-            _, _, _, _, _, _, number_of_measurements = \
-                sk.SKA_specs(nu_i,
-                             exper_mode,
-                             correlation_mode=correlation_mode,
-                             theta_sig=theta_obs[i])
+            _, _, _, _, _, _, number_of_measurements = sk.SKA_specs(nu_i,
+                                                                    exper_mode,
+                                                                    correlation_mode=correlation_mode,
+                                                                    theta_sig=theta_obs[i])
 
             # the total independent number of measurements
             N_meas.append(npol*np.squeeze(number_of_measurements))
@@ -1221,11 +1219,10 @@ def P_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     if is_scalar:
         # determine what exp we are looking at
         exper_mode = sk.SKA_exper_nu(nu)
-        _, _, _, _, _, number_of_dishes, number_of_measurements = \
-            sk.SKA_specs(nu,
-                         exper_mode,
-                         correlation_mode=correlation_mode,
-                         theta_sig=theta_obs)
+        _, _, _, _, _, number_of_dishes, number_of_measurements = sk.SKA_specs(nu,
+                                                                               exper_mode,
+                                                                               correlation_mode=correlation_mode,
+                                                                               theta_sig=theta_obs)
         # convert to the noise of all dishes combined
         res *= number_of_dishes/np.sqrt(number_of_measurements)
 
@@ -1235,11 +1232,10 @@ def P_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
         for i, nu_i in enumerate(nu):
             # determine what exp we are looking at
             exper_mode = sk.SKA_exper_nu(nu_i)
-            _, _, _, _, _, number_of_dishes, number_of_measurements = \
-                sk.SKA_specs(nu_i,
-                             exper_mode,
-                             correlation_mode=correlation_mode,
-                             theta_sig=theta_obs[i])
+            _, _, _, _, _, number_of_dishes, number_of_measurements = sk.SKA_specs(nu_i,
+                                                                                   exper_mode,
+                                                                                   correlation_mode=correlation_mode,
+                                                                                   theta_sig=theta_obs[i])
             res[i] *= number_of_dishes / np.sqrt(number_of_measurements)
 
     return res
@@ -1264,7 +1260,7 @@ def T_signal(Snu, A, eta=None, f_Delta=1.):
     return res
 
 
-def P_signal(S, A, eta=None, f_Delta=1.):
+def P_signal(S, A, eta=None, f_Delta=None):
     """
     The signal power, assuming given bandwidth [eV^2].
 
@@ -1272,8 +1268,8 @@ def P_signal(S, A, eta=None, f_Delta=1.):
     ----------
     S: the (integrated) flux (irradiance) [eV^4]
     A: the area of the detector [m^2]
-    eta: the detector efficiency (default: 0.8)
-    f_Delta: the fraction of signal falling withing the bandwidth
+    eta: the detector efficiency (default: None)
+    f_Delta: the fraction of signal falling withing the bandwidth (default: None)
     """
     res = S * eta * A * f_Delta
 

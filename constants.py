@@ -141,7 +141,7 @@ _Tcmb_ = 2.7255  # cmb brightness [K]
 
 _Tr_ska_low_ = 40.  # [K]
 # _Tr_ska_mid_ = 20.  # [K] # NOTE: should not be used, since we compute it on the fly, for consistency
-_Tr_ska_mid_avg_ = 10.55 # [K] average value of computer SKA1-mid Tr over the mid frequency band
+# _Tr_ska_mid_avg_ = 10.55 # [K] average value of computer SKA1-mid Tr over the mid frequency band
 
 _T_spill_mid_ = 3.  # [K]
 _T_spill_low_ = 0.  # [K]
