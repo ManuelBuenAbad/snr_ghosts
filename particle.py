@@ -5,9 +5,11 @@ This is a module for the basics of the particle physics
 from __future__ import division
 import numpy as np
 import constants as ct
-
+import tools as tl
 
 # decay constant
+
+
 def Gamma(ma, ga):
     """
     The decay width [eV] of axions to two photons.
@@ -31,8 +33,12 @@ def nu_from_ma(ma):
     ma : axion mass [eV]
     """
 
+    ma, is_scalar = tl.treat_as_arr(ma)
     E = ma/2.
-    return E/ct._GHz_over_eV_/ct._h_
+    res = E/ct._GHz_over_eV_/ct._h_
+    if is_scalar:
+        res = np.squeeze(res)
+    return res
 
 
 def ma_from_nu(nu):
@@ -43,10 +49,15 @@ def ma_from_nu(nu):
     ----------
     nu : photon frequency [GHz]
     """
+    nu, is_scalar = tl.treat_as_arr(nu)
 
     E = ct._h_ * nu * ct._GHz_over_eV_
+    res = 2*E
 
-    return 2*E
+    if is_scalar:
+        res = np.squeeze(res)
+
+    return res
 
 
 # wavelength

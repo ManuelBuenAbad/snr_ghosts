@@ -214,6 +214,7 @@ class ParamSpaceSlice2D(object):
             signal_Snu_arr = []
 
             for SKA_mode in ['interferometry', 'single dish']:
+                # for SKA_mode in ['single dish']:
                 # for SKA_mode in ['interferometry']:
                 data = {'deltaE_over_E': ct._deltaE_over_E_,
                         'f_Delta': ct._f_Delta_,
