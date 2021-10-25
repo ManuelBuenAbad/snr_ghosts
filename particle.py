@@ -74,3 +74,23 @@ def lambda_from_nu(nu):
     wl = 100.*ct._light_speed_*period  # [cm]
 
     return wl
+
+# p.s.d. of axion DM
+
+
+def fa(ma, va, rho_a=ct._rho_local_DM_):
+    """Compute the phase space distribution of axion DM
+
+    :param ma: axion mass [eV]
+    :param E: energy [eV]
+    :param rho_a: DM energy density [GeV/cm**3]
+
+    """
+    va, is_scalar = tl.treat_as_arr(va)
+    factor = rho_a * 1.e9 / ct._cm_eV_**3 / \
+        ma**4 * (2.*np.pi)**1.5 / ct._sigma_v_**3
+    exponent = - va**2/2./ct._sigma_v_**2
+    res = factor * np.exp(exponent)
+    if is_scalar:
+        res = np.squeeze(res)
+    return res

@@ -439,9 +439,6 @@ for i, name in tqdm(enumerate(sorted_names)):
     if verbose:
         print(name)
 
-    if name != 'G39.7-2.0':
-        continue
-
     #---------
     # SLICE 1:
     if args.slice == "ma-ga":
