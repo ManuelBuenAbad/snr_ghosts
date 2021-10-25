@@ -1094,7 +1094,7 @@ def T_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     correlation_mode: the correlation mode, "single dish" or "interferometry".
     """
 
-    # Photons have two polarizations:
+    # Photons have two polarizations, they will contribute to the number of independent measurements:
     npol = 2.
 
     # We now look for all the factors that will affect T_sys:
@@ -1180,8 +1180,12 @@ def P_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
     # IMPORTANT: NOTA BENE: In converting the T_sys into energy (in Joules [J], after multiplying it by Boltzmann's constant) and then multiplying by the bandwidth frequency, the [Hz] units in the bandwidth play the role of the [1/s] in the SI units of power [W] = [J/s]. In other words [W] = [J*Hz]. Only after this one has to convert the SI power [W] into natural units [eV^2]. Converting the bandwidth frequency [Hz] into [eV] first *makes an error of 2pi*. The reason is that there's not energy associated with the bandwidth! The energy of the photons is *not* the bandwidth. The bandwidth is simply a rate time.
 
     # From temperature and bandwidth to power:
-    # Tnu_to_P = (T_sys * ct._K_over_eV_) * (delnu * ct._GHz_over_eV_) # N.B.: WRONG!!!!!!!!
-    Tnu_to_P = (T_sys*ct._k_B_)*(delnu*1.e9)  # [W] = [J/s]
+
+    # photons have two polarizations
+    npol = 2.
+
+    # recall that temperatures are defined per unit d.o.f., i.e. they are defined per unit polarization; whereas on the other hand power gathers energy from all d.o.f.'s, so we need to multiply by the number of polarizations:
+    Tnu_to_P = npol*(T_sys*ct._k_B_)*(delnu*1.e9)  # [W] = [J/s]
     Tnu_to_P *= ct._J_over_eV_/ct._s_eV_  # [W] --> eV^2
 
     # number of independent measurements in time
@@ -1192,10 +1196,8 @@ def P_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
 
     # First, we compute the noise of a single unit
     if correlation_mode == "single dish":
-        # this is the noise of a single dish
-        res = sqrt(2.)*Tnu_to_P/sqrt(N_time)
-        # res = 2.*Tnu_to_P/sqrt(N_time) # NOTE: SEE BELOW!!!
-        # NOTA BENE: previously, the prefactor above was 2. But according to Caputo's 1811.08436, there should be a sqrt(npol) = sqrt(2) factor in the denominator due to the npol=2 polarizations of the photon.
+        # this is the noise of a single dish, after dividing by the statistics of npol*Ntime independent measurements
+        res = Tnu_to_P/sqrt(npol*N_time)
 
         # Even though we always feed P_noise() with Omega_obs >= Omega_res
         # I'm adding an extra check here just in case I get sloppy in the
@@ -1207,7 +1209,7 @@ def P_noise(T_sys, delnu, tobs, Omega_obs, Omega_res, nu, correlation_mode):
         res *= factor
     elif correlation_mode == "interferometry":
         # this is the noise of a single baseline. c.f. 7-33 of Napier and Crane 1982
-        res = sqrt(2.)*Tnu_to_P/sqrt(N_time)
+        res = Tnu_to_P/sqrt(npol*N_time)
     else:
         raise Exception(
             "Correlation mode can only be 'single dish' or 'interferometry'.\
@@ -1256,7 +1258,10 @@ def T_signal(Snu, A, eta=None, f_Delta=1.):
     f_Delta: the fraction of signal falling withing the bandwidth
     """
 
-    res = f_Delta * (Snu * ct._Jy_over_SI_) * eta * A / 2. / ct._k_B_
+    # photons have two polarizations
+    npol = 2.
+    # recall that temperatures are defined per unit polarization:
+    res = f_Delta * (Snu * ct._Jy_over_SI_) * eta * A / npol / ct._k_B_
 
     return res
 
@@ -1272,7 +1277,9 @@ def P_signal(S, A, eta=None, f_Delta=None):
     eta: the detector efficiency (default: None)
     f_Delta: the fraction of signal falling withing the bandwidth (default: None)
     """
+
     res = S * eta * A * f_Delta
+    # NOTE: power has to have the number of polarizations, which is included already in S, so no need to multiply by 2 again
 
     # fix units
     res *= ct._m_eV_**2
