@@ -26,7 +26,6 @@ def interp_fn(array):
     return fn
 
 
-
 def zeros(fn, arr, *args):
     """
     Find where a function crosses 0. Returns the zeroes of the function.
@@ -74,7 +73,6 @@ def zeros(fn, arr, *args):
     return cross_arr
 
 
-
 def treat_as_arr(arg):
     """
     A routine to cleverly return scalars as (temporary and fake) arrays. True arrays are returned unharmed. Thanks to Chen!
@@ -89,7 +87,6 @@ def treat_as_arr(arg):
         is_scalar = True  # keeping track of its scalar nature
 
     return arr, is_scalar
-
 
 
 def load_dct(dct, key):
@@ -107,3 +104,41 @@ def load_dct(dct, key):
         res = None
         is_success = False
     return res, is_success
+
+
+def scientific(val, output='string'):
+    """Convert a number to the scientific form
+
+    :param val: number(s) to be converted
+    :param output: LaTeX "string" form or "number" form. (Default: 'string')
+
+    """
+
+    val, is_scalar = treat_as_arr(val)
+    exponent, factor = [], []
+    string = []
+
+    for vali in val:
+        expi = int(np.log10(vali))
+        faci = vali / 10**expi
+        # save it
+        exponent.append(expi)
+        factor.append(faci)
+        if round(faci) == 1.:
+            string.append(r"$10^{{{:.0f}}}$".format(expi))
+        else:
+            string.append(
+                r"${{{:.0f}}} \times 10^{{{:.0f}}}$".format(faci, expi))
+    exponent = np.array(exponent)
+    factor = np.array(factor)
+    string = np.array(string)
+
+    if is_scalar:
+        exponent = np.squeeze(exponent)
+        factor = np.squeeze(factor)
+        string = np.squeeze(string)
+    if output == 'string':
+        res = string
+    elif output == 'number':
+        res = (factor, exponent)
+    return res
