@@ -130,10 +130,8 @@ adiab.add_argument("-k", "--t_peak", default=10**(ct._mu_log10_tpk_),
 
 # 1.2: Free+Adiabatic expansions lightcurve
 free_adiab = lc_subparser.add_parser("free+adiabatic", help="Both the free expansion and adiabatic expansion parts of the lightcurve will be used in our computations.")
-free_adiab.add_argument("-n", "--nuB", "--nu_Bietenholz", default=None,
-                        type=float, help="The Bietenholz frequency [GHz] (default: None)")
 free_adiab.add_argument("-L", "--L_peak", default=None,
-                        type=float, help="The peak luminosity [erg/s/Hz] (default: None)")
+                        type=float, help="The peak luminosity at 1 GHz [erg/s/Hz] (default: None)")
 free_adiab.add_argument("-k", "--t_peak", default=None,
                         type=float, help="The time [days] of peak SNR luminosity (default: None).")
 
@@ -244,11 +242,6 @@ if args.slice == "ma-ga":
 
         if (args.t_peak == None) or (args.L_peak == None):
             raise ValueError("If you want to run with fixed values for the free expansion parameters L_peak and t_peak, then you better pass both of them!")
-
-        if args.nuB == None:
-            raise ValueError("Pass a value for --nuB")
-
-        nuB = args.nuB
 
     else:
         pass
@@ -397,7 +390,7 @@ data = {'deltaE_over_E': ct._deltaE_over_E_,
 
 # Sorting the SNR names for easier tracking
 sorted_names = snrs_cut.keys()
-sorted_names.sort()
+sorted_names = sorted(sorted_names)
 
 # SNR counter
 counter = 0
@@ -445,6 +438,9 @@ for i, name in tqdm(enumerate(sorted_names)):
     # Printing SNR name!
     if verbose:
         print(name)
+
+    if name != 'G39.7-2.0':
+        continue
 
     #---------
     # SLICE 1:
@@ -529,12 +525,9 @@ for i, name in tqdm(enumerate(sorted_names)):
         #........................................................
         # free+adiabatic, fixed Lpk-tpk free expansion parameters
         else:
-            # Need to change Lpk @ nuB ---> Lpk @ 1 GHz
-            from_Bieten_to_pivot = (nu_pivot/nuB)**-alpha # correction from the fact that the Bietenholz frequency
-
             # Peak parameters
             tpk = args.t_peak
-            Lpk = args.L_peak*from_Bieten_to_pivot
+            Lpk = args.L_peak
 
             # Updating lightcurve parameters
             lightcurve_params.update({'t_peak':tpk,
@@ -684,10 +677,6 @@ for i, name in tqdm(enumerate(sorted_names)):
                     signal_Snu = new_output['signal_Snu']
                     del new_output
 
-                    if verbose:
-                        print("signal_Snu = "+str(signal_Snu))
-                        print("S/N= "+str(z))
-
                     # Regularizing the signal-to-noise ratio:
                     reg_z = np.nan_to_num(z)
                     reg_z = np.where(reg_z < ct._zero_, ct._zero_, reg_z) # converting 0s to a small number
@@ -735,6 +724,9 @@ for i, name in tqdm(enumerate(sorted_names)):
         np.savetxt(snr_folder+"ga_"+file_name, ga_gr, delimiter=",")
         np.savetxt(snr_folder+"tage_"+file_name, tage_gr, delimiter=",")
         np.savetxt(snr_folder+"ttrans_"+file_name, ttrans_gr, delimiter=",")
+
+        if verbose:
+            print("SNR %s done" % name)
 
 
     #---------
@@ -798,10 +790,6 @@ for i, name in tqdm(enumerate(sorted_names)):
                     signal_Snu = new_output['signal_Snu']
                     del new_output
 
-                    if verbose:
-                        print("signal_Snu = "+str(signal_Snu))
-                        print("S/N= "+str(z))
-
                     # Regularizing the signal-to-noise ratio:
                     reg_z = np.nan_to_num(z)
                     reg_z = np.where(reg_z < ct._zero_, ct._zero_, reg_z) # converting 0s to a small number
@@ -849,6 +837,9 @@ for i, name in tqdm(enumerate(sorted_names)):
         np.savetxt(snr_folder+"ga_"+file_name, ga_gr, delimiter=",")
         np.savetxt(snr_folder+"tage_"+file_name, tage_gr, delimiter=",")
         np.savetxt(snr_folder+"Lpk_"+file_name, Lpk_gr, delimiter=",")
+
+        if verbose:
+            print("SNR %s done" % name)
 
     #-----------
     counter += 1
