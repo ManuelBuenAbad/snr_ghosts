@@ -2706,11 +2706,11 @@ class CurvedText(mtext.Text):
 
 
 def gen_constraints(show_bounds=True):
-    
+
     plt.rcParams['axes.linewidth'] = 1.
     plt.rc('font', family='serif', size=25)
     fig, ax = plt.subplots(figsize=(9, 9))
-    
+
     fs = 20  # fontsize
     label_size = 20 # fontsize of labels
 
@@ -2720,7 +2720,7 @@ def gen_constraints(show_bounds=True):
     # plt.xlim(1e-7, 1e-3)
     plt.xlim(3e-7, 1e-4)
     plt.xlabel(r'$m_a$ [eV]', fontsize=label_size)
-    plt.ylabel(r'$g_{a\gamma}$ [GeV$^{-1}$]', fontsize=label_size)
+    plt.ylabel(r'$g_{a\gamma\gamma}$ [GeV$^{-1}$]', fontsize=label_size)
 
     text_on = True
     projection = False
