@@ -225,12 +225,15 @@ class ParamSpaceSlice2D(object):
                         'correlation_mode': SKA_mode}
 
                 # computing routine
-                z, new_output = md.snr_routine(pt.ma_from_nu(1.), self.ga_ref,
-                                               self.snr,
-                                               lightcurve_params=self.lightcurve_params,
-                                               snu_echo_kwargs=self.snu_echo_kwargs,
-                                               data=data,
-                                               output_all=True)
+                z, new_output = md.snr_routine(
+                    # pt.ma_from_nu(1.)
+                    1.e-6,  # [eV]
+                    self.ga_ref,
+                    self.snr,
+                    lightcurve_params=self.lightcurve_params,
+                    snu_echo_kwargs=self.snu_echo_kwargs,
+                    data=data,
+                    output_all=True)
 
                 signal_Snu = new_output['signal_Snu']
                 if args.verbose:
@@ -711,7 +714,7 @@ def gen_slice(slice_mode):
     # DONE: add 't total age' to the constructor
     elif slice_mode == "t-D":
         axis = ParamAxis("t age total",
-                         x0=10.*(args.tpk/365.),
+                         x0=(args.tpk/365.),
                          x1=1.e5,
                          steps=args.Nsteps+1,
                          is_log=True)
