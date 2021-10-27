@@ -3,10 +3,9 @@
 \#*#
 __pycache__
 local_test*
-plots*
 batch_*
 *.pyc
-**/output/**
+**/output/full_green_snr.zip
 **/workspace_notebooks/scratch.ipynb
 **/workspace_notebooks/age_estimation.ipynb
 **/workspace_notebooks/ws-12_emcee.ipynb

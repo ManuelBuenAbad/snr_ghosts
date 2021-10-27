@@ -82,7 +82,7 @@ def fa(ma, va, rho_a=ct._rho_local_DM_):
     """Compute the phase space distribution of axion DM
 
     :param ma: axion mass [eV]
-    :param E: energy [eV]
+    :param va: DM velocity [c]
     :param rho_a: DM energy density [GeV/cm**3]
 
     """
