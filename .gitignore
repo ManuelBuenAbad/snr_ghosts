@@ -9,6 +9,7 @@ batch_*
 **/output/**
 **/workspace_notebooks/scratch.ipynb
 **/workspace_notebooks/age_estimation.ipynb
+**/workspace_notebooks/ws-12_emcee.ipynb
 commands_batch.txt
 commands_run.txt
 gc_analysis.py
