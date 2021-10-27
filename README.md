@@ -14,17 +14,10 @@ Requirements
 6. astropy_healpix
 7. astroquery
 
-How to run
------------------------------------------
-
-In the terminal:
-
-	$ ???
-
 Bibtex entry
 -----------------------------------------
 
-If you use this code or find it in any way useful for your research, please cite [Buen-Abad, Fan, & Sun (2021)](https://arxiv.org/abs/21xx.yyyyy). The Bibtex entry is:
+If you use this code or part of it, or if you find it in any way useful for your research, please cite [Buen-Abad, Fan, & Sun (2021)](https://arxiv.org/abs/21xx.yyyyy). The Bibtex entry is:
 
 	@article{Buen-Abad:2021zzz,
 	    author = "Buen-Abad, Manuel A. and Fan, JiJi and Sun, Chen",
