@@ -17,14 +17,14 @@ Requirements
 Bibtex entry
 -----------------------------------------
 
-If you use this code or part of it, or if you find it in any way useful for your research, please cite [Buen-Abad, Fan, & Sun (2021)](https://arxiv.org/abs/21xx.yyyyy). The Bibtex entry is:
+If you use this code or part of it, or if you find it in any way useful for your research, please cite [Buen-Abad, Fan, & Sun (2021)](https://arxiv.org/abs/2110.13916). The BibTeX entry is:
 
-	@article{Buen-Abad:2021zzz,
+	@article{Buen-Abad:2021qvj,
 	    author = "Buen-Abad, Manuel A. and Fan, JiJi and Sun, Chen",
-	    title = "{TBD}",
-	    eprint = "21xx.yyyyy",
+	    title = "{Axion Echos from the Supernova Graveyard}",
+	    eprint = "2110.13916",
 	    archivePrefix = "arXiv",
 	    primaryClass = "hep-ph",
-	    month = "xx",
+	    month = "10",
 	    year = "2021"
 	}
