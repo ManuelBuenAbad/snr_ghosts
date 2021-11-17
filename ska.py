@@ -23,39 +23,91 @@ i.e. when the module is loaded, therefore\
 
     SKA_conf = {}
 
-    # --------------
-    # SKA-low
+    # # --------------
     for exper in ['low', 'mid']:
+        # if exper == "low":
+        #     path = local_path + "/data/SKA1-low_accumu.csv"
+
+        # elif exper == "mid":
+        #     path = local_path + "/data/SKA1-mid_accumu.csv"
+
+        # data_raw = np.loadtxt(path, delimiter=',')
+        # radius = data_raw[:, 0]
+        # fraction = data_raw[:, 1]
+        # bins_radius = np.logspace(1, 5, 20)  # bin it
+        # hist_radius = np.interp(np.log10(bins_radius), np.log10(
+        #     radius), fraction, left=0)  # sample at the bin edges
+
+        # if exper == "low":
+        #     # compute the x-y coordinates of all units
+        #     x_arr, y_arr = get_telescope_coordinate(
+        #         fraction*ct._SKALow_number_of_stations_, radius, SKA=exper)
+        #     # save it
+        #     SKA_conf['low radius'] = (data_raw, x_arr, y_arr, bins_radius,
+        #                               hist_radius)
+        # elif exper == "mid":
+        #     x_arr, y_arr = get_telescope_coordinate(
+        #         fraction*ct._SKA1Mid_number_of_dishes_, radius, SKA=exper)
+        #     SKA_conf['mid radius'] = (data_raw, x_arr, y_arr, bins_radius,
+        #                               hist_radius)
+
+        # get coordinates
         if exper == "low":
-            path = local_path + "/data/SKA1-low_accumu.csv"
+            SKA_conf['low0'] = np.loadtxt(
+                local_path + "/data/SKA1_config_low0.csv", delimiter=',')
+            SKA_conf['low1'] = np.loadtxt(
+                local_path + "/data/SKA1_config_low1.csv", delimiter=',')
+            SKA_conf['low2'] = np.loadtxt(
+                local_path + "/data/SKA1_config_low2_6clusters.csv", delimiter=',')
+
+            # update clusters, it's 6 stations per cluster
+            new_arr = []
+            for xy in (SKA_conf['low2']):
+                for j in range(2):
+                    for k in range(3):
+                        x = xy[0] + j*50
+                        y = xy[1] + (k-1)*50
+                        new_arr.append([x, y])
+            new_arr = np.array(new_arr)
+            SKA_conf['low2'] = new_arr
+
+            # combine them
+            SKA_conf['low_coord'] = np.concatenate(
+                (SKA_conf['low0'], SKA_conf['low1'], SKA_conf['low2']))
+
+            x_arr = SKA_conf['low_coord'][:, 0]
+            y_arr = SKA_conf['low_coord'][:, 1]
 
         elif exper == "mid":
-            path = local_path + "/data/SKA1-mid_accumu.csv"
+            SKA_conf['mid0_MeerKAT'] = np.loadtxt(
+                local_path + "/data/SKA1_config_mid0_MK.csv", delimiter=',')
+            SKA_conf['mid0_SKA'] = np.loadtxt(
+                local_path + "/data/SKA1_config_mid0_SKA.csv", delimiter=',')
+            SKA_conf['mid1_MeerKAT'] = np.loadtxt(
+                local_path + "/data/SKA1_config_mid1_MK.csv", delimiter=',')
+            SKA_conf['mid1_SKA'] = np.loadtxt(
+                local_path + "/data/SKA1_config_mid1_SKA.csv", delimiter=',')
+            SKA_conf['mid2_SKA'] = np.loadtxt(
+                local_path + "/data/SKA1_config_mid2_SKA.csv", delimiter=',')
 
-        data_raw = np.loadtxt(path, delimiter=',')
-        radius = data_raw[:, 0]
-        fraction = data_raw[:, 1]
-        bins_radius = np.logspace(1, 5, 20)  # bin it
-        hist_radius = np.interp(np.log10(bins_radius), np.log10(
-            radius), fraction, left=0)  # sample at the bin edges
+            # combine them
+            SKA_conf['mid_coord'] = np.concatenate(
+                (SKA_conf['mid0_MeerKAT'],
+                 SKA_conf['mid0_SKA'],
+                 SKA_conf['mid1_MeerKAT'],
+                 SKA_conf['mid1_SKA'],
+                 SKA_conf['mid2_SKA']))
 
-        if exper == "low":
-            # compute the x-y coordinates of all units
-            x_arr, y_arr = get_telescope_coordinate(
-                fraction*ct._SKALow_number_of_stations_, radius, SKA=exper)
-            # save it
-            SKA_conf['low radius'] = (data_raw, x_arr, y_arr, bins_radius,
-                                      hist_radius)
-        elif exper == "mid":
-            x_arr, y_arr = get_telescope_coordinate(
-                fraction*ct._SKA1Mid_number_of_dishes_, radius, SKA=exper)
-            SKA_conf['mid radius'] = (data_raw, x_arr, y_arr, bins_radius,
-                                      hist_radius)
+            # convert km to m
+            SKA_conf['mid_coord'][:, 0] = SKA_conf['mid_coord'][:, 0]*1.e3
+            SKA_conf['mid_coord'][:, 1] = SKA_conf['mid_coord'][:, 1]*1.e3
+            x_arr = SKA_conf['mid_coord'][:, 0]
+            y_arr = SKA_conf['mid_coord'][:, 1]
 
         # get baseline distribution
         baseline_arr = get_baseline(x_arr, y_arr)
         hist_baseline, bins_baseline = np.histogram(
-            baseline_arr, bins=np.logspace(1, 5, 20))
+            baseline_arr, bins=np.logspace(1, 5, 20000))
         # correcting the over-counting of baseline pair
         hist_baseline = hist_baseline/2.
         hist_baseline_cumsum = np.cumsum(hist_baseline)
@@ -310,36 +362,36 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
     return area, window, Tr, eta, Omega_res, number_of_dishes, number_of_measurements
 
 
-def get_telescope_coordinate(tel_arr, r_arr, SKA):
-    """Generate an array with coordinate of each telescope computed
+# def get_telescope_coordinate(tel_arr, r_arr, SKA):
+#     """Generate an array with coordinate of each telescope computed
 
-    :param tele_arr: the array of telescope index from 1 to (number of telescope)
-    :param radius_arr: the radius of each telescope
-    :param SKA: "low" or "mid"
+#     :param tele_arr: the array of telescope index from 1 to (number of telescope)
+#     :param radius_arr: the radius of each telescope
+#     :param SKA: "low" or "mid"
 
-    """
-    if SKA == "low":
-        tel_fine_arr = np.arange(ct._SKALow_number_of_stations_)
-        r_core = ct._SKALow_r_core_
-    elif SKA == "mid":
-        tel_fine_arr = np.arange(ct._SKA1Mid_number_of_dishes_)
-        r_core = ct._SKA1Mid_r_core_
-    r_fine_arr = np.interp(tel_fine_arr, tel_arr, r_arr)
+#     """
+#     if SKA == "low":
+#         tel_fine_arr = np.arange(ct._SKALow_number_of_stations_)
+#         r_core = ct._SKALow_r_core_
+#     elif SKA == "mid":
+#         tel_fine_arr = np.arange(ct._SKA1Mid_number_of_dishes_)
+#         r_core = ct._SKA1Mid_r_core_
+#     r_fine_arr = np.interp(tel_fine_arr, tel_arr, r_arr)
 
-    # fix seed as we don't really need the randomness
-    np.random.seed(123)
-    theta_arr = np.random.random(size=len(r_fine_arr)) * np.pi * 2.
+#     # fix seed as we don't really need the randomness
+#     np.random.seed(123)
+#     theta_arr = np.random.random(size=len(r_fine_arr)) * np.pi * 2.
 
-    # over write the arm part
-    # mask = np.where(r_fine_arr > r_core, True, False)
-    for i in tel_fine_arr:
-        if r_fine_arr[int(i)] > r_core:
-            theta_arr[int(i)] = int(i) % 3 * 2. * np.pi / 3.
+#     # over write the arm part
+#     # mask = np.where(r_fine_arr > r_core, True, False)
+#     for i in tel_fine_arr:
+#         if r_fine_arr[int(i)] > r_core:
+#             theta_arr[int(i)] = int(i) % 3 * 2. * np.pi / 3.
 
-    x_arr = r_fine_arr * np.cos(theta_arr)
-    y_arr = r_fine_arr * np.sin(theta_arr)
+#     x_arr = r_fine_arr * np.cos(theta_arr)
+#     y_arr = r_fine_arr * np.sin(theta_arr)
 
-    return x_arr, y_arr
+#     return x_arr, y_arr
 
 
 def get_baseline(x_arr, y_arr):
