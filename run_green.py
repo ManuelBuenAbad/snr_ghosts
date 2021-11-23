@@ -396,6 +396,11 @@ sorted_names = sorted(sorted_names)
 counter = 0
 for i, name in tqdm(enumerate(sorted_names)):
 
+# NOTE: SPEED UP!
+#    if name != 'G39.7-2.0':
+#        continue
+# NOTE: SPEED UP!
+
     # SNR object:
     snr = snrs_cut[name]
 
