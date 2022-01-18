@@ -1332,6 +1332,7 @@ L_arr_default = np.logspace(-40, 60, 50001)
 try:
     path = os.path.dirname(os.path.abspath(__file__))+'/data/'
     path = os.path.join(path, 'lambda_haslam408_dsds.fits')
+    # path = os.path.join(path, 'lambda_haslam408_nofilt.fits')
     map_allsky_408 = hp.read_map(path)
 except FileNotFoundError:
     raise Exception(
