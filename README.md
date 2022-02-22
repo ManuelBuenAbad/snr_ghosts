@@ -28,3 +28,11 @@ If you use this code or part of it, or if you find it in any way useful for your
 	    month = "10",
 	    year = "2021"
 	}
+
+
+Nota Bene
+-----------------------------------------
+
+In the computation of the signal and noise powers in interferometry mode, we have not accounted for the fact that only active telescopes contribute to the reception area, instead having used the total area. As such, the individual values for the signal and noise powers cannot be trusted. However, since both scale the same way with the reception area, their ratio can. This ratio is what we use in all our results.
+
+We will account for this area correction for the individual signal and noise powers in a future version of our code.

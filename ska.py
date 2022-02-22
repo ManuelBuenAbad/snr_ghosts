@@ -294,9 +294,13 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
         # for interferometry mode noise has 1/sqrt(number of active baselines)
         number_of_measurements = active_number_of_baselines
 
-        # assuming all dishes/stations contribute
-        # since S and N scale the same with reception area, S/N cancels out
-        # in the end only the number of measurements (baselines) matter
+        # NOTE: N.B.: this reception area is the total area, and is correct only assuming all dishes/stations contribute
+        # which is NOT true for large signal angular size. The code needs to be updated to include the fact that
+        # only active dishes/stations/telescopes are contributing. Thus, for large signal angular sizes,
+        # the individual values of the S and N CANNOT BE TRUSTED.
+        # However, since S and N scale the same with reception area, S/N cancels out
+        # in the end only the number of measurements (baselines) matter.
+        # Therefore, our S/N CAN INDEED be trusted.
         area = ct._area_ska_low_
         number_of_dishes = ct._SKALow_number_of_stations_
 
@@ -349,9 +353,13 @@ def SKA_specs(nu, exper_mode, correlation_mode=None, theta_sig=None):
         # for interferometry mode noise has 1/sqrt(number of active baselines)
         number_of_measurements = active_number_of_baselines
 
-        # assuming all dishes/stations contribute
-        # since S and N scale the same with reception area, S/N cancels out
-        # in the end only the number of measurements (baselines) matter
+        # NOTE: N.B.: this reception area is the total area, and is correct only assuming all dishes/stations contribute
+        # which is NOT true for large signal angular size. The code needs to be updated to include the fact that
+        # only active dishes/stations/telescopes are contributing. Thus, for large signal angular sizes,
+        # the individual values of the S and N CANNOT BE TRUSTED.
+        # However, since S and N scale the same with reception area, S/N cancels out
+        # in the end only the number of measurements (baselines) matter.
+        # Therefore, our S/N CAN INDEED be trusted.
         area = ct._area_ska_mid_
         number_of_dishes = ct._SKA1Mid_number_of_dishes_
 
